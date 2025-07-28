@@ -4,6 +4,7 @@ import { CalendarClock, FolderKanban, Wallet } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils";
 
 export default function Dashboard() {
   const totalRevenue = getTotalRevenue();
@@ -69,7 +70,7 @@ export default function Dashboard() {
                       <div>
                         <Link href={`/projects/${project.id}`} className="font-semibold hover:underline">{project.name}</Link>
                         <p className="text-sm text-muted-foreground">
-                          Prazo: {new Date(project.endDate).toLocaleDateString()}
+                          Prazo: {formatDate(project.endDate)}
                         </p>
                       </div>
                       <Link href={`/projects/${project.id}`}>

@@ -4,28 +4,28 @@ import { notFound } from "next/navigation";
 import { getProjectById, getClientById, getVisitsByProjectId, getPhotosByProjectId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, DollarSign, Edit, Image as ImageIcon, LoaderCircle, Plus, Send, XCircle } from "lucide-react";
+import { Calendar, CheckCircle, Clock, DollarSign, Edit, Image as ImageIcon, LoaderCircle, Plus, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useFormStatus } from "react-dom";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, use } from "react";
 import { createVisit, createPhoto } from "@/lib/actions";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/utils";
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
   return <Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : children}</Button>;
 }
 
-export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const project = getProjectById(id);
   const { toast } = useToast();
 
@@ -83,14 +83,14 @@ export default function ProjectDetailsPage({ params }: { params: { id: string } 
                     <Calendar className="w-5 h-5 text-accent" />
                     <div>
                         <p className="text-sm font-semibold">Início</p>
-                        <p className="text-sm text-muted-foreground">{new Date(project.startDate).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm text-muted-foreground">{formatDate(project.startDate)}</p>
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-accent" />
                     <div>
                         <p className="text-sm font-semibold">Término</p>
-                        <p className="text-sm text-muted-foreground">{new Date(project.endDate).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm text-muted-foreground">{formatDate(project.endDate)}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
