@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getProjectById, getClientById, getVisitsByProjectId, getPhotosByProjectId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, DollarSign, Edit, Image as ImageIcon, Plus, Send, XCircle } from "lucide-react";
+import { Calendar, CheckCircle, Clock, DollarSign, Edit, Image as ImageIcon, LoaderCircle, Plus, Send, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending ? "Salvando..." : children}</Button>;
+  return <Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : children}</Button>;
 }
 
 export default function ProjectDetailsPage({ params }: { params: { id: string } }) {

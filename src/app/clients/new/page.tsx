@@ -10,12 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
+import { LoaderCircle } from "lucide-react";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} aria-disabled={pending}>
-      {pending ? "Salvando..." : "Salvar Cliente"}
+      {pending ? (
+        <>
+          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+          Salvando...
+        </>
+      ) : (
+        "Salvar Cliente"
+      )}
     </Button>
   );
 }

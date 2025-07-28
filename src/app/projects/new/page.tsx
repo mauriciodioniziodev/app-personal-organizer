@@ -13,12 +13,20 @@ import PageHeader from "@/components/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { LoaderCircle } from "lucide-react";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} aria-disabled={pending}>
-      {pending ? "Salvando..." : "Salvar Projeto"}
+      {pending ? (
+        <>
+          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+          Salvando...
+        </>
+      ) : (
+        "Salvar Projeto"
+      )}
     </Button>
   );
 }
