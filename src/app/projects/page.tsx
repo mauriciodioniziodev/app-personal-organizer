@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,10 +8,16 @@ import { getProjects, getClients } from "@/lib/data";
 import { PlusCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import type { Project, Client } from '@/lib/definitions';
 
 export default function ProjectsPage() {
-  const projects = getProjects();
-  const clients = getClients();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    setProjects(getProjects());
+    setClients(getClients());
+  }, []);
 
   const getClientName = (clientId: string) => {
     return clients.find(c => c.id === clientId)?.name || "Cliente não encontrado";

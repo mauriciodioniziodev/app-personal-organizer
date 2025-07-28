@@ -1,12 +1,20 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClients } from "@/lib/data";
 import { PlusCircle, Mail, Phone } from "lucide-react";
 import PageHeader from "@/components/page-header";
+import { useState, useEffect } from "react";
+import type { Client } from "@/lib/definitions";
 
 export default function ClientsPage() {
-  const clients = getClients();
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    setClients(getClients());
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">

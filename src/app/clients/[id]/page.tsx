@@ -1,3 +1,6 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import { getClientById, getProjectsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
@@ -6,17 +9,29 @@ import { Mail, Phone, MapPin, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
+import type { Client, Project } from "@/lib/definitions";
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
-  const id = params.id;
-  const client = getClientById(id);
+export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+
+  const [client, setClient] = useState<Client | undefined>(undefined);
+  const [projects, setProjects] = useState<Project[]>([]);
+  
+  useEffect(() => {
+      const clientData = getClientById(id);
+      if (clientData) {
+          setClient(clientData);
+          setProjects(getProjectsByClientId(clientData.id));
+      } else {
+          // Handle case where client is not found
+      }
+  }, [id]);
 
   if (!client) {
-    notFound();
+    // You can return a loading state here
+    return <div>Carregando...</div>;
   }
-
-  const projects = getProjectsByClientId(client.id);
-
+  
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={client.name} />

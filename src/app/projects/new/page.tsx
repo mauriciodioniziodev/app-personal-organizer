@@ -38,12 +38,12 @@ export default function NewProjectPage() {
   const initialState = { errors: {}, message: null };
   const [state, dispatch] = useActionState(createProject, initialState);
   const [clients, setClients] = useState<Client[]>([]);
-  const { paymentStatus } = getMasterData();
+  const [masterData, setMasterData] = useState(getMasterData());
 
   useEffect(() => {
-    // Fetch clients on component mount
-    const clientsData = getClients();
-    setClients(clientsData);
+    // Fetch clients and master data on component mount
+    setClients(getClients());
+    setMasterData(getMasterData());
   }, []);
 
   return (
@@ -67,7 +67,7 @@ export default function NewProjectPage() {
                       <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                     ))
                   ) : (
-                    <div className="p-4 text-sm text-muted-foreground">Nenhum cliente encontrado.</div>
+                    <div className="p-4 text-sm text-muted-foreground">Nenhum cliente encontrado. Adicione um cliente primeiro.</div>
                   )}
                 </SelectContent>
               </Select>
@@ -106,8 +106,8 @@ export default function NewProjectPage() {
                 </div>
                  <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
-                    <RadioGroup name="paymentStatus" defaultValue={paymentStatus[0]} className="flex items-center pt-2 gap-4">
-                        {paymentStatus.map(status => (
+                    <RadioGroup name="paymentStatus" defaultValue={masterData.paymentStatus[0]} className="flex items-center pt-2 gap-4">
+                        {masterData.paymentStatus.map(status => (
                             <div key={status} className="flex items-center space-x-2">
                                 <RadioGroupItem value={status} id={status} />
                                 <Label htmlFor={status} className="capitalize">{status}</Label>

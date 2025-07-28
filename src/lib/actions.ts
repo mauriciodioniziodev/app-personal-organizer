@@ -35,6 +35,7 @@ export async function createClient(prevState: any, formData: FormData) {
   }
 
   revalidatePath("/clients");
+  revalidatePath("/projects/new");
   redirect("/clients");
 }
 
@@ -86,6 +87,7 @@ export async function createVisit(prevState: any, formData: FormData) {
     try {
         addVisit(validatedFields.data);
         revalidatePath(`/projects/${validatedFields.data.projectId}`);
+        revalidatePath('/visits');
         return { message: 'Visita adicionada com sucesso.' }
     } catch(e) {
         return { message: 'Erro ao adicionar visita.'}

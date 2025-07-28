@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTotalRevenue } from "@/lib/data";
 import { CalendarClock, FolderKanban, Wallet } from "lucide-react";
@@ -5,11 +8,18 @@ import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
+import type { Project, Visit } from '@/lib/definitions';
 
 export default function Dashboard() {
-  const totalRevenue = getTotalRevenue();
-  const activeProjects = getActiveProjects();
-  const upcomingVisits = getUpcomingVisits();
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [activeProjects, setActiveProjects] = useState<Project[]>([]);
+  const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
+
+  useEffect(() => {
+    setTotalRevenue(getTotalRevenue());
+    setActiveProjects(getActiveProjects());
+    setUpcomingVisits(getUpcomingVisits());
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
@@ -94,7 +104,7 @@ export default function Dashboard() {
                   {upcomingVisits.slice(0, 5).map((visit) => (
                      <li key={visit.id} className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</p>
                         <Link href={`/projects/${visit.projectId}`} className="text-sm text-muted-foreground hover:underline">
                           Projeto: {activeProjects.find(p => p.id === visit.projectId)?.name || 'Desconhecido'}
                         </Link>
