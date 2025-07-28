@@ -34,7 +34,6 @@ export async function createClient(prevState: any, formData: FormData) {
   try {
     const newClient = addClient(validatedFields.data);
     revalidatePath("/clients");
-    revalidatePath("/projects/new");
     return { success: true, newClient };
   } catch (error) {
     return { message: "Erro ao criar cliente.", success: false };

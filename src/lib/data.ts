@@ -1,3 +1,4 @@
+
 import type { Client, Project, Visit, Photo, MasterData } from './definitions';
 
 // --- Data Persistence Layer (using localStorage) ---
@@ -26,61 +27,9 @@ function loadData<T>(key: string, defaultValue: T): T {
 
 // --- Initial/Default Data ---
 
-const defaultClients: Client[] = [
-  {
-    id: '1',
-    name: 'Ana Silva',
-    phone: '11 98765-4321',
-    email: 'ana.silva@example.com',
-    address: 'Rua das Flores, 123, São Paulo, SP',
-    preferences: 'Prefere tons neutros e organização minimalista. Gosta de soluções práticas e de fácil manutenção. Cliente mencionou ter alergia a poeira, importante focar em soluções de armazenamento fechadas.',
-  },
-];
-
-const defaultVisits: Visit[] = [
-  { 
-    id: 'v1', 
-    clientId: '1', 
-    projectId: 'p1', 
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    status: 'realizada', 
-    summary: 'Primeira conversa e avaliação do espaço.',
-    photos: [] 
-  },
-  { 
-    id: 'v2', 
-    clientId: '1', 
-    projectId: '', 
-    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), 
-    status: 'pendente', 
-    summary: 'Implementação da organização.',
-    photos: [] 
-  },
-   { 
-    id: 'v3', 
-    clientId: '1', 
-    projectId: '', 
-    date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    status: 'pendente', 
-    summary: 'Planejamento do home office.',
-    photos: [] 
-  },
-];
-
-
-const defaultProjects: Project[] = [
-  {
-    id: 'p1',
-    clientId: '1',
-    visitId: 'v1',
-    name: 'Organização do Closet Principal',
-    description: 'Reorganização completa do closet do quarto principal, incluindo categorização de roupas e acessórios.',
-    startDate: '2024-07-01',
-    endDate: '2024-07-15',
-    value: 1500,
-    paymentStatus: 'pago',
-  },
-];
+const defaultClients: Client[] = [];
+const defaultVisits: Visit[] = [];
+const defaultProjects: Project[] = [];
 
 
 const defaultMasterData: MasterData = {
