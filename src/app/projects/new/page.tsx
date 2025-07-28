@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle } from "lucide-react";
+import type { Client } from "@/lib/definitions";
+import { useState, useEffect } from "react";
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -34,8 +37,14 @@ function SubmitButton() {
 export default function NewProjectPage() {
   const initialState = { errors: {}, message: null };
   const [state, dispatch] = useActionState(createProject, initialState);
-  const clients = getClients();
+  const [clients, setClients] = useState<Client[]>([]);
   const { paymentStatus } = getMasterData();
+
+  useEffect(() => {
+    // Fetch clients on component mount
+    const clientsData = getClients();
+    setClients(clientsData);
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
@@ -53,9 +62,13 @@ export default function NewProjectPage() {
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                  ))}
+                  {clients.length > 0 ? (
+                    clients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-4 text-sm text-muted-foreground">Nenhum cliente encontrado.</div>
+                  )}
                 </SelectContent>
               </Select>
                {state.errors?.clientId && <p className="text-sm text-destructive">{state.errors.clientId}</p>}
