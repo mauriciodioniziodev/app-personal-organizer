@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useSearchParams } from 'next/navigation'
 import { createProject } from "@/lib/actions";
-import { getClients, getMasterData } from "@/lib/data";
+import { getClients, getMasterData, getVisitById } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,8 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle } from "lucide-react";
-import type { Client } from "@/lib/definitions";
-import { useState, useEffect } from "react";
+import type { Client, Visit } from "@/lib/definitions";
 
 
 function SubmitButton() {
@@ -35,29 +35,47 @@ function SubmitButton() {
 }
 
 export default function NewProjectPage() {
+  const searchParams = useSearchParams();
+  const visitId = searchParams.get('fromVisit');
+
   const initialState = { errors: {}, message: null };
   const [state, dispatch] = useActionState(createProject, initialState);
+  
   const [clients, setClients] = useState<Client[]>([]);
-  const [masterData, setMasterData] = useState(getMasterData());
+  const [visit, setVisit] = useState<Visit | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  
+  const { paymentStatus } = getMasterData();
 
   useEffect(() => {
-    // Fetch clients and master data on component mount
     setClients(getClients());
-    setMasterData(getMasterData());
-  }, []);
+    if (visitId) {
+      const foundVisit = getVisitById(visitId);
+      if(foundVisit) {
+        setVisit(foundVisit);
+        setSelectedClientId(foundVisit.clientId);
+      }
+    }
+  }, [visitId]);
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
       <form action={dispatch}>
+        {visitId && <input type="hidden" name="visitId" value={visitId} />}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
+            {visit && (
+              <CardDescription>
+                Este projeto está sendo criado a partir da visita de {new Date(visit.date).toLocaleDateString('pt-BR')}
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="clientId">Cliente</Label>
-              <Select name="clientId" required>
+              <Select name="clientId" required value={selectedClientId} onValueChange={setSelectedClientId} disabled={!!visit}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
@@ -82,7 +100,7 @@ export default function NewProjectPage() {
 
             <div className="space-y-2">
               <Label htmlFor="description">Descrição</Label>
-              <Textarea id="description" name="description" placeholder="Descreva os objetivos e o escopo do projeto." />
+              <Textarea id="description" name="description" placeholder="Descreva os objetivos e o escopo do projeto." defaultValue={visit?.summary ?? ''} />
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -106,8 +124,8 @@ export default function NewProjectPage() {
                 </div>
                  <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
-                    <RadioGroup name="paymentStatus" defaultValue={masterData.paymentStatus[0]} className="flex items-center pt-2 gap-4">
-                        {masterData.paymentStatus.map(status => (
+                    <RadioGroup name="paymentStatus" defaultValue={paymentStatus[0]} className="flex items-center pt-2 gap-4">
+                        {paymentStatus.map(status => (
                             <div key={status} className="flex items-center space-x-2">
                                 <RadioGroupItem value={status} id={status} />
                                 <Label htmlFor={status} className="capitalize">{status}</Label>
@@ -119,7 +137,7 @@ export default function NewProjectPage() {
 
             <div className="flex justify-end gap-2 pt-4">
                 <Link href="/projects">
-                    <Button variant="outline">Cancelar</Button>
+                    <Button type="button" variant="outline">Cancelar</Button>
                 </Link>
                 <SubmitButton />
             </div>

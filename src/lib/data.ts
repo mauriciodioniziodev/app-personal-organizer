@@ -37,10 +37,42 @@ const defaultClients: Client[] = [
   },
 ];
 
+const defaultVisits: Visit[] = [
+  { 
+    id: 'v1', 
+    clientId: '1', 
+    projectId: 'p1', 
+    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
+    status: 'realizada', 
+    summary: 'Primeira conversa e avaliação do espaço.',
+    photos: [] 
+  },
+  { 
+    id: 'v2', 
+    clientId: '1', 
+    projectId: '', 
+    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), 
+    status: 'pendente', 
+    summary: 'Implementação da organização.',
+    photos: [] 
+  },
+   { 
+    id: 'v3', 
+    clientId: '1', 
+    projectId: '', 
+    date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), 
+    status: 'pendente', 
+    summary: 'Planejamento do home office.',
+    photos: [] 
+  },
+];
+
+
 const defaultProjects: Project[] = [
   {
     id: 'p1',
     clientId: '1',
+    visitId: 'v1',
     name: 'Organização do Closet Principal',
     description: 'Reorganização completa do closet do quarto principal, incluindo categorização de roupas e acessórios.',
     startDate: '2024-07-01',
@@ -48,47 +80,27 @@ const defaultProjects: Project[] = [
     value: 1500,
     paymentStatus: 'pago',
   },
-  {
-    id: 'p2',
-    clientId: '1',
-    name: 'Projeto Home Office',
-    description: 'Criação de um sistema de organização para o home office, otimizando o espaço e a produtividade.',
-    startDate: '2024-08-01',
-    endDate: '2024-08-10',
-    value: 1200,
-    paymentStatus: 'pendente',
-  },
 ];
 
-const defaultVisits: Visit[] = [
-  { id: 'v1', projectId: 'p1', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), status: 'realizada', summary: 'Primeira conversa e avaliação do espaço.' },
-  { id: 'v2', projectId: 'p1', date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), status: 'pendente', summary: 'Implementação da organização.' },
-  { id: 'v3', projectId: 'p2', date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), status: 'pendente', summary: 'Planejamento do home office.' },
-];
-
-const defaultPhotos: Photo[] = [
-    {id: 'ph1', projectId: 'p1', type: 'antes', url: 'https://placehold.co/600x400', description: 'Closet antes da organização'},
-    {id: 'ph2', projectId: 'p1', type: 'depois', url: 'https://placehold.co/600x400', description: 'Closet após a organização'},
-];
 
 const defaultMasterData: MasterData = {
     paymentStatus: ['pendente', 'pago'],
-    visitStatus: ['pendente', 'realizada', 'cancelada'],
-    photoTypes: ['antes', 'depois'],
+    visitStatus: ['pendente', 'realizada', 'cancelada', 'orçamento'],
+    photoTypes: ['ambiente', 'detalhe', 'inspiração'],
 }
 
 // --- Data Access Functions ---
 
-export const getClients = () => loadData('clients', defaultClients);
-export const getClientById = (id: string) => getClients().find(c => c.id === id);
+export const getClients = (): Client[] => loadData('clients', defaultClients);
+export const getClientById = (id: string): Client | undefined => getClients().find(c => c.id === id);
 
-export const getProjects = () => loadData('projects', defaultProjects);
-export const getProjectById = (id: string) => getProjects().find(p => p.id === id);
-export const getProjectsByClientId = (clientId: string) => getProjects().filter(p => p.clientId === clientId);
+export const getProjects = (): Project[] => loadData('projects', defaultProjects);
+export const getProjectById = (id: string): Project | undefined => getProjects().find(p => p.id === id);
+export const getProjectsByClientId = (clientId: string): Project[] => getProjects().filter(p => p.clientId === clientId);
 
-export const getVisits = () => loadData('visits', defaultVisits);
-export const getVisitsByProjectId = (projectId: string) => getVisits().filter(v => v.projectId === projectId).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-export const getPhotosByProjectId = (projectId: string) => loadData('photos', defaultPhotos).filter(p => p.projectId === projectId);
+export const getVisits = (): Visit[] => loadData('visits', defaultVisits);
+export const getVisitById = (id: string): Visit | undefined => getVisits().find(v => v.id === id);
+export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export const getMasterData = () => loadData('masterData', defaultMasterData);
 
@@ -109,34 +121,54 @@ export const getUpcomingVisits = () => {
 export const addClient = (client: Omit<Client, 'id'>) => {
   const clients = getClients();
   const newClient = { ...client, id: String(Date.now()) };
-  clients.push(newClient);
-  saveData('clients', clients);
+  saveData('clients', [...clients, newClient]);
   return newClient;
 };
 
 export const addProject = (project: Omit<Project, 'id'>) => {
   const projects = getProjects();
   const newProject = { ...project, id: `p${Date.now()}` };
-  projects.push(newProject);
-  saveData('projects', projects);
+  saveData('projects', [...projects, newProject]);
+
+  if (project.visitId) {
+    const visits = getVisits();
+    const visitIndex = visits.findIndex(v => v.id === project.visitId);
+    if(visitIndex !== -1) {
+      visits[visitIndex].projectId = newProject.id;
+      saveData('visits', visits);
+    }
+  }
+
   return newProject;
 };
 
-export const addVisit = (visit: Omit<Visit, 'id'>) => {
+export const createVisitFromClient = (visit: Omit<Visit, 'id' | 'photos' | 'projectId'>) => {
+  const visits = getVisits();
+  const newVisit = { ...visit, id: `v${Date.now()}`, photos: [], projectId: '' };
+  saveData('visits', [...visits, newVisit]);
+  return newVisit;
+}
+
+
+export const addVisit = (visit: Omit<Visit, 'id' | 'photos' | 'projectId' >) => {
     const visits = getVisits();
-    const newVisit = { ...visit, id: `v${Date.now()}` };
-    visits.push(newVisit);
-    saveData('visits', visits);
+    const newVisit: Visit = { ...visit, id: `v${Date.now()}`, photos: [], projectId: '' };
+    saveData('visits', [...visits, newVisit]);
     return newVisit;
 }
 
-export const addPhoto = (photo: Omit<Photo, 'id'>) => {
-    const photos = getPhotosByProjectId(photo.projectId);
-    const newPhoto = { ...photo, id: `ph${Date.now()}` };
-    photos.push(newPhoto);
-    saveData('photos', photos);
+export const addPhotoToVisit = (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
+    const visits = getVisits();
+    const visitIndex = visits.findIndex(v => v.id === photoData.visitId);
+    if (visitIndex === -1) {
+        throw new Error("Visita não encontrada");
+    }
+    const newPhoto = { ...photoData, id: `ph${Date.now()}` };
+    visits[visitIndex].photos.push(newPhoto);
+    saveData('visits', visits);
     return newPhoto;
 }
+
 
 export const updateMasterData = (data: MasterData) => {
     saveData('masterData', data);

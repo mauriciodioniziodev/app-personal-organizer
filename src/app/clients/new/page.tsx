@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createClient } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -29,8 +32,29 @@ function SubmitButton() {
 }
 
 export default function NewClientPage() {
-  const initialState = { errors: {}, message: null };
-  const [state, dispatch] = useActionState(createClient, initialState);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const [state, dispatch] = useActionState(async (prevState: any, formData: FormData) => {
+      const result = await createClient(prevState, formData);
+      if (result.success && result.newClient) {
+          toast({
+              title: "Cliente Criado com Sucesso!",
+              description: `${result.newClient.name} foi adicionado(a) à sua lista de clientes.`,
+          });
+          // router.push(`/clients/${result.newClient.id}`); // Redirect to the new client's page
+      } else if (result.errors) {
+          // Errors will be displayed by the form
+      } else {
+           toast({
+              variant: "destructive",
+              title: "Erro ao criar cliente",
+              description: result.message || "Ocorreu um erro inesperado. Tente novamente.",
+          });
+      }
+      return result;
+
+  }, { errors: {}, message: null, success: false });
 
   return (
     <div className="flex flex-col gap-8">
@@ -76,7 +100,7 @@ export default function NewClientPage() {
             </div>
             <div className="flex justify-end gap-2">
                 <Link href="/clients">
-                    <Button variant="outline">Cancelar</Button>
+                    <Button type="button" variant="outline">Cancelar</Button>
                 </Link>
                 <SubmitButton />
             </div>

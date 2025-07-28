@@ -16,6 +16,14 @@ export default function ClientsPage() {
     setClients(getClients());
   }, []);
 
+  // Re-fetch on focus to catch updates from other tabs
+  useEffect(() => {
+    const refetch = () => setClients(getClients());
+    window.addEventListener('focus', refetch)
+    return () => window.removeEventListener('focus', refetch)
+  }, [])
+
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Clientes">

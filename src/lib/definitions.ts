@@ -10,6 +10,7 @@ export type Client = {
 export type Project = {
   id: string;
   clientId: string;
+  visitId: string; // Projeto pode ser originado de uma visita
   name: string;
   description: string;
   startDate: string;
@@ -20,17 +21,18 @@ export type Project = {
 
 export type Visit = {
   id: string;
-  projectId: string;
+  clientId: string; // Visita pertence a um cliente
+  projectId: string; // Projeto associado (pode ser vazio inicialmente)
   date: string;
   status: string;
   summary: string;
+  photos: Photo[];
 };
 
 export type Photo = {
   id: string;
-  projectId: string;
-  type: string;
-  url: string;
+  type: 'upload' | 'camera'; // Origem da foto
+  url: string; // pode ser uma URL http ou um data URL base64
   description: string;
 };
 

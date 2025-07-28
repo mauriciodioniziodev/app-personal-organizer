@@ -1,9 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { addClient, addProject, addVisit, addPhoto } from "./data";
+import { addClient, addProject, addVisit, addPhotoToVisit, getVisits } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Visit } from "./definitions";
 
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
@@ -25,22 +26,23 @@ export async function createClient(prevState: any, formData: FormData) {
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
+      success: false,
     };
   }
   
   try {
-    addClient(validatedFields.data);
+    const newClient = addClient(validatedFields.data);
+    revalidatePath("/clients");
+    revalidatePath("/projects/new");
+    return { success: true, newClient };
   } catch (error) {
-    return { message: "Erro ao criar cliente." };
+    return { message: "Erro ao criar cliente.", success: false };
   }
-
-  revalidatePath("/clients");
-  revalidatePath("/projects/new");
-  redirect("/clients");
 }
 
 const projectSchema = z.object({
     clientId: z.string().min(1, "Cliente é obrigatório."),
+    visitId: z.string().optional(),
     name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
     description: z.string().optional(),
     startDate: z.string().min(1, "Data de início é obrigatória."),
@@ -65,43 +67,41 @@ export async function createProject(prevState: any, formData: FormData) {
     }
 
     revalidatePath('/projects');
+    if (validatedFields.data.visitId) {
+        revalidatePath(`/visits/${validatedFields.data.visitId}`);
+    }
     redirect('/projects');
 }
 
 const visitSchema = z.object({
-    projectId: z.string(),
+    clientId: z.string(),
     date: z.string().min(1, "Data é obrigatória."),
     summary: z.string().min(3, "Resumo é obrigatório."),
     status: z.string(),
 });
 
-export async function createVisit(prevState: any, formData: FormData) {
+export async function createVisit(formData: FormData): Promise<Visit> {
     const validatedFields = visitSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if(!validatedFields.success) {
-        return {
-            errors: validatedFields.error.flatten().fieldErrors,
-        }
+        throw new Error("Validação falhou");
     }
     
-    try {
-        addVisit(validatedFields.data);
-        revalidatePath(`/projects/${validatedFields.data.projectId}`);
-        revalidatePath('/visits');
-        return { message: 'Visita adicionada com sucesso.' }
-    } catch(e) {
-        return { message: 'Erro ao adicionar visita.'}
-    }
+    const newVisit = addVisit(validatedFields.data);
+    revalidatePath(`/clients/${validatedFields.data.clientId}`);
+    revalidatePath('/visits');
+    return newVisit;
 }
 
+
 const photoSchema = z.object({
-    projectId: z.string(),
-    url: z.string().url("URL inválida."),
+    visitId: z.string(),
+    url: z.string().min(1, "URL da imagem ou captura da câmera é obrigatória."), // Can be data URL
     description: z.string().min(3, "Descrição é obrigatória."),
-    type: z.string(),
+    type: z.string(), // 'upload' or 'camera'
 })
 
-export async function createPhoto(prevState: any, formData: FormData) {
+export async function addPhotoAction(formData: FormData) {
     const validatedFields = photoSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if(!validatedFields.success) {
@@ -111,8 +111,8 @@ export async function createPhoto(prevState: any, formData: FormData) {
     }
     
     try {
-        addPhoto(validatedFields.data);
-        revalidatePath(`/projects/${validatedFields.data.projectId}`);
+        addPhotoToVisit(validatedFields.data);
+        revalidatePath(`/visits/${validatedFields.data.visitId}`);
         return { message: 'Foto adicionada com sucesso.' }
     } catch(e) {
         return { message: 'Erro ao adicionar foto.'}

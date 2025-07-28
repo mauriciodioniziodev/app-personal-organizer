@@ -1,40 +1,101 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { notFound } from "next/navigation";
-import { getClientById, getProjectsByClientId } from "@/lib/data";
+import { notFound, useRouter } from "next/navigation";
+import { getClientById, getProjectsByClientId, getVisitsByClientId, createVisitFromClient } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, Lightbulb, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
-import type { Client, Project } from "@/lib/definitions";
+import type { Client, Project, Visit } from "@/lib/definitions";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { VisitForm } from "@/components/visit-form";
+
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const [client, setClient] = useState<Client | undefined>(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   useEffect(() => {
       const clientData = getClientById(id);
       if (clientData) {
           setClient(clientData);
           setProjects(getProjectsByClientId(clientData.id));
+          setVisits(getVisitsByClientId(clientData.id));
       } else {
-          // Handle case where client is not found
+         toast({
+            variant: "destructive",
+            title: "Cliente não encontrado",
+            description: "O cliente que você está tentando acessar não existe.",
+         });
+         router.push('/clients');
       }
-  }, [id]);
+  }, [id, router, toast]);
+
+  const handleVisitCreated = (newVisit: Visit) => {
+    setVisits(prev => [newVisit, ...prev]);
+    setIsVisitFormOpen(false);
+    toast({
+        title: "Visita Agendada!",
+        description: "A nova visita foi salva com sucesso.",
+    });
+  }
 
   if (!client) {
-    // You can return a loading state here
-    return <div>Carregando...</div>;
+    return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
   }
   
+  const allClientNotes = `
+    Preferências: ${client.preferences}
+    ${visits.map(v => `
+      Visita em ${new Date(v.date).toLocaleDateString('pt-BR')}:
+      - Resumo: ${v.summary}
+      - Fotos: ${v.photos.map(p => p.description).join(', ')}
+    `).join('')}
+     ${projects.map(p => `
+      Projeto "${p.name}":
+      - Descrição: ${p.description}
+    `).join('')}
+  `;
+
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title={client.name} />
+      <PageHeader title={client.name}>
+        <Dialog open={isVisitFormOpen} onOpenChange={setIsVisitFormOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <CalendarPlus className="mr-2 h-4 w-4" />
+                    Agendar Visita
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Agendar Nova Visita</DialogTitle>
+                </DialogHeader>
+                <VisitForm clientId={client.id} onVisitCreated={handleVisitCreated} />
+            </DialogContent>
+        </Dialog>
+      </PageHeader>
       
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
@@ -58,7 +119,32 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </CardContent>
             </Card>
 
-            <PreferenceAnalyzer clientName={client.name} clientDetails={client.preferences} />
+            <PreferenceAnalyzer clientName={client.name} clientDetails={allClientNotes} />
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Histórico de Visitas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {visits.length > 0 ? (
+                        <ul className="space-y-4">
+                            {visits.map(visit => (
+                                <li key={visit.id}>
+                                    <Link href={`/visits/${visit.id}`} className="block p-4 rounded-lg border hover:bg-muted transition-colors">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-semibold">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long', timeZone: 'UTC' })}</h4>
+                                             <span className="text-xs font-semibold capitalize px-2 py-1 rounded-full bg-secondary text-secondary-foreground">{visit.status}</span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{visit.summary}</p>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-4">Nenhuma visita agendada para este cliente.</p>
+                    )}
+                </CardContent>
+            </Card>
 
         </div>
         

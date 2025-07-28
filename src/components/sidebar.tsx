@@ -8,8 +8,8 @@ import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClo
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/clients", label: "Clientes", icon: Users },
-  { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/visits", label: "Visitas", icon: CalendarClock },
+  { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/admin", label: "Administração", icon: Settings },
 ];
 
