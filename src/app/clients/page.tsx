@@ -7,23 +7,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { getClients } from "@/lib/data";
 import { PlusCircle, Mail, Phone } from "lucide-react";
 import PageHeader from "@/components/page-header";
-import { useState, useEffect } from "react";
 import type { Client } from "@/lib/definitions";
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-
-  useEffect(() => {
-    setClients(getClients());
-  }, []);
-
-  // Re-fetch on focus to catch updates from other tabs
-  useEffect(() => {
-    const refetch = () => setClients(getClients());
-    window.addEventListener('focus', refetch)
-    return () => window.removeEventListener('focus', refetch)
-  }, [])
-
+  // Busca os clientes diretamente. Como getClients usa localStorage,
+  // isso funcionará no lado do cliente sem a necessidade de `useState` e `useEffect`.
+  const clients: Client[] = getClients();
 
   return (
     <div className="flex flex-col gap-8">
