@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { createClient } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ function SubmitButton() {
 
 export default function NewClientPage() {
   const initialState = { errors: {}, message: null };
-  const [state, dispatch] = useFormState(createClient, initialState);
+  const [state, dispatch] = useActionState(createClient, initialState);
 
   return (
     <div className="flex flex-col gap-8">

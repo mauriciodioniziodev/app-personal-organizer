@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { createProject } from "@/lib/actions";
 import { getClients } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ function SubmitButton() {
 
 export default function NewProjectPage() {
   const initialState = { errors: {}, message: null };
-  const [state, dispatch] = useFormState(createProject, initialState);
+  const [state, dispatch] = useActionState(createProject, initialState);
   const clients = getClients();
 
   return (

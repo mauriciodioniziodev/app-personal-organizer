@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { createVisit, createPhoto } from "@/lib/actions";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -30,8 +31,8 @@ export default function ProjectDetailsPage({ params }: { params: { id: string } 
   const visitFormRef = useRef<HTMLFormElement>(null);
   const photoFormRef = useRef<HTMLFormElement>(null);
 
-  const [visitFormState, dispatchVisit] = useFormState(createVisit, { message: null });
-  const [photoFormState, dispatchPhoto] = useFormState(createPhoto, { message: null });
+  const [visitFormState, dispatchVisit] = useActionState(createVisit, { message: null });
+  const [photoFormState, dispatchPhoto] = useActionState(createPhoto, { message: null });
 
    useEffect(() => {
     if (visitFormState?.message) {
