@@ -17,8 +17,8 @@ const alegreya = Alegreya({
 });
 
 export const metadata: Metadata = {
-  title: "OrganizerFlow",
-  description: "Organize your projects and clients with ease.",
+  title: "Amanda Martins",
+  description: "Organização personalizada",
 };
 
 export default function RootLayout({

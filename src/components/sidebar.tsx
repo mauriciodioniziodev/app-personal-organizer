@@ -17,11 +17,14 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 bg-card border-r">
       <div className="p-6">
-        <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <FolderKanban className="w-5 h-5 text-primary-foreground" />
+        <Link href="/" className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-foreground"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
             </div>
-          <h1 className="text-2xl font-headline text-foreground">OrganizerFlow</h1>
+          <div>
+            <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
+            <p className="text-xs text-muted-foreground">Organização personalizada</p>
+          </div>
         </Link>
       </div>
       <nav className="flex-1 px-4">
