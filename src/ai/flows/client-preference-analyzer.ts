@@ -30,14 +30,15 @@ const prompt = ai.definePrompt({
   name: 'analyzeClientPreferencesPrompt',
   input: {schema: AnalyzeClientPreferencesInputSchema},
   output: {schema: AnalyzeClientPreferencesOutputSchema},
-  prompt: `You are an AI assistant designed to analyze client details and extract insightful summaries of their preferences.
+  prompt: `Você é um assistente de IA projetado para analisar detalhes de clientes e extrair resumos perspicazes de suas preferências.
+  Seu resultado deve ser sempre no idioma Português do Brasil.
 
-  Analyze the following client details and provide a concise summary of the client's preferences, considering their past projects, visit summaries, and any other relevant notes.
+  Analise os seguintes detalhes do cliente e forneça um resumo conciso das preferências do cliente, considerando seus projetos anteriores, resumos de visitas e quaisquer outras notas relevantes.
 
-  Client Name: {{{clientName}}}
-  Client Details: {{{clientDetails}}}
+  Nome do Cliente: {{{clientName}}}
+  Detalhes do Cliente: {{{clientDetails}}}
 
-  Summarized Preferences:`, // No Handlebars in strings.
+  Preferências Resumidas:`, // No Handlebars in strings.
 });
 
 const analyzeClientPreferencesFlow = ai.defineFlow(

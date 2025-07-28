@@ -4,6 +4,8 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import Sidebar from "@/components/sidebar";
 import { Toaster } from "@/components/ui/toaster";
+import { GlobalLoadingIndicator } from "@/components/global-loading-indicator";
+import { Suspense } from "react";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -43,6 +45,9 @@ export default function RootLayout({
           alegreya.variable
         )}
       >
+        <Suspense>
+          <GlobalLoadingIndicator />
+        </Suspense>
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="w-full flex-1 flex-col p-4 sm:p-6 md:p-8">

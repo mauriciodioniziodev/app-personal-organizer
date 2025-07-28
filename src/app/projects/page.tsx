@@ -43,7 +43,7 @@ export default function ProjectsPage() {
                 </div>
                  <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Status:</span>
-                    <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground' : ''}>
+                    <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
                         {project.paymentStatus}
                     </Badge>
                 </div>

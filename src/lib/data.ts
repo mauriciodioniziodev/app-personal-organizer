@@ -1,4 +1,4 @@
-import type { Client, Project, Visit, Photo } from './definitions';
+import type { Client, Project, Visit, Photo, MasterData } from './definitions';
 
 let clients: Client[] = [
   {
@@ -45,6 +45,12 @@ let photos: Photo[] = [
     {id: 'ph2', projectId: 'p1', type: 'depois', url: 'https://placehold.co/600x400', description: 'Closet após a organização'},
 ];
 
+let masterData: MasterData = {
+    paymentStatus: ['pendente', 'pago'],
+    visitStatus: ['pendente', 'realizada', 'cancelada'],
+    photoTypes: ['antes', 'depois'],
+}
+
 // Data access functions
 export const getClients = () => clients;
 export const getClientById = (id: string) => clients.find(c => c.id === id);
@@ -55,6 +61,8 @@ export const getProjectsByClientId = (clientId: string) => projects.filter(p => 
 
 export const getVisitsByProjectId = (projectId: string) => visits.filter(v => v.projectId === projectId).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 export const getPhotosByProjectId = (projectId: string) => photos.filter(p => p.projectId === projectId);
+
+export const getMasterData = () => masterData;
 
 
 // Dashboard functions
@@ -92,4 +100,9 @@ export const addPhoto = (photo: Omit<Photo, 'id'>) => {
     const newPhoto = { ...photo, id: `ph${Date.now()}` };
     photos.push(newPhoto);
     return newPhoto;
+}
+
+export const updateMasterData = (data: MasterData) => {
+    masterData = data;
+    return masterData;
 }

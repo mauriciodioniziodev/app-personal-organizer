@@ -45,7 +45,7 @@ const projectSchema = z.object({
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
-    paymentStatus: z.enum(['pendente', 'pago'])
+    paymentStatus: z.string()
 });
 
 export async function createProject(prevState: any, formData: FormData) {
@@ -71,7 +71,7 @@ const visitSchema = z.object({
     projectId: z.string(),
     date: z.string().min(1, "Data é obrigatória."),
     summary: z.string().min(3, "Resumo é obrigatório."),
-    status: z.enum(['pendente', 'realizada', 'cancelada']),
+    status: z.string(),
 });
 
 export async function createVisit(prevState: any, formData: FormData) {
@@ -96,7 +96,7 @@ const photoSchema = z.object({
     projectId: z.string(),
     url: z.string().url("URL inválida."),
     description: z.string().min(3, "Descrição é obrigatória."),
-    type: z.enum(['antes', 'depois']),
+    type: z.string(),
 })
 
 export async function createPhoto(prevState: any, formData: FormData) {

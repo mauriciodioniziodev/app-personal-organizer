@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/clients", label: "Clientes", icon: Users },
   { href: "/projects", label: "Projetos", icon: FolderKanban },
+  { href: "/admin", label: "Administração", icon: Settings },
 ];
 
 export default function Sidebar() {

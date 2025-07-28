@@ -1,7 +1,7 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { getProjectById, getClientById, getVisitsByProjectId, getPhotosByProjectId } from "@/lib/data";
+import { getProjectById, getClientById, getVisitsByProjectId, getPhotosByProjectId, getMasterData } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CheckCircle, Clock, DollarSign, Edit, Image as ImageIcon, LoaderCircle, Plus, XCircle } from "lucide-react";
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
+import type { Visit } from "@/lib/definitions";
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -28,6 +29,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const project = getProjectById(id);
   const { toast } = useToast();
+  const { visitStatus, photoTypes } = getMasterData();
 
   const visitFormRef = useRef<HTMLFormElement>(null);
   const photoFormRef = useRef<HTMLFormElement>(null);
@@ -59,7 +61,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   const beforePhotos = photos.filter(p => p.type === 'antes');
   const afterPhotos = photos.filter(p => p.type === 'depois');
 
-  const visitStatusIcons = {
+  const visitStatusIcons: { [key: string]: React.ReactNode } = {
     pendente: <Clock className="w-4 h-4 text-yellow-500" />,
     realizada: <CheckCircle className="w-4 h-4 text-green-500" />,
     cancelada: <XCircle className="w-4 h-4 text-red-500" />,
@@ -104,7 +106,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                     <CheckCircle className="w-5 h-5 text-accent" />
                     <div>
                         <p className="text-sm font-semibold">Pagamento</p>
-                         <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground' : ''}>
+                         <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
                             {project.paymentStatus}
                         </Badge>
                     </div>
@@ -127,7 +129,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                             <Card key={visit.id}>
                                 <CardContent className="p-4 flex items-start gap-4">
                                     <div className="p-2 bg-muted rounded-full mt-1">
-                                        {visitStatusIcons[visit.status]}
+                                        {visitStatusIcons[visit.status] || <Clock className="w-4 h-4" />}
                                     </div>
                                     <div>
                                         <p className="font-semibold">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'full' })} às {new Date(visit.date).toLocaleTimeString('pt-BR', { timeStyle: 'short' })}</p>
@@ -157,12 +159,12 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                                 </div>
                                 <div>
                                     <Label htmlFor="status">Status</Label>
-                                    <Select name="status" defaultValue="pendente">
+                                    <Select name="status" defaultValue={visitStatus[0]}>
                                         <SelectTrigger><SelectValue/></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="pendente">Pendente</SelectItem>
-                                            <SelectItem value="realizada">Realizada</SelectItem>
-                                            <SelectItem value="cancelada">Cancelada</SelectItem>
+                                            {visitStatus.map(status => (
+                                                <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -217,11 +219,12 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                                 </div>
                                 <div>
                                     <Label>Tipo</Label>
-                                     <Select name="type" defaultValue="antes">
+                                     <Select name="type" defaultValue={photoTypes[0]}>
                                         <SelectTrigger><SelectValue/></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="antes">Antes</SelectItem>
-                                            <SelectItem value="depois">Depois</SelectItem>
+                                            {photoTypes.map(type => (
+                                                <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>

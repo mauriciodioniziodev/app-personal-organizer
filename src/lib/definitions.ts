@@ -15,21 +15,27 @@ export type Project = {
   startDate: string;
   endDate: string;
   value: number;
-  paymentStatus: 'pago' | 'pendente';
+  paymentStatus: string;
 };
 
 export type Visit = {
   id: string;
   projectId: string;
   date: string;
-  status: 'realizada' | 'pendente' | 'cancelada';
+  status: string;
   summary: string;
 };
 
 export type Photo = {
   id: string;
   projectId: string;
-  type: 'antes' | 'depois';
+  type: string;
   url: string;
   description: string;
+};
+
+export type MasterData = {
+  paymentStatus: string[];
+  visitStatus: string[];
+  photoTypes: string[];
 };

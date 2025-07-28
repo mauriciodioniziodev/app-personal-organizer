@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createProject } from "@/lib/actions";
-import { getClients } from "@/lib/data";
+import { getClients, getMasterData } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ export default function NewProjectPage() {
   const initialState = { errors: {}, message: null };
   const [state, dispatch] = useActionState(createProject, initialState);
   const clients = getClients();
+  const { paymentStatus } = getMasterData();
 
   return (
     <div className="flex flex-col gap-8">
@@ -92,15 +93,13 @@ export default function NewProjectPage() {
                 </div>
                  <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
-                    <RadioGroup name="paymentStatus" defaultValue="pendente" className="flex items-center pt-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="pendente" id="pendente" />
-                            <Label htmlFor="pendente">Pendente</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="pago" id="pago" />
-                            <Label htmlFor="pago">Pago</Label>
-                        </div>
+                    <RadioGroup name="paymentStatus" defaultValue={paymentStatus[0]} className="flex items-center pt-2 gap-4">
+                        {paymentStatus.map(status => (
+                            <div key={status} className="flex items-center space-x-2">
+                                <RadioGroupItem value={status} id={status} />
+                                <Label htmlFor={status} className="capitalize">{status}</Label>
+                            </div>
+                        ))}
                     </RadioGroup>
                 </div>
             </div>
