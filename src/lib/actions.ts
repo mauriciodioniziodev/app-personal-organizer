@@ -33,6 +33,8 @@ export async function createClient(prevState: any, formData: FormData) {
   
   try {
     const newClient = addClient(validatedFields.data);
+    // Revalidar o caminho é importante se houver cache no lado do servidor,
+    // mas a atualização do estado no cliente é crucial para a UI.
     revalidatePath("/clients");
     return { success: true, newClient };
   } catch (error) {

@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +11,24 @@ import PageHeader from "@/components/page-header";
 import type { Client } from "@/lib/definitions";
 
 export default function ClientsPage() {
-  // Busca os clientes diretamente. Como getClients usa localStorage,
-  // isso funcionará no lado do cliente sem a necessidade de `useState` e `useEffect`.
-  const clients: Client[] = getClients();
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    // Carrega os clientes na montagem inicial do componente.
+    setClients(getClients());
+  }, []);
+
+  // Garante que a lista seja atualizada se os dados mudarem em outra aba.
+  useEffect(() => {
+    const handleFocus = () => {
+      setClients(getClients());
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
