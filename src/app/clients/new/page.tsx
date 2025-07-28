@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
@@ -42,7 +43,7 @@ export default function NewClientPage() {
               title: "Cliente Criado com Sucesso!",
               description: `${result.newClient.name} foi adicionado(a) à sua lista de clientes.`,
           });
-          // router.push(`/clients/${result.newClient.id}`); // Redirect to the new client's page
+          router.push(`/clients`); 
       } else if (result.errors) {
           // Errors will be displayed by the form
       } else {
