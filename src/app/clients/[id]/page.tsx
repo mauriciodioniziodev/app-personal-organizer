@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
 
 export default function ClientDetailPage({ params }: { params: { id: string } }) {
-  const client = getClientById(params.id);
+  const id = params.id;
+  const client = getClientById(id);
 
   if (!client) {
     notFound();

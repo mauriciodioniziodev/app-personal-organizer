@@ -25,7 +25,8 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
-  const project = getProjectById(params.id);
+  const id = params.id;
+  const project = getProjectById(id);
   const { toast } = useToast();
 
   const visitFormRef = useRef<HTMLFormElement>(null);
