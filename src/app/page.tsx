@@ -95,7 +95,7 @@ export default function Dashboard() {
                                             <div className="flex-1">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <p className="font-semibold">{item.title}</p>
+                                                        <p className="font-semibold">{item.type === 'project' ? `Projeto: ${item.title}` : item.title}</p>
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
                                                     {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
