@@ -15,22 +15,16 @@ import { Separator } from '@/components/ui/separator';
 import React from 'react';
 
 export default function Dashboard() {
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [pendingRevenue, setPendingRevenue] = useState(0);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
-  const [showRevenue, setShowRevenue] = useState(false);
-  const [showPendingRevenue, setShowPendingRevenue] = useState(false);
 
   useEffect(() => {
     // A simple way to force re-fetch on focus to keep data fresh
     // across tabs or after some inactivity.
     const refetch = () => {
-        setTotalRevenue(getTotalRevenue());
-        setPendingRevenue(getTotalPendingRevenue());
         setActiveProjects(getActiveProjects());
         setUpcomingVisits(getUpcomingVisits());
         setClients(getClients());
@@ -59,11 +53,6 @@ export default function Dashboard() {
       realizada: 'text-green-800 bg-green-100',
       cancelada: 'text-red-800 bg-red-100',
       orçamento: 'text-blue-800 bg-blue-100',
-  }
-  
-  const paymentStatusColors: { [key: string]: string } = {
-      pago: 'text-green-800 bg-green-100',
-      pendente: 'text-yellow-800 bg-yellow-100',
   }
 
   const scheduleIcons: { [key: string]: React.ReactNode } = {
@@ -138,61 +127,7 @@ export default function Dashboard() {
         </div>
 
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold font-headline">
-                {showRevenue ? (
-                    new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                    }).format(totalRevenue)
-                ) : (
-                    'R$ ••••••'
-                )}
-                </div>
-                 <Button variant="ghost" size="icon" onClick={() => setShowRevenue(!showRevenue)}>
-                    {showRevenue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span className="sr-only">Mostrar/Ocultar receita</span>
-                </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Receita de projetos já pagos.
-            </p>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">A Receber</CardTitle>
-            <Hourglass className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold font-headline">
-                {showPendingRevenue ? (
-                    new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                    }).format(pendingRevenue)
-                ) : (
-                    'R$ ••••••'
-                )}
-                </div>
-                 <Button variant="ghost" size="icon" onClick={() => setShowPendingRevenue(!showPendingRevenue)}>
-                    {showPendingRevenue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span className="sr-only">Mostrar/Ocultar receita pendente</span>
-                </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Valor de projetos pendentes.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
         <Link href="/projects" className="block">
           <Card className="hover:bg-muted/50 transition-colors h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -254,7 +189,7 @@ export default function Dashboard() {
 
       <div className="grid gap-8 md:grid-cols-2">
         <div>
-          <h2 className="text-xl font-headline mb-4">Projetos Ativos</h2>
+          <h2 className="text-xl font-headline mb-4">Projetos Ativos Recentes</h2>
           <Card>
             <CardContent className="p-4">
               {activeProjects.length > 0 ? (
