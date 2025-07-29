@@ -19,7 +19,7 @@ export default function VisitsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const { visitStatus: masterVisitStatus } = getMasterData();
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
@@ -41,7 +41,7 @@ export default function VisitsPage() {
     useEffect(() => {
         const results = allVisits.filter(visit => {
             const clientNameMatch = (getClient(visit.clientId)?.name || 'Desconhecido').toLowerCase().includes(searchTerm.toLowerCase());
-            const statusMatch = statusFilter ? visit.status === statusFilter : true;
+            const statusMatch = statusFilter === 'all' ? true : visit.status === statusFilter;
             return clientNameMatch && statusMatch;
         });
         setFilteredVisits(results);
@@ -78,7 +78,7 @@ export default function VisitsPage() {
                             <SelectValue placeholder="Filtrar por status..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Todos os Status</SelectItem>
+                            <SelectItem value="all">Todos os Status</SelectItem>
                             {masterVisitStatus.map(status => (
                                 <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
                             ))}
