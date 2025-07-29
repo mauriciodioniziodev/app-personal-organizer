@@ -15,9 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle } from "lucide-react";
-import type { Client, Visit } from "@/lib/definitions";
+import type { Client, Visit, Payment } from "@/lib/definitions";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { v4 as uuidv4 } from 'uuid';
+
+const paymentSchema = z.object({
+  id: z.string(),
+  amount: z.coerce.number().min(0, "O valor da parcela deve ser positivo."),
+  status: z.enum(['pendente', 'pago']),
+  dueDate: z.string().min(1, "Data de vencimento é obrigatória."),
+  description: z.string(),
+});
 
 const projectSchema = z.object({
     clientId: z.string({ required_error: "Cliente é obrigatório." }).min(1, "Cliente é obrigatório."),
@@ -27,10 +36,18 @@ const projectSchema = z.object({
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
-    paymentStatus: z.string()
+    paymentMethod: z.enum(['vista', 'parcelado']),
+    payments: z.array(paymentSchema)
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
+}).refine(data => {
+    const totalPayments = data.payments.reduce((sum, p) => sum + p.amount, 0);
+    // Allow for small floating point discrepancies
+    return Math.abs(totalPayments - data.value) < 0.01;
+}, {
+    message: "A soma das parcelas deve ser igual ao valor total do projeto.",
+    path: ["value"],
 });
 
 
@@ -44,7 +61,7 @@ function NewProjectPageContent() {
   const [visit, setVisit] = useState<Visit | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [errors, setErrors] = useState<Record<string, any>>({});
   
   const { paymentStatus } = getMasterData();
 
@@ -52,6 +69,16 @@ function NewProjectPageContent() {
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    // A temporary workaround to install uuid. In a real scenario, this would be a dev dependency.
+    if(typeof window !== 'undefined' && !window.require) {
+       const script = document.createElement('script');
+       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js';
+       script.onload = () => console.log('uuid loaded');
+       document.head.appendChild(script);
+    }
+  },[])
 
   useEffect(() => {
     setClients(getClients());
@@ -70,15 +97,49 @@ function NewProjectPageContent() {
     setLoading(true);
     setErrors({});
     const formData = new FormData(formRef.current);
+    
+    const paymentMethod = formData.get("paymentMethod") as 'vista' | 'parcelado';
+    const totalValue = parseFloat(formData.get("value") as string || '0');
+    const endDate = formData.get("endDate") as string;
+    
+    let payments: Payment[] = [];
+
+    if(paymentMethod === 'vista') {
+        payments.push({
+            id: uuidv4(),
+            amount: totalValue,
+            status: formData.get('paymentStatus') as 'pendente' | 'pago',
+            dueDate: endDate,
+            description: 'Pagamento Único'
+        });
+    } else {
+        const firstInstallmentValue = parseFloat(formData.get('installment-1-value') as string || '0');
+        payments.push({
+            id: uuidv4(),
+            amount: firstInstallmentValue,
+            status: 'pendente',
+            dueDate: formData.get('startDate') as string,
+            description: '1ª Parcela (Entrada)'
+        });
+        payments.push({
+            id: uuidv4(),
+            amount: totalValue - firstInstallmentValue,
+            status: 'pendente',
+            dueDate: endDate,
+            description: '2ª Parcela (Conclusão)'
+        });
+    }
+
      const projectData = {
         clientId: selectedClientId,
         visitId: visitId ?? undefined,
         name: formData.get("name") as string,
         description: formData.get("description") as string,
         startDate: formData.get("startDate") as string,
-        endDate: formData.get("endDate") as string,
-        value: formData.get("value") as string,
-        paymentStatus: formData.get("paymentStatus") as string,
+        endDate: endDate,
+        value: totalValue,
+        paymentMethod: paymentMethod,
+        payments: payments,
     };
     
     const validationResult = projectSchema.safeParse(projectData);
@@ -141,6 +202,21 @@ function NewProjectPageContent() {
     event.preventDefault();
     handleValidation();
   }
+  
+  const [paymentMethod, setPaymentMethod] = useState<'vista' | 'parcelado'>('vista');
+  const [totalValue, setTotalValue] = useState(0);
+  const [firstInstallment, setFirstInstallment] = useState(0);
+  
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseFloat(e.target.value) || 0;
+      setTotalValue(value);
+      setFirstInstallment(value / 2);
+  }
+
+  const handleFirstInstallmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFirstInstallment(parseFloat(e.target.value) || 0);
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -199,13 +275,28 @@ function NewProjectPageContent() {
               </div>
             </div>
             
-            <div className="grid sm:grid-cols-2 gap-4">
+             <div className="space-y-2">
+                <Label htmlFor="value">Valor Total do Projeto (R$)</Label>
+                <Input id="value" name="value" type="number" step="0.01" placeholder="1200.00" required onChange={handleValueChange}/>
+                {errors?.value && <p className="text-sm text-destructive">{Array.isArray(errors.value) ? errors.value[0] : errors.value}</p>}
+            </div>
+            
+            <div className="space-y-2">
+                <Label>Forma de Pagamento</Label>
+                <RadioGroup name="paymentMethod" value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="flex items-center pt-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="vista" id="vista" />
+                        <Label htmlFor="vista">À Vista</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="parcelado" id="parcelado" />
+                        <Label htmlFor="parcelado">Parcelado (2x)</Label>
+                    </div>
+                </RadioGroup>
+            </div>
+            
+            {paymentMethod === 'vista' ? (
                 <div className="space-y-2">
-                    <Label htmlFor="value">Valor do Projeto (R$)</Label>
-                    <Input id="value" name="value" type="number" step="0.01" placeholder="1200.00" required />
-                    {errors?.value && <p className="text-sm text-destructive">{errors.value[0]}</p>}
-                </div>
-                 <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
                     <RadioGroup name="paymentStatus" defaultValue={paymentStatus[0]} className="flex items-center pt-2 gap-4">
                         {paymentStatus.map(status => (
@@ -216,7 +307,19 @@ function NewProjectPageContent() {
                         ))}
                     </RadioGroup>
                 </div>
-            </div>
+            ) : (
+                <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                     <div className="space-y-2">
+                        <Label htmlFor="installment-1-value">Valor da 1ª Parcela (Entrada)</Label>
+                        <Input id="installment-1-value" name="installment-1-value" type="number" step="0.01" value={firstInstallment} onChange={handleFirstInstallmentChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Valor da 2ª Parcela</Label>
+                        <Input type="number" step="0.01" value={totalValue - firstInstallment} readOnly disabled className="bg-muted"/>
+                    </div>
+                </div>
+            )}
+
 
             <div className="flex justify-end gap-2 pt-4">
                 <Link href="/projects">
@@ -276,5 +379,3 @@ export default function NewProjectPage() {
         </Suspense>
     )
 }
-
-    

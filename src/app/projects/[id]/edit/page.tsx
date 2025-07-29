@@ -2,14 +2,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getProjectById, getMasterData, updateProject, addPhotoToProject } from "@/lib/data";
+import { getProjectById, updateProject, addPhotoToProject } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef, use } from "react";
 import Link from "next/link";
-import type { Project } from "@/lib/definitions";
+import type { Project, Payment } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { cn, formatDate } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
+
+const paymentSchema = z.object({
+  id: z.string(),
+  amount: z.coerce.number().min(0, "O valor da parcela deve ser positivo."),
+  status: z.enum(['pendente', 'pago']),
+  dueDate: z.string().min(1, "Data de vencimento é obrigatória."),
+  description: z.string(),
+});
+
 
 const projectSchema = z.object({
     id: z.string(),
@@ -30,10 +41,18 @@ const projectSchema = z.object({
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
-    paymentStatus: z.string()
+    paymentMethod: z.enum(['vista', 'parcelado']),
+    payments: z.array(paymentSchema),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
+}).refine(data => {
+    const totalPayments = data.payments.reduce((sum, p) => sum + p.amount, 0);
+    // Allow for small floating point discrepancies
+    return Math.abs(totalPayments - data.value) < 0.01;
+}, {
+    message: "A soma das parcelas deve ser igual ao valor total do projeto.",
+    path: ["value"],
 });
 
 
@@ -217,11 +236,20 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const { paymentStatus } = getMasterData();
-
+  const [errors, setErrors] = useState<Record<string, any>>({});
+  
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+   useEffect(() => {
+    // A temporary workaround to install uuid. In a real scenario, this would be a dev dependency.
+    if(typeof window !== 'undefined' && !window.require) {
+       const script = document.createElement('script');
+       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js';
+       script.onload = () => console.log('uuid loaded');
+       document.head.appendChild(script);
+    }
+  },[])
   
   useEffect(() => {
     const projectData = getProjectById(id);
@@ -231,6 +259,21 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
       router.push("/projects"); // Or a not-found page
     }
   }, [id, router]);
+  
+  const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
+    if (!project) return;
+    const updatedPayments = project.payments.map(p => p.id === paymentId ? {...p, status} : p);
+    const updatedProjectData = {...project, payments: updatedPayments};
+    
+    try {
+        const updated = updateProject(updatedProjectData);
+        setProject(updated);
+        toast({ title: "Status do Pagamento Atualizado!"});
+    } catch(e) {
+        toast({variant: 'destructive', title: "Erro", description: "Não foi possível atualizar o pagamento."})
+    }
+  }
+
 
   const proceedToSubmit = () => {
     if (!project || !formRef.current) return;
@@ -238,14 +281,47 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     setErrors({});
 
     const formData = new FormData(formRef.current);
+    const paymentMethod = formData.get("paymentMethod") as 'vista' | 'parcelado';
+    const value = parseFloat(formData.get("value") as string || "0");
+    let newPayments: Payment[] = [];
+
+    if (paymentMethod === 'vista') {
+        newPayments.push({
+            id: project.payments[0]?.id || uuidv4(),
+            amount: value,
+            status: project.payments[0]?.status || 'pendente',
+            dueDate: formData.get("endDate") as string,
+            description: "Pagamento Único"
+        });
+    } else {
+        const installment1Value = parseFloat(formData.get('installment-1-value') as string);
+        const installment2Value = value - installment1Value;
+        newPayments.push({
+            id: project.payments[0]?.id || uuidv4(),
+            amount: installment1Value,
+            status: project.payments[0]?.status || 'pendente',
+            dueDate: formData.get("startDate") as string,
+            description: '1ª Parcela (Entrada)'
+        });
+         newPayments.push({
+            id: project.payments[1]?.id || uuidv4(),
+            amount: installment2Value,
+            status: project.payments[1]?.status || 'pendente',
+            dueDate: formData.get("endDate") as string,
+            description: '2ª Parcela (Conclusão)'
+        });
+    }
+
+
     const projectData = {
       ...project,
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       startDate: formData.get("startDate") as string,
       endDate: formData.get("endDate") as string,
-      value: formData.get("value") as string,
-      paymentStatus: formData.get("paymentStatus") as string,
+      value: value,
+      paymentMethod,
+      payments: newPayments,
     };
 
     const validationResult = projectSchema.safeParse(projectData);
@@ -286,6 +362,45 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
 
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newTotal = parseFloat(e.target.value) || 0;
+      if (!project) return;
+      const updatedProject = {...project, value: newTotal};
+      if (updatedProject.paymentMethod === 'parcelado' && updatedProject.payments.length === 2) {
+          const firstPaymentRatio = updatedProject.payments[0].amount / (updatedProject.payments[0].amount + updatedProject.payments[1].amount) || 0.5;
+          updatedProject.payments[0].amount = newTotal * firstPaymentRatio;
+          updatedProject.payments[1].amount = newTotal * (1 - firstPaymentRatio);
+      }
+      setProject(updatedProject);
+  }
+
+  const handleInstallmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+       if (!project) return;
+       const firstInstallmentValue = parseFloat(e.target.value) || 0;
+       const updatedProject = {...project};
+       updatedProject.payments[0].amount = firstInstallmentValue;
+       updatedProject.payments[1].amount = updatedProject.value - firstInstallmentValue;
+       setProject(updatedProject);
+  }
+  
+  const handlePaymentMethodChange = (value: 'vista' | 'parcelado') => {
+      if(!project) return;
+      const updatedProject = {...project, paymentMethod: value};
+      if(value === 'parcelado' && updatedProject.payments.length !== 2) {
+          updatedProject.payments = [
+              { id: uuidv4(), amount: updatedProject.value / 2, status: 'pendente', dueDate: project.startDate, description: '1ª Parcela (Entrada)' },
+              { id: uuidv4(), amount: updatedProject.value / 2, status: 'pendente', dueDate: project.endDate, description: '2ª Parcela (Conclusão)' }
+          ]
+      }
+       if(value === 'vista' && updatedProject.payments.length > 1) {
+          updatedProject.payments = [
+              { id: uuidv4(), amount: updatedProject.value, status: 'pendente', dueDate: project.endDate, description: 'Pagamento Único' }
+          ]
+       }
+      setProject(updatedProject);
+  }
+
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={`Editar: ${project.name}`} />
@@ -320,24 +435,40 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
                 
-                <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="value">Valor do Projeto (R$)</Label>
-                        <Input id="value" name="value" type="number" step="0.01" defaultValue={project.value} required />
-                        {errors?.value && <p className="text-sm text-destructive">{errors.value[0]}</p>}
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Status do Pagamento</Label>
-                        <RadioGroup name="paymentStatus" defaultValue={project.paymentStatus} className="flex items-center pt-2 gap-4">
-                            {paymentStatus.map(status => (
-                                <div key={status} className="flex items-center space-x-2">
-                                    <RadioGroupItem value={status} id={`edit-${status}`} />
-                                    <Label htmlFor={`edit-${status}`} className="capitalize">{status}</Label>
-                                </div>
-                            ))}
-                        </RadioGroup>
-                    </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="value">Valor Total do Projeto (R$)</Label>
+                    <Input id="value" name="value" type="number" step="0.01" value={project.value} onChange={handleValueChange} required />
+                    {errors?.value && <p className="text-sm text-destructive">{Array.isArray(errors.value) ? errors.value[0]: ""}</p>}
+                    {errors?.payments && <p className="text-sm text-destructive">{Array.isArray(errors.payments) ? errors.payments[0]: "A soma das parcelas deve ser igual ao valor total do projeto."}</p>}
                 </div>
+                
+                <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <RadioGroup name="paymentMethod" value={project.paymentMethod} onValueChange={(v) => handlePaymentMethodChange(v as any)} className="flex items-center pt-2 gap-4">
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="vista" id="vista" />
+                            <Label htmlFor="vista">À Vista</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="parcelado" id="parcelado" />
+                            <Label htmlFor="parcelado">Parcelado (2x)</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                
+                {project.paymentMethod === 'parcelado' && (
+                     <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                         <div className="space-y-2">
+                            <Label htmlFor="installment-1-value">Valor da 1ª Parcela (Entrada)</Label>
+                            <Input id="installment-1-value" name="installment-1-value" type="number" step="0.01" value={project.payments[0]?.amount || 0} onChange={handleInstallmentChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Valor da 2ª Parcela</Label>
+                            <Input type="number" step="0.01" value={project.payments[1]?.amount || 0} readOnly disabled className="bg-muted"/>
+                        </div>
+                    </div>
+                )}
+                
                  <div className="flex justify-end gap-2 pt-4">
                     <Link href={`/projects/${id}`}>
                         <Button type="button" variant="outline">Voltar</Button>
@@ -353,6 +484,35 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
             </CardContent>
         </Card>
       </form>
+      
+      <Card>
+          <CardHeader>
+              <CardTitle className="font-headline">Gerenciamento de Pagamentos</CardTitle>
+              <CardDescription>Marque as parcelas como pagas assim que o pagamento for confirmado.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+              {project.payments.map((payment, index) => (
+                  <div key={payment.id} className={cn("p-4 rounded-lg border flex items-center justify-between", payment.status === 'pago' ? 'bg-green-50 border-green-200' : '')}>
+                      <div className="flex items-center gap-4">
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", payment.status === 'pago' ? 'bg-green-100 text-green-700' : 'bg-muted')}>
+                            {payment.status === 'pago' ? <Check className="w-5 h-5"/> : <DollarSign className="w-5 h-5 text-muted-foreground"/>}
+                        </div>
+                        <div>
+                            <p className="font-semibold">{payment.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                                Vencimento: {formatDate(payment.dueDate)} - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
+                            </p>
+                        </div>
+                      </div>
+                      {payment.status === 'pendente' ? (
+                          <Button size="sm" onClick={() => handlePaymentStatusChange(payment.id, 'pago')}>Marcar como Pago</Button>
+                      ) : (
+                          <Button size="sm" variant="outline" onClick={() => handlePaymentStatusChange(payment.id, 'pendente')}>Marcar como Pendente</Button>
+                      )}
+                  </div>
+              ))}
+          </CardContent>
+      </Card>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <PhotoUploader project={project} photoType="before" onPhotoAdded={setProject} />

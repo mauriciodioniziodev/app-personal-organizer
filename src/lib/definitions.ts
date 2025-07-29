@@ -9,6 +9,14 @@ export type Client = {
   preferences: string;
 };
 
+export type Payment = {
+  id: string;
+  amount: number;
+  status: 'pendente' | 'pago';
+  dueDate: string;
+  description: string;
+}
+
 export type Project = {
   id: string;
   clientId: string;
@@ -18,7 +26,9 @@ export type Project = {
   startDate: string;
   endDate: string;
   value: number;
-  paymentStatus: string;
+  paymentMethod: 'vista' | 'parcelado';
+  payments: Payment[];
+  paymentStatus: string; // 'pendente' | 'pago' | 'parcialmente pago' - Derivado dos pagamentos
   photosBefore: Photo[];
   photosAfter: Photo[];
 };

@@ -1,21 +1,22 @@
 
+
 "use client";
 
-import { notFound, useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, use } from "react";
 import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
-import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 
 export default function ProjectDetailsPage({ params }: { params: Promise<{ id:string }> }) {
@@ -89,6 +90,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id:st
   const paymentStatusColors: { [key: string]: string } = {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
+      'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
 
   return (
@@ -99,84 +101,104 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id:st
           </Link>
       </PageHeader>
       
-      <Card>
-        <CardHeader>
-            <CardTitle className="font-headline text-2xl">Detalhes do Projeto</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <p className="text-muted-foreground">{project.description}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="flex items-center gap-3">
-                    <User className="w-6 h-6 text-accent" />
-                    <div>
-                        <p className="text-sm font-semibold">Cliente</p>
-                        <Link href={`/clients/${client.id}`} className="text-sm text-muted-foreground hover:underline">{client.name}</Link>
-                    </div>
-                </div>
-                 {visit && (
-                    <div className="flex items-center gap-3">
-                        <LinkIcon className="w-6 h-6 text-accent" />
-                        <div>
-                            <p className="text-sm font-semibold">Visita Originadora</p>
-                            <Link href={`/visits/${visit.id}`} className="text-sm text-muted-foreground hover:underline">
-                                {new Date(visit.date).toLocaleDateString('pt-BR')}
-                            </Link>
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+              <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline text-2xl">Detalhes do Projeto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <p className="text-muted-foreground">{project.description || "Nenhuma descrição para este projeto."}</p>
+                    <Separator/>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="flex items-center gap-3">
+                            <User className="w-6 h-6 text-accent" />
+                            <div>
+                                <p className="text-sm font-semibold">Cliente</p>
+                                <Link href={`/clients/${client.id}`} className="text-sm text-muted-foreground hover:underline">{client.name}</Link>
+                            </div>
+                        </div>
+                         {visit && (
+                            <div className="flex items-center gap-3">
+                                <LinkIcon className="w-6 h-6 text-accent" />
+                                <div>
+                                    <p className="text-sm font-semibold">Visita Originadora</p>
+                                    <Link href={`/visits/${visit.id}`} className="text-sm text-muted-foreground hover:underline">
+                                        {new Date(visit.date).toLocaleDateString('pt-BR')}
+                                    </Link>
+                                </div>
+                            </div>
+                         )}
+                        <div className="flex items-center gap-3">
+                            <Calendar className="w-6 h-6 text-accent" />
+                            <div>
+                                <p className="text-sm font-semibold">Início</p>
+                                <p className="text-sm text-muted-foreground">{formatDate(project.startDate)}</p>
+                            </div>
+                        </div>
+                         <div className="flex items-center gap-3">
+                            <Calendar className="w-6 h-6 text-accent" />
+                            <div>
+                                <p className="text-sm font-semibold">Término</p>
+                                <p className="text-sm text-muted-foreground">{formatDate(project.endDate)}</p>
+                            </div>
                         </div>
                     </div>
-                 )}
-                <div className="flex items-center gap-3">
-                    <Calendar className="w-6 h-6 text-accent" />
-                    <div>
-                        <p className="text-sm font-semibold">Início</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(project.startDate)}</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                    <Calendar className="w-6 h-6 text-accent" />
-                    <div>
-                        <p className="text-sm font-semibold">Término</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(project.endDate)}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <DollarSign className="w-6 h-6 text-accent" />
-                    <div>
-                        <p className="text-sm font-semibold">Valor</p>
-                        <p className="text-sm text-muted-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                    <CheckCircle className="w-6 h-6 text-accent" />
-                    <div>
-                        <p className="text-sm font-semibold">Pagamento</p>
-                         <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
-                            {project.paymentStatus}
-                        </Badge>
-                    </div>
-                </div>
-            </div>
-        </CardContent>
-      </Card>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Fotos: Antes</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {renderPhotoCarousel(project.photosBefore, "Fotos de Antes", "Nenhuma foto de 'antes' foi adicionada.")}
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Fotos: Depois</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {renderPhotoCarousel(project.photosAfter, "Fotos de Depois", "Nenhuma foto de 'depois' foi adicionada.")}
-            </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Fotos: Antes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {renderPhotoCarousel(project.photosBefore, "Fotos de Antes", "Nenhuma foto de 'antes' foi adicionada.")}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Fotos: Depois</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {renderPhotoCarousel(project.photosAfter, "Fotos de Depois", "Nenhuma foto de 'depois' foi adicionada.")}
+                </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-1 space-y-8">
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="font-headline">Financeiro</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-md border">
+                          <div>
+                              <p className="text-sm text-muted-foreground">Status do Pagamento</p>
+                              <Badge variant={'outline'} className={cn("capitalize mt-1", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                  {project.paymentStatus}
+                              </Badge>
+                          </div>
+                           <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Valor Total</p>
+                              <p className="font-bold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</p>
+                          </div>
+                      </div>
+                      <div>
+                          <h4 className="font-semibold mb-2">Parcelas</h4>
+                          <div className="space-y-2">
+                              {project.payments.map(payment => (
+                                  <div key={payment.id} className="flex items-center justify-between text-sm">
+                                      <div className="flex items-center gap-2">
+                                          {payment.status === 'pago' ? <CheckCircle className="w-4 h-4 text-green-500"/> : <Hourglass className="w-4 h-4 text-yellow-500"/>}
+                                          <span>{payment.description}</span>
+                                      </div>
+                                       <span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}</span>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  </CardContent>
+              </Card>
+          </div>
       </div>
-
     </div>
   );
 }

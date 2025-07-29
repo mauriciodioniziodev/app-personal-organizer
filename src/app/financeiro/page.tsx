@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -26,7 +27,7 @@ export default function FinanceiroPage() {
         setTotalRevenue(getTotalRevenue());
         setPendingRevenue(getTotalPendingRevenue());
         setClients(getClients());
-        setPendingProjects(getProjects().filter(p => p.paymentStatus === 'pendente'));
+        setPendingProjects(getProjects().filter(p => p.paymentStatus !== 'pago'));
     }
     refetch();
 
@@ -41,6 +42,7 @@ export default function FinanceiroPage() {
   const paymentStatusColors: { [key: string]: string } = {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
+      'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
 
   return (
@@ -50,7 +52,7 @@ export default function FinanceiroPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita Realizada</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -71,7 +73,7 @@ export default function FinanceiroPage() {
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Receita de projetos com status "pago".
+              Soma de todas as parcelas com status "pago".
             </p>
           </CardContent>
         </Card>
@@ -98,7 +100,7 @@ export default function FinanceiroPage() {
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Valor de projetos com status "pendente".
+               Soma de todas as parcelas com status "pendente".
             </p>
           </CardContent>
         </Card>

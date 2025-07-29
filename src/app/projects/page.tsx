@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -53,6 +54,7 @@ export default function ProjectsPage() {
   const paymentStatusColors: { [key: string]: string } = {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
+      'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
 
   return (

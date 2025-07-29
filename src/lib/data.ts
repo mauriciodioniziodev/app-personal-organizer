@@ -1,5 +1,6 @@
 
-import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem } from './definitions';
+
+import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem, Payment } from './definitions';
 
 // --- Data Persistence Layer (using localStorage) ---
 
@@ -38,12 +39,21 @@ const defaultMasterData: MasterData = {
     photoTypes: ['ambiente', 'detalhe', 'inspiração'],
 }
 
+// --- Helper Functions ---
+const getProjectPaymentStatus = (project: Project): string => {
+    const paidCount = project.payments.filter(p => p.status === 'pago').length;
+    if (paidCount === 0) return 'pendente';
+    if (paidCount === project.payments.length) return 'pago';
+    return 'parcialmente pago';
+}
+
+
 // --- Data Access Functions ---
 
 export const getClients = (): Client[] => loadData('clients', defaultClients);
 export const getClientById = (id: string): Client | undefined => getClients().find(c => c.id === id);
 
-export const getProjects = (): Project[] => loadData('projects', defaultProjects);
+export const getProjects = (): Project[] => loadData('projects', defaultProjects).map(p => ({ ...p, paymentStatus: getProjectPaymentStatus(p) }));
 export const getProjectById = (id: string): Project | undefined => getProjects().find(p => p.id === id);
 export const getProjectsByClientId = (clientId: string): Project[] => getProjects().filter(p => p.clientId === clientId);
 
@@ -55,9 +65,9 @@ export const getMasterData = () => loadData('masterData', defaultMasterData);
 
 
 // --- Dashboard Functions ---
-export const getTotalRevenue = () => getProjects().reduce((sum, p) => p.paymentStatus === 'pago' ? sum + p.value : sum, 0);
-export const getTotalPendingRevenue = () => getProjects().reduce((sum, p) => p.paymentStatus === 'pendente' ? sum + p.value : sum, 0);
-export const getActiveProjects = () => getProjects().filter(p => new Date(p.endDate) >= new Date());
+export const getTotalRevenue = () => getProjects().flatMap(p => p.payments).reduce((sum, payment) => payment.status === 'pago' ? sum + payment.amount : sum, 0);
+export const getTotalPendingRevenue = () => getProjects().flatMap(p => p.payments).reduce((sum, payment) => payment.status === 'pendente' ? sum + payment.amount : sum, 0);
+export const getActiveProjects = () => getProjects().filter(p => new Date(p.endDate) >= new Date() && p.paymentStatus !== 'pago');
 export const getUpcomingVisits = () => {
     const now = new Date();
     const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -94,10 +104,10 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
         const endDate = new Date(p.endDate);
         endDate.setHours(23,59,59,999);
 
-        const todayDate = new Date();
-        todayDate.setHours(0,0,0,0);
+        const todayDateOnly = new Date();
+        todayDateOnly.setHours(0,0,0,0);
 
-        return todayDate >= startDate && todayDate <= endDate;
+        return todayDateOnly >= startDate && todayDateOnly <= endDate;
     });
 
     const schedule: ScheduleItem[] = [];
@@ -156,14 +166,23 @@ export const addClient = (client: Omit<Client, 'id'>) => {
   return newClient;
 };
 
-export const addProject = (project: Omit<Project, 'id' | 'photosBefore' | 'photosAfter'>) => {
+export const addProject = (projectData: Omit<Project, 'id' | 'photosBefore' | 'photosAfter' | 'paymentStatus'>) => {
   const projects = getProjects();
-  const newProject: Project = { ...project, id: `p${Date.now()}`, photosBefore: [], photosAfter: [] };
+  const newProject: Project = { 
+      ...projectData, 
+      id: `p${Date.now()}`,
+      photosBefore: [],
+      photosAfter: [],
+      paymentStatus: 'pendente' // Initial status
+  };
+  
+  newProject.paymentStatus = getProjectPaymentStatus(newProject);
+  
   saveData('projects', [...projects, newProject]);
 
-  if (project.visitId) {
+  if (projectData.visitId) {
     const visits = getVisits();
-    const visitIndex = visits.findIndex(v => v.id === project.visitId);
+    const visitIndex = visits.findIndex(v => v.id === projectData.visitId);
     if(visitIndex !== -1) {
       visits[visitIndex].projectId = newProject.id;
       saveData('visits', visits);
@@ -177,7 +196,11 @@ export const updateProject = (project: Project) => {
     const projects = getProjects();
     const index = projects.findIndex(p => p.id === project.id);
     if(index === -1) throw new Error("Project not found");
+    
+    // Recalculate payment status before saving
+    project.paymentStatus = getProjectPaymentStatus(project);
     projects[index] = project;
+    
     saveData('projects', projects);
     return project;
 }
