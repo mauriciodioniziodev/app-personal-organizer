@@ -1,31 +1,28 @@
 "use client";
 
 import { notFound, useRouter } from "next/navigation";
-import { getProjectById, getClientById, getVisitById, updateProject } from "@/lib/data";
+import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { use, useEffect, useState, FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ProjectForm } from "@/components/project-form";
 import { useToast } from "@/hooks/use-toast";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import Image from "next/image";
 
 
-export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const { toast } = useToast();
+export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
+  const id = params.id;
   
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
-  const [isFormOpen, setFormOpen] = useState(false);
-
+  
   useEffect(() => {
     const projectData = getProjectById(id);
     if (projectData) {
@@ -39,35 +36,47 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     }
   }, [id]);
 
-  const handleProjectUpdated = (updatedProject: Project) => {
-    setProject(updatedProject);
-    setFormOpen(false);
-    toast({
-        title: "Projeto Atualizado!",
-        description: "As alterações no projeto foram salvas com sucesso.",
-    });
-  }
-
-
   if (!project || !client) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
 
+  const renderPhotoCarousel = (photos: Project['photosBefore'] | Project['photosAfter'], title: string, emptyMessage: string) => {
+    if (!photos || photos.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-8 border-dashed border-2 rounded-lg">
+          <ImageIcon className="mx-auto w-8 h-8 mb-2" />
+          <p>{emptyMessage}</p>
+        </div>
+      );
+    }
+    return (
+      <Carousel className="w-full max-w-xl mx-auto">
+        <CarouselContent>
+          {photos.map((photo) => (
+            <CarouselItem key={photo.id}>
+              <div className="p-1">
+                <Card>
+                  <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
+                    <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
+                  </CardContent>
+                  <CardDescription className="p-4">{photo.description}</CardDescription>
+                </Card>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious />
+        <CarouselNext />
+      </Carousel>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={project.name}>
-          <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Editar Projeto</DialogTitle>
-                </DialogHeader>
-                <ProjectForm project={project} onProjectUpdated={handleProjectUpdated} />
-            </DialogContent>
-          </Dialog>
+          <Link href={`/projects/${project.id}/edit`}>
+            <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
+          </Link>
       </PageHeader>
       
       <Card>
@@ -128,6 +137,26 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             </div>
         </CardContent>
       </Card>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Fotos: Antes</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {renderPhotoCarousel(project.photosBefore, "Fotos de Antes", "Nenhuma foto de 'antes' foi adicionada.")}
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Fotos: Depois</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {renderPhotoCarousel(project.photosAfter, "Fotos de Depois", "Nenhuma foto de 'depois' foi adicionada.")}
+            </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }

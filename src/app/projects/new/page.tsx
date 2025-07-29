@@ -19,7 +19,7 @@ import type { Client, Visit } from "@/lib/definitions";
 import { z } from "zod";
 
 const projectSchema = z.object({
-    clientId: z.string().min(1, "Cliente é obrigatório."),
+    clientId: z.string({ required_error: "Cliente é obrigatório." }).min(1, "Cliente é obrigatório."),
     visitId: z.string().optional(),
     name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
     description: z.string().optional(),
@@ -113,7 +113,7 @@ function NewProjectPageContent() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="clientId">Cliente</Label>
-              <Select name="clientId" required value={selectedClientId} onValueChange={setSelectedClientId} disabled={!!visit}>
+              <Select name="clientId" required value={selectedClientId} onValueChange={setSelectedClientId} disabled={!!visitId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>

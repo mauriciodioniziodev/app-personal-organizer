@@ -17,6 +17,8 @@ export type Project = {
   endDate: string;
   value: number;
   paymentStatus: string;
+  photosBefore: Photo[];
+  photosAfter: Photo[];
 };
 
 export type Visit = {

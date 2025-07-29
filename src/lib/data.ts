@@ -49,7 +49,7 @@ export const getProjectsByClientId = (clientId: string): Project[] => getProject
 
 export const getVisits = (): Visit[] => loadData('visits', defaultVisits);
 export const getVisitById = (id: string): Visit | undefined => getVisits().find(v => v.id === id);
-export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
 
 export const getMasterData = () => loadData('masterData', defaultMasterData);
 
@@ -74,9 +74,9 @@ export const addClient = (client: Omit<Client, 'id'>) => {
   return newClient;
 };
 
-export const addProject = (project: Omit<Project, 'id'>) => {
+export const addProject = (project: Omit<Project, 'id' | 'photosBefore' | 'photosAfter'>) => {
   const projects = getProjects();
-  const newProject = { ...project, id: `p${Date.now()}` };
+  const newProject: Project = { ...project, id: `p${Date.now()}`, photosBefore: [], photosAfter: [] };
   saveData('projects', [...projects, newProject]);
 
   if (project.visitId) {
@@ -126,6 +126,26 @@ export const addPhotoToVisit = (photoData: Omit<Photo, 'id'> & { visitId: string
     visits[visitIndex].photos.push(newPhoto);
     saveData('visits', visits);
     return newPhoto;
+}
+
+export const addPhotoToProject = (
+    projectId: string, 
+    photoType: 'before' | 'after', 
+    photoData: Omit<Photo, 'id'>
+) => {
+    const projects = getProjects();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) {
+        throw new Error("Projeto não encontrado");
+    }
+    const newPhoto = { ...photoData, id: `ph${Date.now()}` };
+    if (photoType === 'before') {
+        projects[projectIndex].photosBefore.push(newPhoto);
+    } else {
+        projects[projectIndex].photosAfter.push(newPhoto);
+    }
+    saveData('projects', projects);
+    return projects[projectIndex];
 }
 
 
