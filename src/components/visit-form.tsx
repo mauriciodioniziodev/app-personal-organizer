@@ -1,7 +1,7 @@
 // src/components/visit-form.tsx
 "use client";
 
-import { useActionState } from "react-dom";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createVisit } from "@/lib/actions";
 import { getMasterData } from "@/lib/data";
