@@ -1,3 +1,4 @@
+
 export type Client = {
   id: string;
   name: string;
@@ -29,6 +30,8 @@ export type Visit = {
   status: string;
   summary: string;
   photos: Photo[];
+  budgetAmount?: number;
+  budgetPdfUrl?: string;
 };
 
 export type Photo = {

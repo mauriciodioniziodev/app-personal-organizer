@@ -169,11 +169,20 @@ export const addPhotoToProject = (
     return projects[projectIndex];
 }
 
+export const addBudgetToVisit = (visitId: string, budgetAmount: number, budgetPdfUrl: string) => {
+    const visits = getVisits();
+    const visitIndex = visits.findIndex(v => v.id === visitId);
+    if (visitIndex === -1) {
+        throw new Error("Visita não encontrada");
+    }
+    visits[visitIndex].budgetAmount = budgetAmount;
+    visits[visitIndex].budgetPdfUrl = budgetPdfUrl;
+    saveData('visits', visits);
+    return visits[visitIndex];
+}
+
 
 export const updateMasterData = (data: MasterData) => {
     saveData('masterData', data);
     return data;
 }
-
-    
-    
