@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -32,7 +33,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-4">
         <ul className="space-y-2">
           {navItems.map((item) => (
-            <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} />
+            <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} />
           ))}
         </ul>
       </nav>

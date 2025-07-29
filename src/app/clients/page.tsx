@@ -6,29 +6,48 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClients } from "@/lib/data";
-import { PlusCircle, Mail, Phone } from "lucide-react";
+import { PlusCircle, Mail, Phone, Search } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import type { Client } from "@/lib/definitions";
+import { Input } from '@/components/ui/input';
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     // Carrega os clientes na montagem inicial do componente.
-    setClients(getClients());
+    const clientsData = getClients();
+    setAllClients(clientsData);
+    setFilteredClients(clientsData);
   }, []);
 
   // Garante que a lista seja atualizada se os dados mudarem em outra aba.
   useEffect(() => {
     const handleFocus = () => {
-      setClients(getClients());
+      const clientsData = getClients();
+      setAllClients(clientsData);
+      // Re-aplica o filtro com os dados atualizados
+      setFilteredClients(
+        clientsData.filter(client =>
+          client.name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
     };
 
     window.addEventListener('focus', handleFocus);
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const results = allClients.filter(client =>
+      client.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredClients(results);
+  }, [searchTerm, allClients]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,9 +60,22 @@ export default function ClientsPage() {
         </Link>
       </PageHeader>
       
-      {clients.length > 0 ? (
+      <div className="flex justify-start">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Filtrar por nome do cliente..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+      
+      {filteredClients.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client) => (
+          {filteredClients.map((client) => (
             <Card key={client.id} className="flex flex-col">
               <CardHeader>
                 <CardTitle className="font-headline">{client.name}</CardTitle>
@@ -73,14 +105,18 @@ export default function ClientsPage() {
         </div>
       ) : (
         <div className="text-center py-16 border-dashed border-2 rounded-lg">
-            <h2 className="text-2xl font-headline">Nenhum cliente cadastrado</h2>
-            <p className="text-muted-foreground mt-2 mb-4">Comece adicionando seu primeiro cliente.</p>
-            <Link href="/clients/new">
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Adicionar Cliente
-                </Button>
-            </Link>
+            <h2 className="text-2xl font-headline">Nenhum cliente encontrado</h2>
+            <p className="text-muted-foreground mt-2 mb-4">
+              {allClients.length > 0 ? 'Tente um termo de busca diferente.' : 'Comece adicionando seu primeiro cliente.'}
+            </p>
+            {allClients.length === 0 && (
+                <Link href="/clients/new">
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Adicionar Cliente
+                    </Button>
+                </Link>
+            )}
         </div>
       )}
     </div>

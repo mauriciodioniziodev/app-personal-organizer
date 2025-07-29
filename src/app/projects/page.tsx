@@ -16,19 +16,15 @@ export default function ProjectsPage() {
   const [clients, setClients] = useState<Client[]>([]);
 
   useEffect(() => {
-    setProjects(getProjects());
-    setClients(getClients());
-  }, []);
-  
-  // Re-fetch on focus to catch updates from other tabs
-  useEffect(() => {
     const refetch = () => {
-        setProjects(getProjects());
-        setClients(getClients());
-    }
-    window.addEventListener('focus', refetch)
-    return () => window.removeEventListener('focus', refetch)
-  }, [])
+      setProjects(getProjects());
+      setClients(getClients());
+    };
+    refetch(); // Initial fetch
+
+    window.addEventListener('focus', refetch);
+    return () => window.removeEventListener('focus', refetch);
+  }, []);
 
   const getClientName = (clientId: string) => {
     return clients.find(c => c.id === clientId)?.name || "Cliente não encontrado";
