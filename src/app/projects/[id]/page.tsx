@@ -15,9 +15,10 @@ import type { Project, Client, Visit } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import Image from "next/image";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 
-export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ProjectDetailsPage({ params }: { params: Promise<{ id:string }> }) {
   const { id } = use(params);
   
   const [project, setProject] = useState<Project | null>(null);
@@ -55,14 +56,27 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
         <CarouselContent>
           {photos.map((photo) => (
             <CarouselItem key={photo.id}>
-              <div className="p-1">
-                <Card>
-                  <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
-                    <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
-                  </CardContent>
-                  <CardDescription className="p-4">{photo.description}</CardDescription>
-                </Card>
-              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="p-1 cursor-pointer">
+                    <Card>
+                      <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
+                        <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
+                      </CardContent>
+                      <CardDescription className="p-4 truncate">{photo.description}</CardDescription>
+                    </Card>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Visualização da Imagem</DialogTitle>
+                     <DialogDescription>{photo.description}</DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4">
+                     <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={1200} height={800} className="w-full h-auto object-contain rounded-md"/>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CarouselItem>
           ))}
         </CarouselContent>
