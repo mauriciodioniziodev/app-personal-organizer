@@ -89,9 +89,15 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
     
     const todayProjects = getProjects().filter(p => {
-        const startDate = new Date(p.startDate + 'T00:00:00');
-        const endDate = new Date(p.endDate + 'T23:59:59');
-        return today >= startDate && today <= endDate;
+        const startDate = new Date(p.startDate);
+        startDate.setHours(0,0,0,0);
+        const endDate = new Date(p.endDate);
+        endDate.setHours(23,59,59,999);
+
+        const todayDate = new Date();
+        todayDate.setHours(0,0,0,0);
+
+        return todayDate >= startDate && todayDate <= endDate;
     });
 
     const schedule: ScheduleItem[] = [];
