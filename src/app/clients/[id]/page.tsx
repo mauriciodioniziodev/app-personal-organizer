@@ -20,6 +20,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { VisitForm } from "@/components/visit-form";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -77,6 +79,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       - Descrição: ${p.description}
     `).join('')}
   `;
+  
+  const visitStatusColors: { [key: string]: string } = {
+      pendente: 'text-yellow-800 bg-yellow-100',
+      realizada: 'text-green-800 bg-green-100',
+      cancelada: 'text-red-800 bg-red-100',
+      orçamento: 'text-blue-800 bg-blue-100',
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -133,7 +142,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     <Link href={`/visits/${visit.id}`} className="block p-4 rounded-lg border hover:bg-muted transition-colors">
                                         <div className="flex justify-between items-center">
                                             <h4 className="font-semibold">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long'})}</h4>
-                                             <span className="text-xs font-semibold capitalize px-2 py-1 rounded-full bg-secondary text-secondary-foreground">{visit.status}</span>
+                                             <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
+                                                {visit.status}
+                                            </Badge>
                                         </div>
                                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{visit.summary}</p>
                                     </Link>

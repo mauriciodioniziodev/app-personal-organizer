@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Project, Visit, Client, VisitsSummary } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -43,11 +44,18 @@ export default function Dashboard() {
   }
 
   const visitStatusIcons: { [key: string]: React.ReactNode } = {
-        pendente: <Clock className="w-4 h-4 text-yellow-500" />,
-        realizada: <CheckCircle className="w-4 h-4 text-green-500" />,
-        cancelada: <XCircle className="w-4 h-4 text-red-500" />,
-        orçamento: <FileText className="w-4 h-4 text-blue-500" />,
+        pendente: <Clock className="w-4 h-4 text-yellow-600" />,
+        realizada: <CheckCircle className="w-4 h-4 text-green-600" />,
+        cancelada: <XCircle className="w-4 h-4 text-red-600" />,
+        orçamento: <FileText className="w-4 h-4 text-blue-600" />,
   };
+  
+  const visitStatusColors: { [key: string]: string } = {
+      pendente: 'text-yellow-800 bg-yellow-100',
+      realizada: 'text-green-800 bg-green-100',
+      cancelada: 'text-red-800 bg-red-100',
+      orçamento: 'text-blue-800 bg-blue-100',
+  }
 
 
   return (
@@ -245,7 +253,9 @@ export default function Dashboard() {
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-xs font-semibold capitalize px-2 py-1 rounded-full bg-secondary text-secondary-foreground">{visit.status}</span>
+                                    <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
+                                        {visit.status}
+                                    </Badge>
                                 </div>
                             </Link>
                         </li>

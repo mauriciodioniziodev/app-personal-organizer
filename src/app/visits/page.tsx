@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarPlus, Search, Phone, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export default function VisitsPage() {
     const [allVisits, setAllVisits] = useState<Visit[]>([]);
@@ -50,6 +51,13 @@ export default function VisitsPage() {
 
     const getProjectName = (projectId: string) => projects.find(p => p.id === projectId)?.name;
     
+    const visitStatusColors: { [key: string]: string } = {
+      pendente: 'text-yellow-800 bg-yellow-100',
+      realizada: 'text-green-800 bg-green-100',
+      cancelada: 'text-red-800 bg-red-100',
+      orçamento: 'text-blue-800 bg-blue-100',
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Agenda de Visitas">
@@ -123,7 +131,7 @@ export default function VisitsPage() {
                                 </div>
                                  <div>
                                     <p className="text-sm font-semibold text-muted-foreground">Status</p>
-                                     <Badge variant={visit.status === 'realizada' ? 'default' : 'secondary'} className={`capitalize ${visit.status === 'realizada' ? 'bg-accent text-accent-foreground' : ''}`}>
+                                    <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
                                     </Badge>
                                 </div>
