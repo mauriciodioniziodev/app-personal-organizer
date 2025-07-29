@@ -1,6 +1,7 @@
 
 
 import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem, Payment } from './definitions';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Data Persistence Layer (using localStorage) ---
 
@@ -41,6 +42,9 @@ const defaultMasterData: MasterData = {
 
 // --- Helper Functions ---
 const getProjectPaymentStatus = (project: Project): string => {
+    if (!project.payments || project.payments.length === 0) {
+        return 'pendente';
+    }
     const paidCount = project.payments.filter(p => p.status === 'pago').length;
     if (paidCount === 0) return 'pendente';
     if (paidCount === project.payments.length) return 'pago';
@@ -53,7 +57,25 @@ const getProjectPaymentStatus = (project: Project): string => {
 export const getClients = (): Client[] => loadData('clients', defaultClients);
 export const getClientById = (id: string): Client | undefined => getClients().find(c => c.id === id);
 
-export const getProjects = (): Project[] => loadData('projects', defaultProjects).map(p => ({ ...p, paymentStatus: getProjectPaymentStatus(p) }));
+export const getProjects = (): Project[] => {
+    const projects = loadData<Project[]>('projects', defaultProjects);
+    // Data migration for old projects without the payments array
+    return projects.map(p => {
+        if (!p.payments) {
+            console.warn(`Project with id ${p.id} is missing payments array. Migrating...`);
+            const payment: Payment = {
+                id: uuidv4(),
+                amount: p.value,
+                status: (p as any).paymentStatus === 'pago' ? 'pago' : 'pendente',
+                dueDate: p.endDate,
+                description: "Pagamento Único"
+            };
+            p.payments = [payment];
+            p.paymentMethod = 'vista';
+        }
+        return { ...p, paymentStatus: getProjectPaymentStatus(p) }
+    });
+};
 export const getProjectById = (id: string): Project | undefined => getProjects().find(p => p.id === id);
 export const getProjectsByClientId = (clientId: string): Project[] => getProjects().filter(p => p.clientId === clientId);
 
@@ -135,7 +157,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
             id: p.id,
             type: 'project',
             date: p.startDate, // Using start date for sorting consistency
-            title: p.name,
+            title: `Projeto: ${p.name}`,
             clientName: client?.name ?? 'Cliente desconhecido',
             clientId: p.clientId,
             clientPhone: client?.phone,
@@ -298,6 +320,7 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     if (!newVisit.clientId || !newVisit.date) {
         return null;
     }
+    
     const allVisits = getVisits();
     
     const otherClientVisits = allVisits.filter(v => {
@@ -321,9 +344,9 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     return null;
 }
 
-export const checkForProjectConflict = (newProject: { clientId: string, startDate: string, endDate: string }): Project | null => {
+export const checkForProjectConflict = (newProject: { clientId: string, startDate: string, endDate: string, projectId?: string }): Project | null => {
     const allProjects = getProjects();
-    const clientProjects = allProjects.filter(p => p.clientId === newProject.clientId);
+    const clientProjects = allProjects.filter(p => p.clientId === newProject.clientId && p.id !== newProject.projectId);
     const newStart = new Date(newProject.startDate).getTime();
     const newEnd = new Date(newProject.endDate).getTime();
 

@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getProjectById, updateProject, addPhotoToProject } from "@/lib/data";
+import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle } from "lucide-react";
@@ -238,18 +238,10 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
+  const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
-
-   useEffect(() => {
-    // A temporary workaround to install uuid. In a real scenario, this would be a dev dependency.
-    if(typeof window !== 'undefined' && !window.require) {
-       const script = document.createElement('script');
-       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js';
-       script.onload = () => console.log('uuid loaded');
-       document.head.appendChild(script);
-    }
-  },[])
   
   useEffect(() => {
     const projectData = getProjectById(id);
@@ -343,19 +335,33 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+  const handleValidation = () => {
+    if (!formRef.current || !project) return;
+    const formData = new FormData(formRef.current);
     const startDate = formData.get("startDate") as string;
+    const endDate = formData.get("endDate") as string;
+
+    const conflict = checkForProjectConflict({ clientId: project.clientId, startDate, endDate, projectId: project.id });
+    if (conflict) {
+        setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
+        setIsConflictAlertOpen(true);
+        return;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(`${startDate}T00:00:00`);
 
     if (selectedDate < today) {
-        setIsAlertOpen(true);
+        setIsPastDateAlertOpen(true);
     } else {
         proceedToSubmit();
     }
+  };
+
+  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleValidation();
   };
   
   if (!project) {
@@ -519,7 +525,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
             <PhotoUploader project={project} photoType="after" onPhotoAdded={setProject} />
         </div>
 
-        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialog open={isPastDateAlertOpen} onOpenChange={setIsPastDateAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Data no Passado</AlertDialogTitle>
@@ -530,6 +536,20 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
                     <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isConflictAlertOpen} onOpenChange={setIsConflictAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Conflito de Agendamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {conflictMessage} Deseja continuar mesmo assim?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Alterar</AlertDialogCancel>
+                    <AlertDialogAction onClick={proceedToSubmit}>Continuar Mesmo Assim</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
