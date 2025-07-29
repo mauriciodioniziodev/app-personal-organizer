@@ -111,26 +111,20 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
 
     const now = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
     const todayVisits = getVisits().filter(v => {
         const visitDate = new Date(v.date);
-        return visitDate >= today && visitDate <= endOfDay;
+        return visitDate >= startOfDay && visitDate <= endOfDay;
     });
     
     const todayProjects = getProjects().filter(p => {
-        const startDate = new Date(p.startDate);
-        startDate.setHours(0,0,0,0);
-        const endDate = new Date(p.endDate);
-        endDate.setHours(23,59,59,999);
-
-        const todayDateOnly = new Date();
-        todayDateOnly.setHours(0,0,0,0);
-
-        return todayDateOnly >= startDate && todayDateOnly <= endDate;
+        const startDate = new Date(`${p.startDate}T00:00:00`);
+        const endDate = new Date(`${p.endDate}T23:59:59`);
+        return startOfDay <= endDate && endOfDay >= startDate;
     });
 
     const schedule: ScheduleItem[] = [];
@@ -173,12 +167,19 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
 
     return schedule.sort((a, b) => {
+        const aDate = new Date(a.date);
+        const bDate = new Date(b.date);
+
         if (a.time && b.time) {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
+            return aDate.getTime() - bDate.getTime();
         }
-        if (a.time) return -1;
+        if (a.time) return -1; // Visits with time come first
         if (b.time) return 1;
-        return a.title.localeCompare(b.title);
+
+        // If both are projects (no time), sort by start date
+        const aStartDate = new Date(a.projectStartDate || a.date);
+        const bStartDate = new Date(b.projectStartDate || b.date);
+        return aStartDate.getTime() - bStartDate.getTime();
     });
 };
 
