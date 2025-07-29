@@ -56,6 +56,7 @@ export const getMasterData = () => loadData('masterData', defaultMasterData);
 
 // --- Dashboard Functions ---
 export const getTotalRevenue = () => getProjects().reduce((sum, p) => p.paymentStatus === 'pago' ? sum + p.value : sum, 0);
+export const getTotalPendingRevenue = () => getProjects().reduce((sum, p) => p.paymentStatus === 'pendente' ? sum + p.value : sum, 0);
 export const getActiveProjects = () => getProjects().filter(p => new Date(p.endDate) >= new Date());
 export const getUpcomingVisits = () => {
     const now = new Date();
@@ -162,3 +163,5 @@ export const updateMasterData = (data: MasterData) => {
     saveData('masterData', data);
     return data;
 }
+
+    

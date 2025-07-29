@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients } from "@/lib/data";
-import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue } from "@/lib/data";
+import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,16 +12,19 @@ import type { Project, Visit, Client } from '@/lib/definitions';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [pendingRevenue, setPendingRevenue] = useState(0);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [showRevenue, setShowRevenue] = useState(false);
+  const [showPendingRevenue, setShowPendingRevenue] = useState(false);
 
   useEffect(() => {
     // A simple way to force re-fetch on focus to keep data fresh
     // across tabs or after some inactivity.
     const refetch = () => {
         setTotalRevenue(getTotalRevenue());
+        setPendingRevenue(getTotalPendingRevenue());
         setActiveProjects(getActiveProjects());
         setUpcomingVisits(getUpcomingVisits());
         setClients(getClients());
@@ -39,7 +42,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Dashboard" />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
@@ -63,12 +66,39 @@ export default function Dashboard() {
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Receita total de todos os projetos pagos
+              Receita de projetos já pagos.
+            </p>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">A Receber</CardTitle>
+            <Hourglass className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+             <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold font-headline">
+                {showPendingRevenue ? (
+                    new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                    }).format(pendingRevenue)
+                ) : (
+                    'R$ ••••••'
+                )}
+                </div>
+                 <Button variant="ghost" size="icon" onClick={() => setShowPendingRevenue(!showPendingRevenue)}>
+                    {showPendingRevenue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="sr-only">Mostrar/Ocultar receita pendente</span>
+                </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Valor de projetos pendentes.
             </p>
           </CardContent>
         </Card>
         <Link href="/projects" className="block">
-          <Card className="hover:bg-muted/50 transition-colors">
+          <Card className="hover:bg-muted/50 transition-colors h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
               <FolderKanban className="h-4 w-4 text-muted-foreground" />
@@ -82,7 +112,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         <Link href="/visits" className="block">
-          <Card className="hover:bg-muted/50 transition-colors">
+          <Card className="hover:bg-muted/50 transition-colors h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Próximas Visitas</CardTitle>
               <CalendarClock className="h-4 w-4 text-muted-foreground" />
@@ -90,7 +120,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold font-headline">{upcomingVisits.length}</div>
               <p className="text-xs text-muted-foreground">
-                Visitas agendadas para os próximos 7 dias
+                Visitas nos próximos 7 dias
               </p>
             </CardContent>
           </Card>
@@ -192,3 +222,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+    
