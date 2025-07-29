@@ -117,6 +117,17 @@ export const addVisit = (visit: Omit<Visit, 'id' | 'photos' | 'projectId' >) => 
     return newVisit;
 }
 
+export const updateVisit = (visit: Visit) => {
+    const visits = getVisits();
+    const index = visits.findIndex(v => v.id === visit.id);
+    if (index === -1) {
+        throw new Error("Visita não encontrada");
+    }
+    visits[index] = visit;
+    saveData('visits', visits);
+    return visit;
+};
+
 export const addPhotoToVisit = (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
     const visits = getVisits();
     const visitIndex = visits.findIndex(v => v.id === photoData.visitId);
@@ -164,4 +175,5 @@ export const updateMasterData = (data: MasterData) => {
     return data;
 }
 
+    
     

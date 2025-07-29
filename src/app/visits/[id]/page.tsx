@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, FormEvent, use, Suspense } from 'react';
 import { notFound, useRouter } from 'next/navigation';
-import { getVisitById, getClientById, getProjectById, addPhotoToVisit } from '@/lib/data';
+import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getMasterData } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,12 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
 import { z } from 'zod';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 
 const photoSchema = z.object({
@@ -52,6 +54,8 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
+
+    const { visitStatus: masterVisitStatus } = getMasterData();
     
 
     useEffect(() => {
@@ -165,6 +169,24 @@ function VisitDetailsPageContent({ id }: { id: string }) {
         }
     }
 
+    const handleStatusChange = (newStatus: string) => {
+        if (!visit) return;
+        try {
+            const updatedVisit = updateVisit({ ...visit, status: newStatus });
+            setVisit(updatedVisit);
+            toast({
+                title: 'Status Atualizado!',
+                description: `O status da visita foi alterado para "${newStatus}".`
+            });
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Erro ao Atualizar',
+                description: (error as Error).message
+            });
+        }
+    };
+
 
     if (loading || !visit || !client) {
         return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
@@ -188,20 +210,43 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                             <CardTitle className="font-headline">Detalhes da Visita</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                {visitStatusIcons[visit.status]}
-                                <p className="font-semibold capitalize">{visit.status}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                    <Label className="text-sm font-semibold">Status</Label>
+                                    <Select value={visit.status} onValueChange={handleStatusChange}>
+                                        <SelectTrigger className="w-full sm:w-[200px] mt-1 capitalize">
+                                            <div className="flex items-center gap-2">
+                                                {visitStatusIcons[visit.status]}
+                                                <SelectValue />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {masterVisitStatus.map(status => (
+                                                <SelectItem key={status} value={status} className="capitalize">
+                                                    {status}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                     <Label className="text-sm font-semibold">Cliente</Label>
+                                     <div className="flex items-center gap-2 mt-2">
+                                        <User className="w-4 h-4 text-muted-foreground" />
+                                        <Link href={`/clients/${client.id}`} className="font-medium text-primary hover:underline">{client.name}</Link>
+                                    </div>
+                                </div>
+                                 <div>
+                                     <Label className="text-sm font-semibold">Data</Label>
+                                     <div className="flex items-center gap-2 mt-2">
+                                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                                        <p>{new Date(visit.date).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })}</p>
+                                    </div>
+                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <User className="w-4 h-4 text-muted-foreground" />
-                                <p>Cliente: <Link href={`/clients/${client.id}`} className="font-medium text-primary hover:underline">{client.name}</Link></p>
-                            </div>
-                             <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-muted-foreground" />
-                                <p>Data: {new Date(visit.date).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })}</p>
-                            </div>
+                           
                             <div>
-                                <h4 className="font-semibold mb-2">Resumo</h4>
+                                <h4 className="font-semibold mb-2 mt-4">Resumo</h4>
                                 <p className="text-muted-foreground whitespace-pre-wrap">{visit.summary}</p>
                             </div>
                            
@@ -242,14 +287,27 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                                     <CarouselContent>
                                         {visit.photos.map((photo) => (
                                             <CarouselItem key={photo.id}>
-                                                <div className="p-1">
-                                                <Card>
-                                                    <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
-                                                        <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
-                                                    </CardContent>
-                                                    <CardDescription className="p-4">{photo.description}</CardDescription>
-                                                </Card>
-                                                </div>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <div className="p-1 cursor-pointer">
+                                                            <Card>
+                                                                <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
+                                                                    <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
+                                                                </CardContent>
+                                                                <CardDescription className="p-4 truncate">{photo.description}</CardDescription>
+                                                            </Card>
+                                                        </div>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="max-w-3xl">
+                                                        <DialogHeader>
+                                                            <DialogTitle>Visualização da Imagem</DialogTitle>
+                                                            <DialogDescription>{photo.description}</DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="mt-4">
+                                                            <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={1200} height={800} className="w-full h-auto object-contain rounded-md"/>
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
                                             </CarouselItem>
                                         ))}
                                     </CarouselContent>
@@ -348,3 +406,5 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         </Suspense>
     );
 }
+
+    
