@@ -119,13 +119,15 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
 
     const todayVisits = getVisits().filter(v => {
         const visitDate = new Date(v.date);
-        return visitDate >= startOfDay && visitDate <= endOfDay;
+        return visitDate.getFullYear() === now.getFullYear() &&
+               visitDate.getMonth() === now.getMonth() &&
+               visitDate.getDate() === now.getDate();
     });
     
     const todayProjects = getProjects().filter(p => {
         const startDate = new Date(`${p.startDate}T00:00:00`);
         const endDate = new Date(`${p.endDate}T23:59:59`);
-        return startOfDay <= endDate && endOfDay >= startDate;
+        return startOfDay.getTime() <= endDate.getTime() && endOfDay.getTime() >= startDate.getTime();
     });
 
     const schedule: ScheduleItem[] = [];
