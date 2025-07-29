@@ -87,7 +87,12 @@ export default function Dashboard() {
                                                         <p className="font-semibold">{item.type === 'project' ? `Projeto: ${item.title}` : item.title}</p>
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
-                                                    {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
+                                                    <div className="flex items-center gap-2">
+                                                        {item.isOverdue && (
+                                                            <Badge variant="destructive">Atrasada</Badge>
+                                                        )}
+                                                        {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
+                                                    </div>
                                                 </div>
                                                 <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
                                                     {item.clientPhone && (

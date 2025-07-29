@@ -110,6 +110,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     const clients = getClients();
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
 
+    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -136,18 +137,20 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
 
     todayVisits.forEach(v => {
         const client = getClient(v.clientId);
+        const visitDate = new Date(v.date);
         schedule.push({
             id: v.id,
             type: 'visit',
             date: v.date,
-            time: new Date(v.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             title: `Visita`,
             clientName: client?.name ?? 'Cliente desconhecido',
             clientId: v.clientId,
             clientPhone: client?.phone,
             clientAddress: client?.address,
             status: v.status,
-            path: `/visits/${v.id}`
+            path: `/visits/${v.id}`,
+            isOverdue: v.status === 'pendente' && now > visitDate,
         });
     });
 
@@ -157,7 +160,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
             id: p.id,
             type: 'project',
             date: p.startDate, // Using start date for sorting consistency
-            title: `Projeto: ${p.name}`,
+            title: p.name,
             clientName: client?.name ?? 'Cliente desconhecido',
             clientId: p.clientId,
             clientPhone: client?.phone,
