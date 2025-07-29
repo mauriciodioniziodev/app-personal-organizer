@@ -55,11 +55,15 @@ export type VisitsSummary = {
 export type ScheduleItem = {
     id: string;
     type: 'visit' | 'project';
-    date: string; // The date of the event. For projects, this will be the current day.
-    time?: string; // Only for visits
+    date: string; 
+    time?: string;
     title: string;
     clientName: string;
     clientId: string;
     status: string;
     path: string;
+    clientPhone?: string;
+    clientAddress?: string;
+    projectStartDate?: string;
+    projectEndDate?: string;
 };

@@ -4,13 +4,13 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue, getVisitsSummary, getTodaysSchedule } from "@/lib/data";
-import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass, CheckCircle, FileText, XCircle, Clock } from "lucide-react";
+import { Calendar, CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass, CheckCircle, FileText, XCircle, Clock } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Project, Visit, Client, VisitsSummary, ScheduleItem } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 
@@ -88,16 +88,40 @@ export default function Dashboard() {
                                 <React.Fragment key={item.id}>
                                 <li>
                                     <Link href={item.path} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent shrink-0">
                                                 {scheduleIcons[item.type]}
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex justify-between items-center">
-                                                    <p className="font-semibold">{item.title}</p>
-                                                    {item.time && <p className="text-sm font-bold">{item.time}</p>}
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-semibold">{item.title}</p>
+                                                        <p className="text-sm font-medium text-foreground">{item.clientName}</p>
+                                                    </div>
+                                                    {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">{item.clientName}</p>
+                                                <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
+                                                    {item.clientPhone && (
+                                                        <div className='flex items-center gap-2'>
+                                                            <Phone className="w-3 h-3"/>
+                                                            <span>{item.clientPhone}</span>
+                                                        </div>
+                                                    )}
+                                                     {item.clientAddress && (
+                                                        <div className='flex items-center gap-2'>
+                                                            <MapPin className="w-3 h-3"/>
+                                                            <span className='truncate'>{item.clientAddress}</span>
+                                                        </div>
+                                                    )}
+                                                     {item.type === 'project' && item.projectStartDate && item.projectEndDate && (
+                                                        <div className='flex items-center gap-2 pt-1'>
+                                                            <Calendar className="w-3 h-3"/>
+                                                            <span className="font-medium text-xs">
+                                                                {formatDate(item.projectStartDate)} - {formatDate(item.projectEndDate)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </Link>

@@ -76,7 +76,7 @@ export const getVisitsSummary = (): VisitsSummary => {
 
 export const getTodaysSchedule = (): ScheduleItem[] => {
     const clients = getClients();
-    const getClientName = (clientId: string) => clients.find(c => c.id === clientId)?.name ?? 'Cliente desconhecido';
+    const getClient = (clientId: string) => clients.find(c => c.id === clientId);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -89,7 +89,6 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
     
     const todayProjects = getProjects().filter(p => {
-        // Traz as datas para o fuso horário local para evitar problemas de um dia a mais ou a menos.
         const startDate = new Date(p.startDate + 'T00:00:00');
         const endDate = new Date(p.endDate + 'T23:59:59');
         return today >= startDate && today <= endDate;
@@ -98,27 +97,35 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     const schedule: ScheduleItem[] = [];
 
     todayVisits.forEach(v => {
+        const client = getClient(v.clientId);
         schedule.push({
             id: v.id,
             type: 'visit',
             date: v.date,
             time: new Date(v.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             title: `Visita`,
-            clientName: getClientName(v.clientId),
+            clientName: client?.name ?? 'Cliente desconhecido',
             clientId: v.clientId,
+            clientPhone: client?.phone,
+            clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`
         });
     });
 
      todayProjects.forEach(p => {
+        const client = getClient(p.clientId);
         schedule.push({
             id: p.id,
             type: 'project',
             date: p.startDate, // Using start date for sorting consistency
             title: p.name,
-            clientName: getClientName(p.clientId),
+            clientName: client?.name ?? 'Cliente desconhecido',
             clientId: p.clientId,
+            clientPhone: client?.phone,
+            clientAddress: client?.address,
+            projectStartDate: p.startDate,
+            projectEndDate: p.endDate,
             status: p.paymentStatus,
             path: `/projects/${p.id}`
         });
@@ -264,7 +271,6 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     }
     const allVisits = getVisits();
     
-    // Filter out the visit being edited
     const otherClientVisits = allVisits.filter(v => {
         return v.clientId === newVisit.clientId && v.id !== newVisit.visitId;
     });
@@ -279,11 +285,11 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     for (const visit of otherClientVisits) {
         const existingVisitTime = new Date(visit.date).getTime();
         if (Math.abs(newVisitTime - existingVisitTime) < fourHours) {
-            return visit; // Found a conflict
+            return visit; 
         }
     }
     
-    return null; // No conflict
+    return null;
 }
 
 export const checkForProjectConflict = (newProject: { clientId: string, startDate: string, endDate: string }): Project | null => {
@@ -296,7 +302,6 @@ export const checkForProjectConflict = (newProject: { clientId: string, startDat
         const existingStart = new Date(project.startDate).getTime();
         const existingEnd = new Date(project.endDate).getTime();
 
-        // Check for overlap
         if (newStart <= existingEnd && newEnd >= existingStart) {
             return project;
         }
