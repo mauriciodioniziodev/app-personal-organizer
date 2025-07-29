@@ -91,6 +91,16 @@ export const addProject = (project: Omit<Project, 'id'>) => {
   return newProject;
 };
 
+export const updateProject = (project: Project) => {
+    const projects = getProjects();
+    const index = projects.findIndex(p => p.id === project.id);
+    if(index === -1) throw new Error("Project not found");
+    projects[index] = project;
+    saveData('projects', projects);
+    return project;
+}
+
+
 export const createVisitFromClient = (visit: Omit<Visit, 'id' | 'photos' | 'projectId'>) => {
   const visits = getVisits();
   const newVisit = { ...visit, id: `v${Date.now()}`, photos: [], projectId: '' };

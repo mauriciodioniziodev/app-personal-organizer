@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getClients, getMasterData, getVisitById, addProject } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +30,7 @@ const projectSchema = z.object({
 });
 
 
-export default function NewProjectPage() {
+function NewProjectPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -62,7 +62,7 @@ export default function NewProjectPage() {
 
     const formData = new FormData(event.currentTarget);
     const projectData = {
-        clientId: formData.get("clientId") as string,
+        clientId: selectedClientId,
         visitId: visitId ?? undefined,
         name: formData.get("name") as string,
         description: formData.get("description") as string,
@@ -193,4 +193,13 @@ export default function NewProjectPage() {
       </form>
     </div>
   );
+}
+
+
+export default function NewProjectPage() {
+    return (
+        <Suspense fallback={<div>Carregando...</div>}>
+            <NewProjectPageContent />
+        </Suspense>
+    )
 }

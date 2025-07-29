@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, FormEvent, use } from 'react';
+import { useEffect, useState, useRef, FormEvent, use, Suspense } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById, addPhotoToVisit } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
@@ -33,8 +33,7 @@ const photoSchema = z.object({
     type: z.string(),
 });
 
-export default function VisitDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+function VisitDetailsPageContent({ id }: { id: string }) {
     const router = useRouter();
     const { toast } = useToast();
 
@@ -153,7 +152,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         try {
             addPhotoToVisit(validationResult.data);
             toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
-            setVisit(getVisitById(id) ?? null);
+            setVisit(getVisitById(id) ?? null); // Refetch visit data to show new photo
             if(photoFormRef.current) {
                 photoFormRef.current.reset();
             }
@@ -180,7 +179,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="flex flex-col gap-8">
-            <PageHeader title={`Visita: ${client.name} - ${formatDate(visit.date)}`} />
+            <PageHeader title={!client ? "Carregando Visita..." : `Visita: ${client.name}`} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-3 space-y-8">
@@ -338,5 +337,14 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
             </div>
 
         </div>
+    );
+}
+
+export default function VisitDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
+            <VisitDetailsPageContent id={id} />
+        </Suspense>
     );
 }

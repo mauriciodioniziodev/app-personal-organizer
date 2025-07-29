@@ -1,25 +1,30 @@
 "use client";
 
 import { notFound, useRouter } from "next/navigation";
-import { getProjectById, getClientById, getVisitById } from "@/lib/data";
+import { getProjectById, getClientById, getVisitById, updateProject } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, FormEvent } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ProjectForm } from "@/components/project-form";
+import { useToast } from "@/hooks/use-toast";
 
 
 export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { toast } = useToast();
   
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
+  const [isFormOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
     const projectData = getProjectById(id);
@@ -34,16 +39,35 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     }
   }, [id]);
 
+  const handleProjectUpdated = (updatedProject: Project) => {
+    setProject(updatedProject);
+    setFormOpen(false);
+    toast({
+        title: "Projeto Atualizado!",
+        description: "As alterações no projeto foram salvas com sucesso.",
+    });
+  }
+
 
   if (!project || !client) {
-    return <div>Carregando...</div>;
+    return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
 
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={project.name}>
-          <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
+          <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Projeto</DialogTitle>
+                </DialogHeader>
+                <ProjectForm project={project} onProjectUpdated={handleProjectUpdated} />
+            </DialogContent>
+          </Dialog>
       </PageHeader>
       
       <Card>
@@ -66,7 +90,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                         <div>
                             <p className="text-sm font-semibold">Visita Originadora</p>
                             <Link href={`/visits/${visit.id}`} className="text-sm text-muted-foreground hover:underline">
-                                {formatDate(visit.date)}
+                                {new Date(visit.date).toLocaleDateString('pt-BR')}
                             </Link>
                         </div>
                     </div>
