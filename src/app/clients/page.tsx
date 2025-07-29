@@ -17,8 +17,8 @@ export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Carrega os clientes na montagem inicial do componente.
-    const clientsData = getClients();
+    // Carrega e ordena os clientes na montagem inicial.
+    const clientsData = getClients().sort((a, b) => a.name.localeCompare(b.name));
     setAllClients(clientsData);
     setFilteredClients(clientsData);
   }, []);
@@ -26,7 +26,7 @@ export default function ClientsPage() {
   // Garante que a lista seja atualizada se os dados mudarem em outra aba.
   useEffect(() => {
     const handleFocus = () => {
-      const clientsData = getClients();
+      const clientsData = getClients().sort((a, b) => a.name.localeCompare(b.name));
       setAllClients(clientsData);
       // Re-aplica o filtro com os dados atualizados
       setFilteredClients(

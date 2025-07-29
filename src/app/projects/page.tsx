@@ -20,7 +20,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     const refetch = () => {
-      const projectsData = getProjects();
+      const projectsData = getProjects().sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
       const clientsData = getClients();
       setAllProjects(projectsData);
       setClients(clientsData);
@@ -36,7 +36,7 @@ export default function ProjectsPage() {
 
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
-  }, [searchTerm]); // Apenas o searchTerm deve ser dependencia aqui, para refetch manual
+  }, [searchTerm]); 
 
    useEffect(() => {
     const results = allProjects.filter(project =>

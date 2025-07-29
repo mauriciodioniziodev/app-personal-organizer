@@ -49,7 +49,10 @@ export default function VisitsPage() {
     }, [searchTerm, statusFilter, allVisits, clients]);
 
 
-    const getProjectName = (projectId: string) => projects.find(p => p.id === projectId)?.name;
+    const getProjectName = (projectId?: string) => {
+        if (!projectId) return undefined;
+        return projects.find(p => p.id === projectId)?.name;
+    }
     
     const visitStatusColors: { [key: string]: string } = {
       pendente: 'text-yellow-800 bg-yellow-100',
