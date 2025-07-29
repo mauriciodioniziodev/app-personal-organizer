@@ -19,23 +19,28 @@ export default function VisitsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const getClientName = (clientId: string) => clients.find(c => c.id === clientId)?.name || 'Desconhecido';
+    
     useEffect(() => {
-        const visitsData = getVisits().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setAllVisits(visitsData);
-        setFilteredVisits(visitsData);
-        setProjects(getProjects());
-        setClients(getClients());
-    }, []);
+        const refetch = () => {
+            const visitsData = getVisits().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const clientsData = getClients();
+            setAllVisits(visitsData);
+            setProjects(getProjects());
+            setClients(clientsData);
+            setFilteredVisits(
+                visitsData.filter(visit =>
+                    (clientsData.find(c => c.id === visit.clientId)?.name || 'Desconhecido').toLowerCase().includes(searchTerm.toLowerCase())
+                )
+            );
+        };
+        refetch();
+
+        window.addEventListener('focus', refetch);
+        return () => window.removeEventListener('focus', refetch);
+    }, [searchTerm]);
 
     const getProjectName = (projectId: string) => projects.find(p => p.id === projectId)?.name;
-    const getClientName = (clientId: string) => clients.find(c => c.id === clientId)?.name || 'Desconhecido';
-
-    useEffect(() => {
-        const results = allVisits.filter(visit =>
-            getClientName(visit.clientId).toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setFilteredVisits(results);
-    }, [searchTerm, allVisits, clients]);
     
     return (
         <div className="flex flex-col gap-8">
