@@ -33,13 +33,6 @@ const projectSchema = z.object({
     paymentStatus: z.string()
 });
 
-const photoSchema = z.object({
-    url: z.string().min(1, "Por favor, capture ou envie uma imagem."),
-    description: z.string().min(3, "Descrição é obrigatória."),
-    type: z.string(),
-});
-
-
 function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project, photoType: 'before' | 'after', onPhotoAdded: (project: Project) => void }) {
     const [isCaptureOpen, setCaptureOpen] = useState(false);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -49,7 +42,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [photoErrors, setPhotoErrors] = useState<Record<string, string[]>>({});
+    const [photoError, setPhotoError] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -89,6 +82,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
             const dataUrl = canvas.toDataURL('image/png');
             setCapturedImage(dataUrl);
             setUploadedImage(null);
+            setPhotoError(null);
         }
     }
 
@@ -99,6 +93,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
             reader.onloadend = () => {
                 setUploadedImage(reader.result as string);
                 setCapturedImage(null);
+                setPhotoError(null);
             };
             reader.readAsDataURL(file);
         }
@@ -107,27 +102,31 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
     const handlePhotoSubmit = (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setIsSubmitting(true);
-      setPhotoErrors({});
+      setPhotoError(null);
       
       const formData = new FormData(event.currentTarget);
       const imageUri = capturedImage || uploadedImage;
-      
-      const photoData = {
-          url: imageUri ?? "",
-          description: formData.get("description") as string,
-          type: (capturedImage ? 'camera' : 'upload') as 'camera' | 'upload'
+      const description = formData.get("description") as string;
+
+      if (!imageUri) {
+          setPhotoError("Por favor, capture ou envie uma imagem.");
+          setIsSubmitting(false);
+          return;
       }
-
-      const validationResult = photoSchema.safeParse(photoData);
-
-      if (!validationResult.success) {
-          setPhotoErrors(validationResult.error.flatten().fieldErrors);
+       if (!description || description.trim().length < 3) {
+          setPhotoError("A descrição é obrigatória e deve ter pelo menos 3 caracteres.");
           setIsSubmitting(false);
           return;
       }
 
+      const photoData = {
+          url: imageUri,
+          description: description,
+          type: (capturedImage ? 'camera' : 'upload') as 'camera' | 'upload'
+      }
+
       try {
-          const updatedProject = addPhotoToProject(project.id, photoType, validationResult.data);
+          const updatedProject = addPhotoToProject(project.id, photoType, photoData);
           onPhotoAdded(updatedProject);
           toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
           if(photoFormRef.current) photoFormRef.current.reset();
@@ -186,11 +185,11 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
                       </Button>
                   </div>
               )}
-              {photoErrors?.url && <p className="text-sm text-destructive">{photoErrors.url[0]}</p>}
+              
               <div>
                   <Textarea id="description" name="description" placeholder="Descreva a foto" />
-                  {photoErrors?.description && <p className="text-sm text-destructive">{photoErrors.description[0]}</p>}
               </div>
+               {photoError && <p className="text-sm text-destructive">{photoError}</p>}
               <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
                   Adicionar Foto
@@ -337,5 +336,3 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     </div>
   );
 }
-
-    
