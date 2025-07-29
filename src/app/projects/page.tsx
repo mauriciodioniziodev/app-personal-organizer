@@ -6,11 +6,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProjects, getClients } from "@/lib/data";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, User, Phone, MapPin, Calendar } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import type { Project, Client } from '@/lib/definitions';
 import { Input } from '@/components/ui/input';
+import { formatDate } from '@/lib/utils';
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -25,14 +26,13 @@ export default function ProjectsPage() {
       setAllProjects(projectsData);
       setClients(clientsData);
 
-      // Re-aplica o filtro com os dados atualizados
       setFilteredProjects(
         projectsData.filter(project =>
             (clientsData.find(c => c.id === project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     };
-    refetch(); // Initial fetch
+    refetch();
 
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
@@ -40,14 +40,14 @@ export default function ProjectsPage() {
 
    useEffect(() => {
     const results = allProjects.filter(project =>
-        getClientName(project.clientId).toLowerCase().includes(searchTerm.toLowerCase())
+        (getClient(project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProjects(results);
   }, [searchTerm, allProjects, clients]);
 
 
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || "Cliente não encontrado";
+  const getClient = (clientId: string) => {
+    return clients.find(c => c.id === clientId);
   }
 
   return (
@@ -76,36 +76,65 @@ export default function ProjectsPage() {
 
       {filteredProjects.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProjects.map((project) => (
-            <Card key={project.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="font-headline">{project.name}</CardTitle>
-                <CardDescription>
-                  Cliente: {getClientName(project.clientId)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-4">
-                <p className="text-sm text-muted-foreground line-clamp-2">{project.description || "Nenhuma descrição."}</p>
-                <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Valor:</span>
-                    <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</span>
-                </div>
-                 <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Status:</span>
-                    <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
-                        {project.paymentStatus}
-                    </Badge>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/projects/${project.id}`} className="w-full">
-                  <Button variant="outline" className="w-full">
-                    Gerenciar Projeto
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+          {filteredProjects.map((project) => {
+            const client = getClient(project.clientId);
+            return (
+                <Card key={project.id} className="flex flex-col">
+                <CardHeader>
+                    <CardTitle className="font-headline">{project.name}</CardTitle>
+                    <CardDescription>
+                        {client ? (
+                             <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
+                                <div className='flex items-center gap-2 font-medium text-foreground'>
+                                    <User className="w-3 h-3"/>
+                                    <span>{client.name}</span>
+                                </div>
+                                <div className='flex items-center gap-2'>
+                                    <Phone className="w-3 h-3"/>
+                                    <span>{client.phone}</span>
+                                </div>
+                                <div className='flex items-center gap-2'>
+                                    <MapPin className="w-3 h-3"/>
+                                    <span className='truncate'>{client.address}</span>
+                                </div>
+                            </div>
+                        ) : 'Cliente não encontrado'}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-4">
+                    <p className="text-sm text-muted-foreground line-clamp-2">{project.description || "Nenhuma descrição."}</p>
+                    
+                     <div className="flex items-start gap-3 text-sm rounded-lg border p-3">
+                        <Calendar className="w-4 h-4 mt-1 text-muted-foreground" />
+                        <div>
+                            <p className="font-semibold">Período</p>
+                            <p className="text-muted-foreground">
+                                {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Valor:</span>
+                        <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
+                            {project.paymentStatus}
+                        </Badge>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Link href={`/projects/${project.id}`} className="w-full">
+                    <Button variant="outline" className="w-full">
+                        Gerenciar Projeto
+                    </Button>
+                    </Link>
+                </CardFooter>
+                </Card>
+            )
+          })}
         </div>
         ) : (
             <div className="text-center py-16 border-dashed border-2 rounded-lg">
