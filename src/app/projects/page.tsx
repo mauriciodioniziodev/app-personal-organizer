@@ -11,7 +11,7 @@ import PageHeader from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import type { Project, Client } from '@/lib/definitions';
 import { Input } from '@/components/ui/input';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -48,6 +48,11 @@ export default function ProjectsPage() {
 
   const getClient = (clientId: string) => {
     return clients.find(c => c.id === clientId);
+  }
+  
+  const paymentStatusColors: { [key: string]: string } = {
+      pago: 'text-green-800 bg-green-100',
+      pendente: 'text-yellow-800 bg-yellow-100',
   }
 
   return (
@@ -120,7 +125,7 @@ export default function ProjectsPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
+                         <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                             {project.paymentStatus}
                         </Badge>
                     </div>

@@ -9,7 +9,7 @@ import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, Loader
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, use } from "react";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
@@ -86,6 +86,11 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id:st
     );
   }
 
+  const paymentStatusColors: { [key: string]: string } = {
+      pago: 'text-green-800 bg-green-100',
+      pendente: 'text-yellow-800 bg-yellow-100',
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={project.name}>
@@ -144,7 +149,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id:st
                     <CheckCircle className="w-6 h-6 text-accent" />
                     <div>
                         <p className="text-sm font-semibold">Pagamento</p>
-                         <Badge variant={project.paymentStatus === 'pago' ? 'default' : 'secondary'} className={project.paymentStatus === 'pago' ? 'bg-accent text-accent-foreground capitalize' : 'capitalize'}>
+                         <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                             {project.paymentStatus}
                         </Badge>
                     </div>
