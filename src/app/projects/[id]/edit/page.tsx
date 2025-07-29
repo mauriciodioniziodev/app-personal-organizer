@@ -1,7 +1,7 @@
 
 "use client";
 
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getProjectById, getMasterData, updateProject, addPhotoToProject } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,17 +9,16 @@ import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X } from "lucid
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef, use } from "react";
 import Link from "next/link";
-import type { Project, Photo } from "@/lib/definitions";
+import type { Project } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Image from 'next/image';
-import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
+import { z } from "zod";
 
 const projectSchema = z.object({
     id: z.string(),
@@ -32,6 +31,7 @@ const projectSchema = z.object({
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
     paymentStatus: z.string()
 });
+
 
 function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project, photoType: 'before' | 'after', onPhotoAdded: (project: Project) => void }) {
     const [isCaptureOpen, setCaptureOpen] = useState(false);
@@ -99,7 +99,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
         }
     };
 
-    const handlePhotoSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handlePhotoSubmit = (event: FormEvent) => {
       event.preventDefault();
       setIsSubmitting(true);
       setPhotoError(null);
@@ -132,6 +132,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
           setDescription('');
       } catch (error) {
            toast({ variant: 'destructive', title: "Erro ao Adicionar Foto" });
+           console.error(error);
       } finally {
           setIsSubmitting(false);
       }
@@ -220,9 +221,9 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     if (projectData) {
       setProject(projectData);
     } else {
-      notFound();
+      router.push("/projects"); // Or a not-found page
     }
-  }, [id]);
+  }, [id, router]);
 
   const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -251,7 +252,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
 
     try {
       const updated = updateProject(validationResult.data as Project);
-      setProject(updated);
+      setProject(updated); // Update the state with the new data
       toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
       // We don't redirect here, so the user can continue editing or adding photos.
     } catch (error) {
@@ -339,5 +340,4 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
         </div>
     </div>
   );
-
-    
+}
