@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { getVisits, getProjects, getClients } from '@/lib/data';
 import type { Visit, Project, Client } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -67,38 +67,51 @@ export default function VisitsPage() {
             </div>
 
             {filteredVisits.length > 0 ? (
-                <Card>
-                    <CardContent className="p-4">
-                        <ul className="space-y-4">
-                            {filteredVisits.map(visit => {
-                                const projectName = getProjectName(visit.projectId);
-                                return (
-                                <li key={visit.id} className="p-4 border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <Link href={`/visits/${visit.id}`} className='w-full'>
-                                        <div>
-                                            <p className="font-semibold text-lg">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'full', timeZone: 'UTC' })}</p>
-                                            <p className="text-muted-foreground">{new Date(visit.date).toLocaleTimeString('pt-BR', { timeStyle: 'short', timeZone: 'UTC' })}</p>
-                                            <div className='mt-2'>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Cliente: {getClientName(visit.clientId)}
-                                                </p>
-                                                {projectName && (
-                                                     <p className="text-sm font-medium hover:underline">
-                                                        Projeto: {projectName}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <p className="text-sm mt-2 line-clamp-2">{visit.summary}</p>
-                                        </div>
-                                    </Link>
-                                    <Badge variant={visit.status === 'realizada' ? 'default' : 'secondary'} className={`capitalize ${visit.status === 'realizada' ? 'bg-accent text-accent-foreground' : ''}`}>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredVisits.map(visit => {
+                        const projectName = getProjectName(visit.projectId);
+                        return (
+                        <Card key={visit.id} className="flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="font-headline text-xl">
+                                    {new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                                </CardTitle>
+                                <CardDescription>
+                                    {new Date(visit.date).toLocaleTimeString('pt-BR', { timeStyle: 'short' })}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-grow space-y-4">
+                                <div>
+                                    <p className="text-sm font-semibold text-muted-foreground">Cliente</p>
+                                    <p>{getClientName(visit.clientId)}</p>
+                                </div>
+                                 <div>
+                                    <p className="text-sm font-semibold text-muted-foreground">Status</p>
+                                     <Badge variant={visit.status === 'realizada' ? 'default' : 'secondary'} className={`capitalize ${visit.status === 'realizada' ? 'bg-accent text-accent-foreground' : ''}`}>
                                         {visit.status}
                                     </Badge>
-                                </li>
-                            )})}
-                        </ul>
-                    </CardContent>
-                </Card>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-muted-foreground">Resumo</p>
+                                    <p className="text-sm mt-1 line-clamp-3">{visit.summary}</p>
+                                </div>
+                                {projectName && (
+                                     <div>
+                                        <p className="text-sm font-semibold text-muted-foreground">Projeto</p>
+                                        <p className="text-sm mt-1">{projectName}</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                            <CardContent>
+                                 <Link href={`/visits/${visit.id}`} className="w-full">
+                                    <Button variant="outline" className="w-full">
+                                        Ver Detalhes
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    )})}
+                </div>
             ) : (
                  <div className="text-center py-16 border-dashed border-2 rounded-lg">
                     <h2 className="text-2xl font-headline">Nenhuma visita encontrada</h2>

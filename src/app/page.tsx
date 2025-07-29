@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -104,7 +105,7 @@ export default function Dashboard() {
                   {upcomingVisits.slice(0, 5).map((visit) => (
                      <li key={visit.id} className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</p>
+                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                         <Link href={`/projects/${visit.projectId}`} className="text-sm text-muted-foreground hover:underline">
                           Projeto: {activeProjects.find(p => p.id === visit.projectId)?.name || 'Desconhecido'}
                         </Link>

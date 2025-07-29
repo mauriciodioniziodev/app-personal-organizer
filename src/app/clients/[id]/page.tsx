@@ -133,7 +133,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <li key={visit.id}>
                                     <Link href={`/visits/${visit.id}`} className="block p-4 rounded-lg border hover:bg-muted transition-colors">
                                         <div className="flex justify-between items-center">
-                                            <h4 className="font-semibold">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long', timeZone: 'UTC' })}</h4>
+                                            <h4 className="font-semibold">{new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long'})}</h4>
                                              <span className="text-xs font-semibold capitalize px-2 py-1 rounded-full bg-secondary text-secondary-foreground">{visit.status}</span>
                                         </div>
                                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{visit.summary}</p>
