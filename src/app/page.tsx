@@ -12,6 +12,7 @@ import type { Project, Visit, Client, VisitsSummary, ScheduleItem } from '@/lib/
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import React from 'react';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -84,8 +85,8 @@ export default function Dashboard() {
                     {dailySchedule.length > 0 ? (
                         <ul className="space-y-4">
                             {dailySchedule.map((item, index) => (
-                                <>
-                                <li key={item.id}>
+                                <React.Fragment key={item.id}>
+                                <li>
                                     <Link href={item.path} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent">
@@ -102,7 +103,7 @@ export default function Dashboard() {
                                     </Link>
                                 </li>
                                  {index < dailySchedule.length - 1 && <Separator />}
-                                </>
+                                </React.Fragment>
                             ))}
                         </ul>
                     ) : (
