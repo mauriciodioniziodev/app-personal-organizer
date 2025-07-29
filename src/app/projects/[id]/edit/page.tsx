@@ -268,12 +268,12 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
   const updateProjectState = (updatedProject: Project) => {
         // Recalculate financial values
         if (updatedProject.paymentMethod === 'vista') {
-            updatedProject.discountAmount = (updatedProject.value * updatedProject.discountPercentage) / 100;
+            updatedProject.discountAmount = (updatedProject.value * (updatedProject.discountPercentage || 0)) / 100;
         } else {
             updatedProject.discountPercentage = 0;
             updatedProject.discountAmount = 0;
         }
-        updatedProject.finalValue = updatedProject.value - updatedProject.discountAmount;
+        updatedProject.finalValue = updatedProject.value - (updatedProject.discountAmount || 0);
 
         // Recalculate payments
         if (updatedProject.paymentMethod === 'vista') {
@@ -408,7 +408,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
 
                 <div className="space-y-2">
                     <Label htmlFor="description">Descrição</Label>
-                    <Textarea id="description" name="description" value={project.description} onChange={e => handleGenericChange('description', e.target.value)} />
+                    <Textarea id="description" name="description" value={project.description || ''} onChange={e => handleGenericChange('description', e.target.value)} />
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -461,7 +461,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
                                 id="discountPercentage" 
                                 name="discountPercentage" 
                                 type="number" 
-                                value={project.discountPercentage} 
+                                value={project.discountPercentage || ''} 
                                 onChange={e => handleGenericChange('discountPercentage', parseFloat(e.target.value) || 0)}
                                 className="pl-10"
                             />
@@ -471,10 +471,10 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
             </div>
              <div className="p-4 bg-muted/50 rounded-lg flex justify-between items-center">
                 <div className="text-sm">
-                    <p>Desconto Aplicado: <span className="font-medium text-destructive">- {project.discountAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+                    <p>Desconto Aplicado: <span className="font-medium text-destructive">- {(project.discountAmount ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
                     <p className="font-semibold">Valor Final:</p>
                 </div>
-                <p className="text-2xl font-bold font-headline">{project.finalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p className="text-2xl font-bold font-headline">{(project.finalValue ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
              </div>
              {errors?.finalValue && <p className="text-sm text-destructive">{Array.isArray(errors.finalValue) ? errors.finalValue[0]: "A soma das parcelas deve ser igual ao valor total do projeto."}</p>}
              <Separator/>
@@ -601,3 +601,5 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     </div>
   );
 }
+
+    
