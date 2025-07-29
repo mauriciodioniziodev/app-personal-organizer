@@ -144,7 +144,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
-            isOverdue: v.status === 'pendente' && now > visitDate,
+            isOverdue: v.status === 'pendente' && now.getTime() > visitDate.getTime(),
         });
     });
 
