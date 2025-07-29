@@ -7,6 +7,8 @@ export type Client = {
   email:string;
   address: string;
   preferences: string;
+  cpf: string;
+  birthday: string;
 };
 
 export type Payment = {

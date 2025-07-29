@@ -21,6 +21,8 @@ const clientSchema = z.object({
   email: z.string().email("E-mail inválido."),
   phone: z.string().min(10, "Telefone inválido."),
   address: z.string().min(5, "Endereço inválido."),
+  cpf: z.string().optional(),
+  birthday: z.string().optional(),
   preferences: z.string().optional(),
 });
 
@@ -42,6 +44,8 @@ export default function NewClientPage() {
         email: formData.get("email") as string,
         phone: formData.get("phone") as string,
         address: formData.get("address") as string,
+        cpf: formData.get("cpf") as string,
+        birthday: formData.get("birthday") as string,
         preferences: formData.get("preferences") as string,
     }
 
@@ -102,6 +106,18 @@ export default function NewClientPage() {
                 <Label htmlFor="address">Endereço</Label>
                 <Input id="address" name="address" placeholder="Rua, Número, Bairro, Cidade" required />
                 {errors?.address && <p className="text-sm text-destructive">{errors.address[0]}</p>}
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input id="cpf" name="cpf" placeholder="000.000.000-00" />
+                 {errors?.cpf && <p className="text-sm text-destructive">{errors.cpf[0]}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birthday">Aniversário (DD/MM)</Label>
+                <Input id="birthday" name="birthday" placeholder="DD/MM" />
+                {errors?.birthday && <p className="text-sm text-destructive">{errors.birthday[0]}</p>}
               </div>
             </div>
             <div className="space-y-2">

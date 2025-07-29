@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getClientById, getProjectsByClientId, getVisitsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
@@ -125,6 +125,18 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         <MapPin className="w-5 h-5 text-muted-foreground" />
                         <span>{client.address}</span>
                     </div>
+                     {client.cpf && (
+                        <div className="flex items-center gap-3">
+                            <BadgeInfo className="w-5 h-5 text-muted-foreground" />
+                            <span>{client.cpf}</span>
+                        </div>
+                     )}
+                     {client.birthday && (
+                        <div className="flex items-center gap-3">
+                            <Cake className="w-5 h-5 text-muted-foreground" />
+                            <span>Aniversário: {client.birthday}</span>
+                        </div>
+                     )}
                 </CardContent>
             </Card>
 
