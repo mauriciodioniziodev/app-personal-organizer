@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { CalendarPlus, Search } from 'lucide-react';
+import { CalendarPlus, Search, Phone, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function VisitsPage() {
@@ -19,7 +19,7 @@ export default function VisitsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const getClientName = (clientId: string) => clients.find(c => c.id === clientId)?.name || 'Desconhecido';
+    const getClient = (clientId: string) => clients.find(c => c.id === clientId);
     
     useEffect(() => {
         const refetch = () => {
@@ -70,6 +70,7 @@ export default function VisitsPage() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {filteredVisits.map(visit => {
                         const projectName = getProjectName(visit.projectId);
+                        const client = getClient(visit.clientId);
                         return (
                         <Card key={visit.id} className="flex flex-col">
                             <CardHeader>
@@ -83,7 +84,21 @@ export default function VisitsPage() {
                             <CardContent className="flex-grow space-y-4">
                                 <div>
                                     <p className="text-sm font-semibold text-muted-foreground">Cliente</p>
-                                    <p>{getClientName(visit.clientId)}</p>
+                                    {client ? (
+                                        <div className="space-y-1 mt-1">
+                                            <p className="font-medium">{client.name}</p>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <Phone className="w-3 h-3" />
+                                                <span>{client.phone}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <MapPin className="w-3 h-3" />
+                                                <span className="truncate">{client.address}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p>Desconhecido</p>
+                                    )}
                                 </div>
                                  <div>
                                     <p className="text-sm font-semibold text-muted-foreground">Status</p>
