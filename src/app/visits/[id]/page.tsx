@@ -26,6 +26,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Image from 'next/image';
 import { z } from 'zod';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 
 const photoSchema = z.object({
@@ -407,4 +408,5 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     );
 }
 
+    
     
