@@ -200,27 +200,33 @@ export const updateMasterData = (data: MasterData) => {
 
 export const checkForVisitConflict = (newVisit: { clientId: string, date: string, visitId?: string }): Visit | null => {
     if (!newVisit.clientId || !newVisit.date) {
-        return null; // Don't check if essential data is missing
+        return null;
     }
     const allVisits = getVisits();
-    // Get all visits for the client, excluding the one being edited.
-    const otherClientVisits = allVisits.filter(v => v.clientId === newVisit.clientId && v.id !== newVisit.visitId);
+    
+    // Filter for other visits of the same client
+    const otherClientVisits = allVisits.filter(v => {
+        // It's for the same client
+        const isSameClient = v.clientId === newVisit.clientId;
+        // It's a different visit (not the one we are currently editing)
+        const isDifferentVisit = v.id !== newVisit.visitId;
+        return isSameClient && isDifferentVisit;
+    });
     
     if (otherClientVisits.length === 0) {
         return null;
     }
 
     const newVisitTime = new Date(newVisit.date).getTime();
-    // 4 hours in milliseconds (2 hours before, 2 hours after)
     const fourHours = 4 * 60 * 60 * 1000;
 
     for (const visit of otherClientVisits) {
         const existingVisitTime = new Date(visit.date).getTime();
-        // Check if the absolute difference is less than 4 hours
         if (Math.abs(newVisitTime - existingVisitTime) < fourHours) {
             return visit; // Found a conflict
         }
     }
+    
     return null; // No conflict
 }
 
