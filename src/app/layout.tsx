@@ -1,3 +1,6 @@
+
+"use client";
+
 import type { Metadata } from "next";
 import { Alegreya, Belleza } from "next/font/google";
 import "./globals.css";
@@ -5,7 +8,8 @@ import { cn } from "@/lib/utils";
 import Sidebar from "@/components/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalLoadingIndicator } from "@/components/global-loading-indicator";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -18,7 +22,7 @@ const alegreya = Alegreya({
   variable: "--font-alegreya",
 });
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: "Amanda Martins",
   description: "Organização personalizada",
 };
@@ -28,6 +32,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [isNavigating, setIsNavigating] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // This is a simplified approach to show a loading indicator on route change.
+    // It triggers on any pathname change.
+    setIsNavigating(true);
+    const timer = setTimeout(() => setIsNavigating(false), 1); // A tiny delay to allow the state to update and render
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -46,7 +62,7 @@ export default function RootLayout({
         )}
       >
         <Suspense>
-          <GlobalLoadingIndicator />
+           <GlobalLoadingIndicator isNavigating={isNavigating} />
         </Suspense>
         <div className="flex min-h-screen">
           <Sidebar />
