@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Visit } from "./definitions";
 
+// Este schema é usado apenas para validação no lado do servidor.
+// A criação do cliente em si é feita no lado do cliente em NewClientPage.
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   email: z.string().email("E-mail inválido."),
@@ -32,13 +34,12 @@ export async function createClient(prevState: any, formData: FormData) {
   }
   
   try {
-    const newClient = addClient(validatedFields.data);
-    // Revalidar o caminho é importante se houver cache no lado do servidor,
-    // mas a atualização do estado no cliente é crucial para a UI.
-    revalidatePath("/clients");
-    return { success: true, newClient };
+    // A função addClient agora será chamada no lado do cliente
+    // Este server action serve mais como uma validação.
+    // O retorno de success aqui sinaliza que a validação passou.
+    return { success: true, clientData: validatedFields.data };
   } catch (error) {
-    return { message: "Erro ao criar cliente.", success: false };
+    return { message: "Erro de servidor ao validar cliente.", success: false };
   }
 }
 
