@@ -135,7 +135,7 @@ function NewProjectPageContent() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="clientId">Cliente</Label>
-              <Select name="clientId" required value={selectedClientId} onValueChange={setSelectedClientId} disabled={!!visitId}>
+              <Select key={selectedClientId} name="clientId" required value={selectedClientId} onValueChange={setSelectedClientId} disabled={!!visitId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
