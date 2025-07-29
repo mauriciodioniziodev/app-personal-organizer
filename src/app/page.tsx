@@ -75,7 +75,6 @@ export default function Dashboard() {
                         <ul className="space-y-4">
                             {dailySchedule.map((item, index) => {
                                 const isVisit = item.type === 'visit';
-                                const isOverdue = isVisit && item.status === 'pendente' && new Date(item.date) < new Date();
                                 
                                 return (
                                 <React.Fragment key={item.id}>
@@ -92,7 +91,7 @@ export default function Dashboard() {
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {isOverdue && (
+                                                        {item.isOverdue && (
                                                             <Badge variant="destructive">Atrasada</Badge>
                                                         )}
                                                          {isVisit && (

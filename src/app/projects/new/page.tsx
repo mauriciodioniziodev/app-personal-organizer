@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent, Suspense, useRef } from "react";
+import { useEffect, useState, FormEvent, Suspense, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getClients, getMasterData, getVisitById, addProject, checkForProjectConflict } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -14,11 +14,12 @@ import PageHeader from "@/components/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Percent, Info } from "lucide-react";
 import type { Client, Visit, Payment } from "@/lib/definitions";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
+import { Separator } from "@/components/ui/separator";
 
 const paymentSchema = z.object({
   id: z.string(),
@@ -35,8 +36,12 @@ const projectSchema = z.object({
     description: z.string().optional(),
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
-    value: z.coerce.number().min(0, "O valor deve ser positivo."),
+    value: z.coerce.number().min(0, "O valor bruto deve ser positivo."),
+    discountPercentage: z.coerce.number().min(0).optional(),
+    discountAmount: z.coerce.number().min(0).optional(),
+    finalValue: z.coerce.number().min(0),
     paymentMethod: z.enum(['vista', 'parcelado']),
+    paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
     payments: z.array(paymentSchema)
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
@@ -44,9 +49,9 @@ const projectSchema = z.object({
 }).refine(data => {
     const totalPayments = data.payments.reduce((sum, p) => sum + p.amount, 0);
     // Allow for small floating point discrepancies
-    return Math.abs(totalPayments - data.value) < 0.01;
+    return Math.abs(totalPayments - data.finalValue) < 0.01;
 }, {
-    message: "A soma das parcelas deve ser igual ao valor total do projeto.",
+    message: "A soma das parcelas deve ser igual ao valor final do projeto.",
     path: ["value"],
 });
 
@@ -63,22 +68,21 @@ function NewProjectPageContent() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
-  const { paymentStatus } = getMasterData();
+  const { paymentStatus, paymentInstruments } = getMasterData();
 
   const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    // A temporary workaround to install uuid. In a real scenario, this would be a dev dependency.
-    if(typeof window !== 'undefined' && !window.require) {
-       const script = document.createElement('script');
-       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js';
-       script.onload = () => console.log('uuid loaded');
-       document.head.appendChild(script);
-    }
-  },[])
+  // Financial State
+  const [value, setValue] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState(5);
+  const [paymentMethod, setPaymentMethod] = useState<'vista' | 'parcelado'>('vista');
+  const [paymentInstrument, setPaymentInstrument] = useState(paymentInstruments[0]);
+  const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
+  const [singlePaymentStatus, setSinglePaymentStatus] = useState(paymentStatus[0]);
+
 
   useEffect(() => {
     setClients(getClients());
@@ -87,9 +91,32 @@ function NewProjectPageContent() {
       if(foundVisit) {
         setVisit(foundVisit);
         setSelectedClientId(foundVisit.clientId);
+        if (foundVisit.budgetAmount) {
+            setValue(foundVisit.budgetAmount);
+        }
       }
     }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitId]);
+
+  const { discountAmount, finalValue, firstInstallmentValue, secondInstallmentValue } = useMemo(() => {
+      const isVista = paymentMethod === 'vista';
+      const currentDiscountPercentage = isVista ? discountPercentage : 0;
+      const discountAmt = (value * currentDiscountPercentage) / 100;
+      const finalVal = value - discountAmt;
+      
+      const firstInstallmentVal = (finalVal * firstInstallmentPercentage) / 100;
+      const secondInstallmentVal = finalVal - firstInstallmentVal;
+
+      return {
+          discountAmount: discountAmt,
+          finalValue: finalVal,
+          firstInstallmentValue: firstInstallmentVal,
+          secondInstallmentValue: secondInstallmentVal
+      }
+
+  }, [value, discountPercentage, paymentMethod, firstInstallmentPercentage]);
+
 
   const proceedToSubmit = () => {
     if (!formRef.current) return;
@@ -98,8 +125,7 @@ function NewProjectPageContent() {
     setErrors({});
     const formData = new FormData(formRef.current);
     
-    const paymentMethod = formData.get("paymentMethod") as 'vista' | 'parcelado';
-    const totalValue = parseFloat(formData.get("value") as string || '0');
+    const startDate = formData.get("startDate") as string;
     const endDate = formData.get("endDate") as string;
     
     let payments: Payment[] = [];
@@ -107,23 +133,22 @@ function NewProjectPageContent() {
     if(paymentMethod === 'vista') {
         payments.push({
             id: uuidv4(),
-            amount: totalValue,
-            status: formData.get('paymentStatus') as 'pendente' | 'pago',
+            amount: finalValue,
+            status: singlePaymentStatus as 'pendente' | 'pago',
             dueDate: endDate,
             description: 'Pagamento Único'
         });
     } else {
-        const firstInstallmentValue = parseFloat(formData.get('installment-1-value') as string || '0');
         payments.push({
             id: uuidv4(),
             amount: firstInstallmentValue,
             status: 'pendente',
-            dueDate: formData.get('startDate') as string,
+            dueDate: startDate,
             description: '1ª Parcela (Entrada)'
         });
         payments.push({
             id: uuidv4(),
-            amount: totalValue - firstInstallmentValue,
+            amount: secondInstallmentValue,
             status: 'pendente',
             dueDate: endDate,
             description: '2ª Parcela (Conclusão)'
@@ -135,10 +160,14 @@ function NewProjectPageContent() {
         visitId: visitId ?? undefined,
         name: formData.get("name") as string,
         description: formData.get("description") as string,
-        startDate: formData.get("startDate") as string,
+        startDate: startDate,
         endDate: endDate,
-        value: totalValue,
+        value: value,
+        discountPercentage: paymentMethod === 'vista' ? discountPercentage : 0,
+        discountAmount: discountAmount,
+        finalValue: finalValue,
         paymentMethod: paymentMethod,
+        paymentInstrument: paymentInstrument,
         payments: payments,
     };
     
@@ -203,21 +232,6 @@ function NewProjectPageContent() {
     handleValidation();
   }
   
-  const [paymentMethod, setPaymentMethod] = useState<'vista' | 'parcelado'>('vista');
-  const [totalValue, setTotalValue] = useState(0);
-  const [firstInstallment, setFirstInstallment] = useState(0);
-  
-  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseFloat(e.target.value) || 0;
-      setTotalValue(value);
-      setFirstInstallment(value / 2);
-  }
-
-  const handleFirstInstallmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFirstInstallment(parseFloat(e.target.value) || 0);
-  }
-
-
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
@@ -275,30 +289,63 @@ function NewProjectPageContent() {
               </div>
             </div>
             
+             <Separator/>
+             <CardTitle className="font-headline text-xl pt-2">Financeiro</CardTitle>
+            
              <div className="space-y-2">
-                <Label htmlFor="value">Valor Total do Projeto (R$)</Label>
-                <Input id="value" name="value" type="number" step="0.01" placeholder="1200.00" required onChange={handleValueChange}/>
+                <Label htmlFor="value">Valor Bruto do Projeto (R$)</Label>
+                <Input id="value" name="value" type="number" step="0.01" placeholder="1200.00" required value={value} onChange={e => setValue(parseFloat(e.target.value) || 0)}/>
                 {errors?.value && <p className="text-sm text-destructive">{Array.isArray(errors.value) ? errors.value[0] : errors.value}</p>}
             </div>
-            
-            <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
-                <RadioGroup name="paymentMethod" value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="flex items-center pt-2 gap-4">
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="vista" id="vista" />
-                        <Label htmlFor="vista">À Vista</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="parcelado" id="parcelado" />
-                        <Label htmlFor="parcelado">Parcelado (2x)</Label>
-                    </div>
-                </RadioGroup>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                  <Label>Forma de Pagamento</Label>
+                  <RadioGroup name="paymentMethod" value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="flex items-center pt-2 gap-4">
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="vista" id="vista" />
+                          <Label htmlFor="vista">À Vista</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="parcelado" id="parcelado" />
+                          <Label htmlFor="parcelado">Parcelado (2x)</Label>
+                      </div>
+                  </RadioGroup>
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="paymentInstrument">Meio de Pagamento</Label>
+                  <Select name="paymentInstrument" value={paymentInstrument} onValueChange={setPaymentInstrument}>
+                      <SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger>
+                      <SelectContent>
+                          {paymentInstruments.map(instrument => (
+                              <SelectItem key={instrument} value={instrument}>{instrument}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                   {errors?.paymentInstrument && <p className="text-sm text-destructive">{errors.paymentInstrument[0]}</p>}
+              </div>
             </div>
+
             
             {paymentMethod === 'vista' ? (
+              <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                <div className="space-y-2">
+                    <Label htmlFor="discountPercentage">Desconto à Vista (%)</Label>
+                    <div className="relative">
+                        <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            id="discountPercentage" 
+                            name="discountPercentage" 
+                            type="number" 
+                            value={discountPercentage} 
+                            onChange={e => setDiscountPercentage(parseFloat(e.target.value) || 0)}
+                            className="pl-10"
+                        />
+                    </div>
+                </div>
                 <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
-                    <RadioGroup name="paymentStatus" defaultValue={paymentStatus[0]} className="flex items-center pt-2 gap-4">
+                    <RadioGroup name="paymentStatus" value={singlePaymentStatus} onValueChange={setSinglePaymentStatus} className="flex items-center pt-2 gap-4">
                         {paymentStatus.map(status => (
                             <div key={status} className="flex items-center space-x-2">
                                 <RadioGroupItem value={status} id={status} />
@@ -307,18 +354,47 @@ function NewProjectPageContent() {
                         ))}
                     </RadioGroup>
                 </div>
+              </div>
             ) : (
                 <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
                      <div className="space-y-2">
-                        <Label htmlFor="installment-1-value">Valor da 1ª Parcela (Entrada)</Label>
-                        <Input id="installment-1-value" name="installment-1-value" type="number" step="0.01" value={firstInstallment} onChange={handleFirstInstallmentChange} />
+                        <Label htmlFor="installment-percentage">Porcentagem da 1ª Parcela (%)</Label>
+                         <div className="relative">
+                            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="installment-percentage" 
+                                name="installment-percentage" 
+                                type="number" 
+                                step="1" 
+                                value={firstInstallmentPercentage} 
+                                onChange={e => setFirstInstallmentPercentage(parseFloat(e.target.value) || 0)}
+                                className="pl-10"
+                            />
+                        </div>
                     </div>
                     <div className="space-y-2">
-                        <Label>Valor da 2ª Parcela</Label>
-                        <Input type="number" step="0.01" value={totalValue - firstInstallment} readOnly disabled className="bg-muted"/>
+                        <Label>Valor da 1ª Parcela (Entrada)</Label>
+                        <Input type="text" value={firstInstallmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} readOnly disabled className="bg-muted"/>
                     </div>
                 </div>
             )}
+            
+            <div className="p-4 bg-muted/50 rounded-lg flex flex-col gap-2">
+                <div className="flex justify-between items-center text-sm">
+                    <span>Valor Bruto</span>
+                    <span>{value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm text-destructive">
+                    <span>Desconto ({paymentMethod === 'vista' ? discountPercentage : 0}%)</span>
+                    <span>- {discountAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+                 <Separator className="my-2 bg-border"/>
+                 <div className="flex justify-between items-center font-bold text-lg">
+                    <span>Valor Final</span>
+                    <span>{finalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+            </div>
+             {errors?.payments && <div className="text-sm font-medium text-destructive flex items-center gap-2"><Info className="w-4 h-4" />{errors.payments}</div>}
 
 
             <div className="flex justify-end gap-2 pt-4">

@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, use } from "react";
@@ -171,21 +171,36 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id:st
                   <CardContent className="space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-md border">
                           <div>
-                              <p className="text-sm text-muted-foreground">Status do Pagamento</p>
+                              <p className="text-sm text-muted-foreground">Status Geral</p>
                               <Badge variant={'outline'} className={cn("capitalize mt-1", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                                   {project.paymentStatus}
                               </Badge>
                           </div>
                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Valor Total</p>
-                              <p className="font-bold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</p>
+                              <p className="text-sm text-muted-foreground">Valor Final</p>
+                              <p className="font-bold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</p>
                           </div>
                       </div>
+                       <div className="text-sm space-y-2">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Valor Bruto</span>
+                                <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</span>
+                            </div>
+                             <div className="flex justify-between text-destructive">
+                                <span className="flex items-center gap-1"><Percent className="w-3 h-3"/> Desconto ({project.discountPercentage}%)</span>
+                                <span>- {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.discountAmount)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground flex items-center gap-1"><CreditCard className="w-3 h-3"/> Meio de Pagamento</span>
+                                <span className="font-medium">{project.paymentInstrument}</span>
+                            </div>
+                       </div>
+                      <Separator/>
                       <div>
                           <h4 className="font-semibold mb-2">Parcelas</h4>
                           <div className="space-y-2">
                               {project.payments.map(payment => (
-                                  <div key={payment.id} className="flex items-center justify-between text-sm">
+                                  <div key={payment.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
                                       <div className="flex items-center gap-2">
                                           {payment.status === 'pago' ? <CheckCircle className="w-4 h-4 text-green-500"/> : <Hourglass className="w-4 h-4 text-yellow-500"/>}
                                           <span>{payment.description}</span>

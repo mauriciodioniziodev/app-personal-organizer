@@ -123,7 +123,7 @@ export default function ProjectsPage() {
                     
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Valor:</span>
-                        <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.value)}</span>
+                        <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Status:</span>

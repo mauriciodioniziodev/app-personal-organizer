@@ -2,10 +2,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict } from "@/lib/data";
+import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getMasterData } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef, use } from "react";
 import Link from "next/link";
@@ -22,6 +22,8 @@ import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn, formatDate } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 const paymentSchema = z.object({
   id: z.string(),
@@ -41,7 +43,11 @@ const projectSchema = z.object({
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
+    discountPercentage: z.coerce.number().min(0).optional(),
+    discountAmount: z.coerce.number().min(0).optional(),
+    finalValue: z.coerce.number().min(0),
     paymentMethod: z.enum(['vista', 'parcelado']),
+    paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
     payments: z.array(paymentSchema),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
@@ -49,10 +55,10 @@ const projectSchema = z.object({
 }).refine(data => {
     const totalPayments = data.payments.reduce((sum, p) => sum + p.amount, 0);
     // Allow for small floating point discrepancies
-    return Math.abs(totalPayments - data.value) < 0.01;
+    return Math.abs(totalPayments - data.finalValue) < 0.01;
 }, {
-    message: "A soma das parcelas deve ser igual ao valor total do projeto.",
-    path: ["value"],
+    message: "A soma das parcelas deve ser igual ao valor final do projeto.",
+    path: ["finalValue"],
 });
 
 
@@ -242,15 +248,64 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+
+  const { paymentInstruments } = getMasterData();
+  const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
   
   useEffect(() => {
     const projectData = getProjectById(id);
     if (projectData) {
       setProject(projectData);
+      if(projectData.paymentMethod === 'parcelado' && projectData.payments.length === 2 && projectData.finalValue > 0) {
+          const percentage = (projectData.payments[0].amount / projectData.finalValue) * 100;
+          setFirstInstallmentPercentage(Math.round(percentage));
+      }
     } else {
       router.push("/projects"); // Or a not-found page
     }
   }, [id, router]);
+
+  const updateProjectState = (updatedProject: Project) => {
+        // Recalculate financial values
+        if (updatedProject.paymentMethod === 'vista') {
+            updatedProject.discountAmount = (updatedProject.value * updatedProject.discountPercentage) / 100;
+        } else {
+            updatedProject.discountPercentage = 0;
+            updatedProject.discountAmount = 0;
+        }
+        updatedProject.finalValue = updatedProject.value - updatedProject.discountAmount;
+
+        // Recalculate payments
+        if (updatedProject.paymentMethod === 'vista') {
+            updatedProject.payments = [{
+                id: updatedProject.payments[0]?.id || uuidv4(),
+                amount: updatedProject.finalValue,
+                status: updatedProject.payments[0]?.status || 'pendente',
+                dueDate: updatedProject.endDate,
+                description: "Pagamento Único"
+            }];
+        } else {
+            const firstInstallmentValue = (updatedProject.finalValue * firstInstallmentPercentage) / 100;
+            const secondInstallmentValue = updatedProject.finalValue - firstInstallmentValue;
+             updatedProject.payments = [
+                {
+                    id: updatedProject.payments[0]?.id || uuidv4(),
+                    amount: firstInstallmentValue,
+                    status: updatedProject.payments[0]?.status || 'pendente',
+                    dueDate: updatedProject.startDate,
+                    description: '1ª Parcela (Entrada)'
+                },
+                {
+                    id: updatedProject.payments[1]?.id || uuidv4(),
+                    amount: secondInstallmentValue,
+                    status: updatedProject.payments[1]?.status || 'pendente',
+                    dueDate: updatedProject.endDate,
+                    description: '2ª Parcela (Conclusão)'
+                }
+            ]
+        }
+        setProject(updatedProject);
+  }
   
   const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
@@ -272,49 +327,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     setLoading(true);
     setErrors({});
 
-    const formData = new FormData(formRef.current);
-    const paymentMethod = formData.get("paymentMethod") as 'vista' | 'parcelado';
-    const value = parseFloat(formData.get("value") as string || "0");
-    let newPayments: Payment[] = [];
-
-    if (paymentMethod === 'vista') {
-        newPayments.push({
-            id: project.payments[0]?.id || uuidv4(),
-            amount: value,
-            status: project.payments[0]?.status || 'pendente',
-            dueDate: formData.get("endDate") as string,
-            description: "Pagamento Único"
-        });
-    } else {
-        const installment1Value = parseFloat(formData.get('installment-1-value') as string);
-        const installment2Value = value - installment1Value;
-        newPayments.push({
-            id: project.payments[0]?.id || uuidv4(),
-            amount: installment1Value,
-            status: project.payments[0]?.status || 'pendente',
-            dueDate: formData.get("startDate") as string,
-            description: '1ª Parcela (Entrada)'
-        });
-         newPayments.push({
-            id: project.payments[1]?.id || uuidv4(),
-            amount: installment2Value,
-            status: project.payments[1]?.status || 'pendente',
-            dueDate: formData.get("endDate") as string,
-            description: '2ª Parcela (Conclusão)'
-        });
-    }
-
-
-    const projectData = {
-      ...project,
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      startDate: formData.get("startDate") as string,
-      endDate: formData.get("endDate") as string,
-      value: value,
-      paymentMethod,
-      payments: newPayments,
-    };
+    const projectData = { ...project }; // Use the state as the source of truth
 
     const validationResult = projectSchema.safeParse(projectData);
 
@@ -337,11 +350,8 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
 
   const handleValidation = () => {
     if (!formRef.current || !project) return;
-    const formData = new FormData(formRef.current);
-    const startDate = formData.get("startDate") as string;
-    const endDate = formData.get("endDate") as string;
-
-    const conflict = checkForProjectConflict({ clientId: project.clientId, startDate, endDate, projectId: project.id });
+    
+    const conflict = checkForProjectConflict({ clientId: project.clientId, startDate: project.startDate, endDate: project.endDate, projectId: project.id });
     if (conflict) {
         setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
         setIsConflictAlertOpen(true);
@@ -350,7 +360,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(`${startDate}T00:00:00`);
+    const selectedDate = new Date(`${project.startDate}T00:00:00`);
 
     if (selectedDate < today) {
         setIsPastDateAlertOpen(true);
@@ -363,49 +373,22 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     event.preventDefault();
     handleValidation();
   };
+
+  useEffect(() => {
+      if(project) {
+          updateProjectState({ ...project });
+      }
+       // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
   
   if (!project) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
-
-  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newTotal = parseFloat(e.target.value) || 0;
-      if (!project) return;
-      const updatedProject = {...project, value: newTotal};
-      if (updatedProject.paymentMethod === 'parcelado' && updatedProject.payments.length === 2) {
-          const firstPaymentRatio = updatedProject.payments[0].amount / (updatedProject.payments[0].amount + updatedProject.payments[1].amount) || 0.5;
-          updatedProject.payments[0].amount = newTotal * firstPaymentRatio;
-          updatedProject.payments[1].amount = newTotal * (1 - firstPaymentRatio);
-      }
-      setProject(updatedProject);
-  }
-
-  const handleInstallmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-       if (!project) return;
-       const firstInstallmentValue = parseFloat(e.target.value) || 0;
-       const updatedProject = {...project};
-       updatedProject.payments[0].amount = firstInstallmentValue;
-       updatedProject.payments[1].amount = updatedProject.value - firstInstallmentValue;
-       setProject(updatedProject);
-  }
   
-  const handlePaymentMethodChange = (value: 'vista' | 'parcelado') => {
-      if(!project) return;
-      const updatedProject = {...project, paymentMethod: value};
-      if(value === 'parcelado' && updatedProject.payments.length !== 2) {
-          updatedProject.payments = [
-              { id: uuidv4(), amount: updatedProject.value / 2, status: 'pendente', dueDate: project.startDate, description: '1ª Parcela (Entrada)' },
-              { id: uuidv4(), amount: updatedProject.value / 2, status: 'pendente', dueDate: project.endDate, description: '2ª Parcela (Conclusão)' }
-          ]
-      }
-       if(value === 'vista' && updatedProject.payments.length > 1) {
-          updatedProject.payments = [
-              { id: uuidv4(), amount: updatedProject.value, status: 'pendente', dueDate: project.endDate, description: 'Pagamento Único' }
-          ]
-       }
-      setProject(updatedProject);
+  const handleGenericChange = (field: keyof Project, value: any) => {
+      if (!project) return;
+      setProject({ ...project, [field]: value });
   }
-
 
   return (
     <div className="flex flex-col gap-8">
@@ -419,61 +402,27 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
             <CardContent className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="name">Nome do Projeto</Label>
-                    <Input id="name" name="name" defaultValue={project.name} required />
+                    <Input id="name" name="name" value={project.name} onChange={e => handleGenericChange('name', e.target.value)} required />
                     {errors?.name && <p className="text-sm text-destructive">{errors.name[0]}</p>}
                 </div>
 
                 <div className="space-y-2">
                     <Label htmlFor="description">Descrição</Label>
-                    <Textarea id="description" name="description" defaultValue={project.description} />
+                    <Textarea id="description" name="description" value={project.description} onChange={e => handleGenericChange('description', e.target.value)} />
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="startDate">Data de Início</Label>
-                        <Input id="startDate" name="startDate" type="date" defaultValue={project.startDate} required />
+                        <Input id="startDate" name="startDate" type="date" value={project.startDate} onChange={e => handleGenericChange('startDate', e.target.value)} required />
                         {errors?.startDate && <p className="text-sm text-destructive">{errors.startDate[0]}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="endDate">Data de Conclusão</Label>
-                        <Input id="endDate" name="endDate" type="date" defaultValue={project.endDate} required />
+                        <Input id="endDate" name="endDate" type="date" value={project.endDate} onChange={e => handleGenericChange('endDate', e.target.value)} required />
                         {errors?.endDate && <p className="text-sm text-destructive">{errors.endDate[0]}</p>}
                     </div>
                 </div>
-                
-                 <div className="space-y-2">
-                    <Label htmlFor="value">Valor Total do Projeto (R$)</Label>
-                    <Input id="value" name="value" type="number" step="0.01" value={project.value} onChange={handleValueChange} required />
-                    {errors?.value && <p className="text-sm text-destructive">{Array.isArray(errors.value) ? errors.value[0]: ""}</p>}
-                    {errors?.payments && <p className="text-sm text-destructive">{Array.isArray(errors.payments) ? errors.payments[0]: "A soma das parcelas deve ser igual ao valor total do projeto."}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                    <Label>Forma de Pagamento</Label>
-                    <RadioGroup name="paymentMethod" value={project.paymentMethod} onValueChange={(v) => handlePaymentMethodChange(v as any)} className="flex items-center pt-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="vista" id="vista" />
-                            <Label htmlFor="vista">À Vista</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="parcelado" id="parcelado" />
-                            <Label htmlFor="parcelado">Parcelado (2x)</Label>
-                        </div>
-                    </RadioGroup>
-                </div>
-                
-                {project.paymentMethod === 'parcelado' && (
-                     <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
-                         <div className="space-y-2">
-                            <Label htmlFor="installment-1-value">Valor da 1ª Parcela (Entrada)</Label>
-                            <Input id="installment-1-value" name="installment-1-value" type="number" step="0.01" value={project.payments[0]?.amount || 0} onChange={handleInstallmentChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Valor da 2ª Parcela</Label>
-                            <Input type="number" step="0.01" value={project.payments[1]?.amount || 0} readOnly disabled className="bg-muted"/>
-                        </div>
-                    </div>
-                )}
                 
                  <div className="flex justify-end gap-2 pt-4">
                     <Link href={`/projects/${id}`}>
@@ -491,6 +440,102 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
         </Card>
       </form>
       
+       <Card>
+        <CardHeader>
+            <CardTitle className="font-headline">Financeiro</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+            {/* Valor e Desconto */}
+            <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="value">Valor Bruto do Projeto (R$)</Label>
+                    <Input id="value" name="value" type="number" step="0.01" value={project.value} onChange={e => handleGenericChange('value', parseFloat(e.target.value) || 0)} required />
+                    {errors?.value && <p className="text-sm text-destructive">{Array.isArray(errors.value) ? errors.value[0]: ""}</p>}
+                </div>
+                 {project.paymentMethod === 'vista' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="discountPercentage">Desconto à Vista (%)</Label>
+                        <div className="relative">
+                            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="discountPercentage" 
+                                name="discountPercentage" 
+                                type="number" 
+                                value={project.discountPercentage} 
+                                onChange={e => handleGenericChange('discountPercentage', parseFloat(e.target.value) || 0)}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+             <div className="p-4 bg-muted/50 rounded-lg flex justify-between items-center">
+                <div className="text-sm">
+                    <p>Desconto Aplicado: <span className="font-medium text-destructive">- {project.discountAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+                    <p className="font-semibold">Valor Final:</p>
+                </div>
+                <p className="text-2xl font-bold font-headline">{project.finalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+             </div>
+             {errors?.finalValue && <p className="text-sm text-destructive">{Array.isArray(errors.finalValue) ? errors.finalValue[0]: "A soma das parcelas deve ser igual ao valor total do projeto."}</p>}
+             <Separator/>
+
+            {/* Forma e Meio de Pagamento */}
+            <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <RadioGroup name="paymentMethod" value={project.paymentMethod} onValueChange={(v) => handleGenericChange('paymentMethod', v as any)} className="flex items-center pt-2 gap-4">
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="vista" id="vista" />
+                            <Label htmlFor="vista">À Vista</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="parcelado" id="parcelado" />
+                            <Label htmlFor="parcelado">Parcelado (2x)</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="paymentInstrument">Meio de Pagamento</Label>
+                    <Select name="paymentInstrument" value={project.paymentInstrument} onValueChange={(v) => handleGenericChange('paymentInstrument', v)}>
+                        <SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger>
+                        <SelectContent>
+                            {paymentInstruments.map(instrument => (
+                                <SelectItem key={instrument} value={instrument}>{instrument}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     {errors?.paymentInstrument && <p className="text-sm text-destructive">{errors.paymentInstrument[0]}</p>}
+                </div>
+            </div>
+
+            {/* Parcelas */}
+            {project.paymentMethod === 'parcelado' && (
+                 <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                     <div className="space-y-2">
+                        <Label htmlFor="installment-percentage">Porcentagem da 1ª Parcela (%)</Label>
+                         <div className="relative">
+                            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="installment-percentage" 
+                                name="installment-percentage" 
+                                type="number" 
+                                step="1" 
+                                value={firstInstallmentPercentage} 
+                                onChange={e => setFirstInstallmentPercentage(parseFloat(e.target.value) || 0)}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Valor da 1ª Parcela (Entrada)</Label>
+                        <Input type="number" step="0.01" value={project.payments[0]?.amount || 0} readOnly disabled className="bg-muted"/>
+                    </div>
+                </div>
+            )}
+        </CardContent>
+    </Card>
+
+
       <Card>
           <CardHeader>
               <CardTitle className="font-headline">Gerenciamento de Pagamentos</CardTitle>

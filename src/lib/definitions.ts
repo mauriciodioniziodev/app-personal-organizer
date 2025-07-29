@@ -27,8 +27,12 @@ export type Project = {
   description: string;
   startDate: string;
   endDate: string;
-  value: number;
+  value: number; // Valor original
+  discountPercentage: number;
+  discountAmount: number;
+  finalValue: number; // Valor com desconto
   paymentMethod: 'vista' | 'parcelado';
+  paymentInstrument: string;
   payments: Payment[];
   paymentStatus: string; // 'pendente' | 'pago' | 'parcialmente pago' - Derivado dos pagamentos
   photosBefore: Photo[];
@@ -58,6 +62,7 @@ export type MasterData = {
   paymentStatus: string[];
   visitStatus: string[];
   photoTypes: string[];
+  paymentInstruments: string[];
 };
 
 export type VisitsSummary = {
@@ -78,4 +83,5 @@ export type ScheduleItem = {
     clientAddress?: string;
     projectStartDate?: string;
     projectEndDate?: string;
+    isOverdue?: boolean;
 };

@@ -38,6 +38,7 @@ const defaultMasterData: MasterData = {
     paymentStatus: ['pendente', 'pago'],
     visitStatus: ['pendente', 'realizada', 'cancelada', 'orçamento'],
     photoTypes: ['ambiente', 'detalhe', 'inspiração'],
+    paymentInstruments: ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'],
 }
 
 // --- Helper Functions ---
@@ -72,6 +73,10 @@ export const getProjects = (): Project[] => {
             };
             p.payments = [payment];
             p.paymentMethod = 'vista';
+            p.finalValue = p.value;
+            p.discountAmount = 0;
+            p.discountPercentage = 0;
+            p.paymentInstrument = 'Não informado';
         }
         return { ...p, paymentStatus: getProjectPaymentStatus(p) }
     });
@@ -125,8 +130,8 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
     
     const todayProjects = getProjects().filter(p => {
-        const startDate = new Date(`${p.startDate}T00:00:00`);
-        const endDate = new Date(`${p.endDate}T23:59:59`);
+        const startDate = new Date(p.startDate.replace(/-/g, '/'));
+        const endDate = new Date(p.endDate.replace(/-/g, '/'));
         return startOfDay.getTime() <= endDate.getTime() && endOfDay.getTime() >= startDate.getTime();
     });
 
@@ -147,6 +152,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
+            isOverdue: v.status === 'pendente' && now.getTime() > visitDate.getTime(),
         });
     });
 
@@ -317,9 +323,11 @@ export const addBudgetToVisit = (visitId: string, budgetAmount: number, budgetPd
 }
 
 
-export const updateMasterData = (data: MasterData) => {
-    saveData('masterData', data);
-    return data;
+export const updateMasterData = (data: Omit<MasterData, 'paymentInstruments'>) => {
+    const currentMasterData = getMasterData();
+    const newMasterData = { ...currentMasterData, ...data };
+    saveData('masterData', newMasterData);
+    return newMasterData;
 }
 
 export const checkForVisitConflict = (newVisit: { clientId: string, date: string, visitId?: string }): Visit | null => {
