@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { addVisit, getClients, getMasterData } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { CalendarPlus, LoaderCircle } from "lucide-react";
 import type { Client } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const visitSchema = z.object({
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
@@ -31,17 +32,18 @@ export default function NewVisitPage() {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const { visitStatus } = getMasterData();
+    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
         setClients(getClients());
     }, []);
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    const proceedToSubmit = () => {
+        if (!formRef.current) return;
         setLoading(true);
         setErrors({});
-
-        const formData = new FormData(event.currentTarget);
+        const formData = new FormData(formRef.current);
         const visitData = {
             clientId: formData.get("clientId") as string,
             date: formData.get("date") as string,
@@ -73,12 +75,26 @@ export default function NewVisitPage() {
             });
             setLoading(false);
         }
+    }
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const date = formData.get("date") as string;
+        const today = new Date();
+        const selectedDate = new Date(date);
+
+        if (selectedDate < today) {
+            setIsAlertOpen(true);
+        } else {
+            proceedToSubmit();
+        }
     };
 
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Agendar Nova Visita" />
-            <form onSubmit={handleSubmit}>
+            <form ref={formRef} onSubmit={handleSubmit}>
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Detalhes da Visita</CardTitle>
@@ -144,6 +160,21 @@ export default function NewVisitPage() {
                     </CardContent>
                 </Card>
             </form>
+
+            <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Data no Passado</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           A data da visita é anterior à data e hora atuais. Deseja continuar mesmo assim?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Alterar</AlertDialogCancel>
+                        <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent, Suspense } from "react";
+import { useEffect, useState, FormEvent, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getClients, getMasterData, getVisitById, addProject } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle } from "lucide-react";
 import type { Client, Visit } from "@/lib/definitions";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const projectSchema = z.object({
     clientId: z.string({ required_error: "Cliente é obrigatório." }).min(1, "Cliente é obrigatório."),
@@ -27,6 +28,9 @@ const projectSchema = z.object({
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
     paymentStatus: z.string()
+}).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
+    message: "A data de conclusão não pode ser anterior à data de início.",
+    path: ["endDate"],
 });
 
 
@@ -44,6 +48,9 @@ function NewProjectPageContent() {
   
   const { paymentStatus } = getMasterData();
 
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
   useEffect(() => {
     setClients(getClients());
     if (visitId) {
@@ -55,13 +62,13 @@ function NewProjectPageContent() {
     }
   }, [visitId]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const proceedToSubmit = () => {
+    if (!formRef.current) return;
+    
     setLoading(true);
     setErrors({});
-
-    const formData = new FormData(event.currentTarget);
-    const projectData = {
+    const formData = new FormData(formRef.current);
+     const projectData = {
         clientId: selectedClientId,
         visitId: visitId ?? undefined,
         name: formData.get("name") as string,
@@ -97,10 +104,25 @@ function NewProjectPageContent() {
     }
   }
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const startDate = formData.get("startDate") as string;
+    const today = new Date();
+    today.setHours(0,0,0,0); // Reset time part to compare only dates
+    const selectedDate = new Date(`${startDate}T00:00:00`);
+
+    if (selectedDate < today) {
+        setIsAlertOpen(true);
+    } else {
+        proceedToSubmit();
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
-      <form onSubmit={handleSubmit}>
+      <form ref={formRef} onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -191,6 +213,20 @@ function NewProjectPageContent() {
           </CardContent>
         </Card>
       </form>
+       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Data no Passado</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        A data de início do projeto é anterior à data de hoje. Deseja continuar mesmo assim?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Alterar</AlertDialogCancel>
+                    <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

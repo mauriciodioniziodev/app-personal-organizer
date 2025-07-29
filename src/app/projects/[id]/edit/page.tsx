@@ -19,6 +19,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
 
 const projectSchema = z.object({
     id: z.string(),
@@ -30,6 +31,9 @@ const projectSchema = z.object({
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
     paymentStatus: z.string()
+}).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
+    message: "A data de conclusão não pode ser anterior à data de início.",
+    path: ["endDate"],
 });
 
 
@@ -215,6 +219,9 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const { paymentStatus } = getMasterData();
+
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   
   useEffect(() => {
     const projectData = getProjectById(id);
@@ -225,13 +232,12 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     }
   }, [id, router]);
 
-  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!project) return;
+  const proceedToSubmit = () => {
+    if (!project || !formRef.current) return;
     setLoading(true);
     setErrors({});
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(formRef.current);
     const projectData = {
       ...project,
       name: formData.get("name") as string,
@@ -254,11 +260,25 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
       const updated = updateProject(validationResult.data as Project);
       setProject(updated); // Update the state with the new data
       toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
-      // We don't redirect here, so the user can continue editing or adding photos.
     } catch (error) {
       toast({ variant: 'destructive', title: "Erro", description: "Falha ao atualizar o projeto."});
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const startDate = formData.get("startDate") as string;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(`${startDate}T00:00:00`);
+
+    if (selectedDate < today) {
+        setIsAlertOpen(true);
+    } else {
+        proceedToSubmit();
     }
   };
   
@@ -270,7 +290,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     <div className="flex flex-col gap-8">
       <PageHeader title={`Editar: ${project.name}`} />
       
-       <form onSubmit={handleProjectSubmit}>
+       <form ref={formRef} onSubmit={handleProjectSubmit}>
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -338,6 +358,21 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
             <PhotoUploader project={project} photoType="before" onPhotoAdded={setProject} />
             <PhotoUploader project={project} photoType="after" onPhotoAdded={setProject} />
         </div>
+
+        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Data no Passado</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        A data de início do projeto é anterior à data de hoje. Deseja continuar mesmo assim?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Alterar</AlertDialogCancel>
+                    <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

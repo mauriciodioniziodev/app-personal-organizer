@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react";
 import { addVisit, getMasterData } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { LoaderCircle, Plus } from "lucide-react";
 import type { Visit } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 
 type VisitFormProps = {
     clientId: string;
@@ -30,13 +31,16 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+
+    const proceedToSubmit = () => {
+         if (!formRef.current) return;
         setLoading(true);
         setErrors({});
 
-        const formData = new FormData(event.currentTarget);
+        const formData = new FormData(formRef.current);
         const visitData = {
             clientId: formData.get("clientId") as string,
             date: formData.get("date") as string,
@@ -65,10 +69,26 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
         } finally {
             setLoading(false);
         }
+    }
+
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const date = formData.get("date") as string;
+        const today = new Date();
+        const selectedDate = new Date(date);
+
+        if (selectedDate < today) {
+            setIsAlertOpen(true);
+        } else {
+            proceedToSubmit();
+        }
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <>
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
             <input type="hidden" name="clientId" value={clientId} />
             <div>
                 <Label htmlFor="date">Data e Hora</Label>
@@ -102,5 +122,20 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
                 </Button>
             </div>
         </form>
+         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Data no Passado</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           A data da visita é anterior à data e hora atuais. Deseja continuar mesmo assim?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Alterar</AlertDialogCancel>
+                        <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     )
 }
