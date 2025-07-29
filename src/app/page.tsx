@@ -74,7 +74,9 @@ export default function Dashboard() {
                     {dailySchedule.length > 0 ? (
                         <ul className="space-y-4">
                             {dailySchedule.map((item, index) => {
-                                const isOverdue = item.type === 'visit' && item.status === 'pendente' && new Date() > new Date(item.date);
+                                const isVisit = item.type === 'visit';
+                                const isOverdue = isVisit && item.status === 'pendente' && new Date(item.date) < new Date();
+                                
                                 return (
                                 <React.Fragment key={item.id}>
                                 <li>
@@ -92,6 +94,11 @@ export default function Dashboard() {
                                                     <div className="flex items-center gap-2">
                                                         {isOverdue && (
                                                             <Badge variant="destructive">Atrasada</Badge>
+                                                        )}
+                                                         {isVisit && (
+                                                            <Badge variant="outline" className={cn("capitalize", visitStatusColors[item.status] ?? 'border-border')}>
+                                                                {item.status}
+                                                            </Badge>
                                                         )}
                                                         {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
                                                     </div>
