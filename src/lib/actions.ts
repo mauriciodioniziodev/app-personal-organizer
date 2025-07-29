@@ -99,9 +99,9 @@ export async function createVisit(formData: FormData): Promise<Visit> {
 
 const photoSchema = z.object({
     visitId: z.string(),
-    url: z.string().min(1, "URL da imagem ou captura da câmera é obrigatória."), // Can be data URL
+    url: z.string().min(1, "Por favor, capture ou envie uma imagem."),
     description: z.string().min(3, "Descrição é obrigatória."),
-    type: z.string(), // 'upload' or 'camera'
+    type: z.string(),
 })
 
 export async function addPhotoAction(prevState: any, formData: FormData) {
@@ -110,15 +110,15 @@ export async function addPhotoAction(prevState: any, formData: FormData) {
     if(!validatedFields.success) {
         return {
             errors: validatedFields.error.flatten().fieldErrors,
-            message: 'A validação falhou.',
+            message: 'A validação falhou. Verifique os campos.',
         }
     }
     
     try {
         addPhotoToVisit(validatedFields.data);
         revalidatePath(`/visits/${validatedFields.data.visitId}`);
-        return { message: 'Foto adicionada com sucesso.', errors: null }
+        return { message: 'Foto adicionada com sucesso.', errors: {} }
     } catch(e) {
-        return { message: 'Erro ao adicionar foto.', errors: null }
+        return { message: 'Erro de servidor ao adicionar foto.', errors: {} }
     }
 }
