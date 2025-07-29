@@ -2,7 +2,7 @@
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useState, useRef } from 'react';
+import { use, useEffect, useState, useRef, useActionState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { addPhotoAction } from '@/lib/actions';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
@@ -66,7 +66,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     
     const photoFormRef = useRef<HTMLFormElement>(null);
 
-    const [photoFormState, dispatchPhoto] = useFormState(async (prevState: any, formData: FormData) => {
+    const [photoFormState, dispatchPhoto] = useActionState(async (prevState: any, formData: FormData) => {
         const imageUri = capturedImage || uploadedImage;
         if (!imageUri) {
             return { errors: { url: ["Por favor, capture ou envie uma imagem."] }};
