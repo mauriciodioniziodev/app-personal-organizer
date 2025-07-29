@@ -1,10 +1,10 @@
+
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
-import { useSearchParams } from 'next/navigation'
-import { createProject } from "@/lib/actions";
-import { getClients, getMasterData, getVisitById } from "@/lib/data";
+import { useEffect, useState, FormEvent } from "react";
+import { useRouter, useSearchParams } from 'next/navigation'
+import { getClients, getMasterData, getVisitById, addProject } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,34 +16,31 @@ import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle } from "lucide-react";
 import type { Client, Visit } from "@/lib/definitions";
+import { z } from "zod";
 
+const projectSchema = z.object({
+    clientId: z.string().min(1, "Cliente é obrigatório."),
+    visitId: z.string().optional(),
+    name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
+    description: z.string().optional(),
+    startDate: z.string().min(1, "Data de início é obrigatória."),
+    endDate: z.string().min(1, "Data de conclusão é obrigatória."),
+    value: z.coerce.number().min(0, "O valor deve ser positivo."),
+    paymentStatus: z.string()
+});
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} aria-disabled={pending}>
-      {pending ? (
-        <>
-          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-          Salvando...
-        </>
-      ) : (
-        "Salvar Projeto"
-      )}
-    </Button>
-  );
-}
 
 export default function NewProjectPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const visitId = searchParams.get('fromVisit');
-
-  const initialState = { errors: {}, message: null };
-  const [state, dispatch] = useActionState(createProject, initialState);
   
   const [clients, setClients] = useState<Client[]>([]);
   const [visit, setVisit] = useState<Visit | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
   
   const { paymentStatus } = getMasterData();
 
@@ -58,10 +55,52 @@ export default function NewProjectPage() {
     }
   }, [visitId]);
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    const formData = new FormData(event.currentTarget);
+    const projectData = {
+        clientId: formData.get("clientId") as string,
+        visitId: formData.get("visitId") as string | undefined,
+        name: formData.get("name") as string,
+        description: formData.get("description") as string,
+        startDate: formData.get("startDate") as string,
+        endDate: formData.get("endDate") as string,
+        value: formData.get("value") as string,
+        paymentStatus: formData.get("paymentStatus") as string,
+    };
+    
+    const validationResult = projectSchema.safeParse(projectData);
+
+    if (!validationResult.success) {
+      setErrors(validationResult.error.flatten().fieldErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+        addProject(validationResult.data);
+        toast({
+            title: "Projeto Criado com Sucesso!",
+            description: `O projeto "${validationResult.data.name}" foi salvo.`,
+        });
+        router.push('/projects');
+    } catch(e) {
+        toast({
+            variant: "destructive",
+            title: "Erro ao criar projeto",
+            description: "Ocorreu um erro inesperado. Tente novamente.",
+        });
+        setLoading(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
-      <form action={dispatch}>
+      <form onSubmit={handleSubmit}>
         {visitId && <input type="hidden" name="visitId" value={visitId} />}
         <Card>
           <CardHeader>
@@ -89,13 +128,13 @@ export default function NewProjectPage() {
                   )}
                 </SelectContent>
               </Select>
-               {state.errors?.clientId && <p className="text-sm text-destructive">{state.errors.clientId}</p>}
+               {errors?.clientId && <p className="text-sm text-destructive">{errors.clientId[0]}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="name">Nome do Projeto</Label>
               <Input id="name" name="name" placeholder="Ex: Organização da Cozinha" required />
-              {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name}</p>}
+              {errors?.name && <p className="text-sm text-destructive">{errors.name[0]}</p>}
             </div>
 
             <div className="space-y-2">
@@ -107,12 +146,12 @@ export default function NewProjectPage() {
               <div className="space-y-2">
                 <Label htmlFor="startDate">Data de Início</Label>
                 <Input id="startDate" name="startDate" type="date" required />
-                {state.errors?.startDate && <p className="text-sm text-destructive">{state.errors.startDate}</p>}
+                {errors?.startDate && <p className="text-sm text-destructive">{errors.startDate[0]}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endDate">Data de Conclusão</Label>
                 <Input id="endDate" name="endDate" type="date" required />
-                 {state.errors?.endDate && <p className="text-sm text-destructive">{state.errors.endDate}</p>}
+                 {errors?.endDate && <p className="text-sm text-destructive">{errors.endDate[0]}</p>}
               </div>
             </div>
             
@@ -120,7 +159,7 @@ export default function NewProjectPage() {
                 <div className="space-y-2">
                     <Label htmlFor="value">Valor do Projeto (R$)</Label>
                     <Input id="value" name="value" type="number" step="0.01" placeholder="1200.00" required />
-                    {state.errors?.value && <p className="text-sm text-destructive">{state.errors.value}</p>}
+                    {errors?.value && <p className="text-sm text-destructive">{errors.value[0]}</p>}
                 </div>
                  <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
@@ -139,7 +178,16 @@ export default function NewProjectPage() {
                 <Link href="/projects">
                     <Button type="button" variant="outline">Cancelar</Button>
                 </Link>
-                <SubmitButton />
+                 <Button type="submit" disabled={loading} aria-disabled={loading}>
+                    {loading ? (
+                        <>
+                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                        </>
+                    ) : (
+                        "Salvar Projeto"
+                    )}
+                </Button>
             </div>
           </CardContent>
         </Card>
