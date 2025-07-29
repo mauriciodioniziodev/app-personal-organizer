@@ -3,24 +3,30 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTotalRevenue } from "@/lib/data";
-import { CalendarClock, FolderKanban, Wallet } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients } from "@/lib/data";
+import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/utils";
-import type { Project, Visit } from '@/lib/definitions';
+import type { Project, Visit, Client } from '@/lib/definitions';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [showRevenue, setShowRevenue] = useState(false);
 
   useEffect(() => {
     setTotalRevenue(getTotalRevenue());
     setActiveProjects(getActiveProjects());
     setUpcomingVisits(getUpcomingVisits());
+    setClients(getClients());
   }, []);
+
+  const getClientForVisit = (clientId: string) => {
+    return clients.find(c => c.id === clientId);
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -32,14 +38,24 @@ export default function Dashboard() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-headline">
-              {new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              }).format(totalRevenue)}
+             <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold font-headline">
+                {showRevenue ? (
+                    new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                    }).format(totalRevenue)
+                ) : (
+                    'R$ ••••••'
+                )}
+                </div>
+                 <Button variant="ghost" size="icon" onClick={() => setShowRevenue(!showRevenue)}>
+                    {showRevenue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="sr-only">Mostrar/Ocultar receita</span>
+                </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Receita total de todos os projetos
+              Receita total de todos os projetos pagos
             </p>
           </CardContent>
         </Card>
@@ -77,16 +93,16 @@ export default function Dashboard() {
               {activeProjects.length > 0 ? (
                 <ul className="space-y-4">
                   {activeProjects.slice(0, 5).map((project) => (
-                    <li key={project.id} className="flex items-center justify-between">
-                      <div>
-                        <Link href={`/projects/${project.id}`} className="font-semibold hover:underline">{project.name}</Link>
-                        <p className="text-sm text-muted-foreground">
-                          Prazo: {formatDate(project.endDate)}
-                        </p>
-                      </div>
-                      <Link href={`/projects/${project.id}`}>
-                        <Button variant="outline" size="sm">Ver Detalhes</Button>
-                      </Link>
+                    <li key={project.id}>
+                        <Link href={`/projects/${project.id}`} className="flex items-center justify-between p-2 -m-2 rounded-lg hover:bg-muted transition-colors">
+                            <div>
+                                <p className="font-semibold">{project.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
+                                </p>
+                            </div>
+                            <Button variant="outline" size="sm">Ver Detalhes</Button>
+                        </Link>
                     </li>
                   ))}
                 </ul>
@@ -101,22 +117,39 @@ export default function Dashboard() {
           <Card>
             <CardContent className="p-4">
               {upcomingVisits.length > 0 ? (
-                <ul className="space-y-4">
-                  {upcomingVisits.slice(0, 5).map((visit) => (
-                     <li key={visit.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                        <Link href={`/projects/${visit.projectId}`} className="text-sm text-muted-foreground hover:underline">
-                          Projeto: {activeProjects.find(p => p.id === visit.projectId)?.name || 'Desconhecido'}
-                        </Link>
-                      </div>
-                       <span className={`text-xs font-semibold capitalize px-2 py-1 rounded-full ${
-                        visit.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' : 
-                        visit.status === 'realizada' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                       }`}>{visit.status}</span>
-                    </li>
-                  ))}
+                <ul className="space-y-2">
+                  {upcomingVisits.slice(0, 5).map((visit) => {
+                    const client = getClientForVisit(visit.clientId);
+                    return (
+                        <li key={visit.id}>
+                            <Link href={`/visits/${visit.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                        {client && (
+                                            <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
+                                                <p className='font-medium text-foreground'>{client.name}</p>
+                                                <div className='flex items-center gap-2'>
+                                                   <Phone className="w-3 h-3"/>
+                                                   <span>{client.phone}</span>
+                                                </div>
+                                                <div className='flex items-center gap-2'>
+                                                   <MapPin className="w-3 h-3"/>
+                                                   <span className='truncate'>{client.address}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className={`text-xs font-semibold capitalize px-2 py-1 rounded-full ${
+                                        visit.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' : 
+                                        visit.status === 'realizada' ? 'bg-green-100 text-green-800' :
+                                        'bg-red-100 text-red-800'
+                                    }`}>{visit.status}</span>
+                                </div>
+                            </Link>
+                        </li>
+                    )
+                  })}
                 </ul>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Nenhuma visita agendada.</p>
@@ -128,3 +161,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
