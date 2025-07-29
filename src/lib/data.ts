@@ -89,10 +89,9 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
     
     const todayProjects = getProjects().filter(p => {
-        const startDate = new Date(p.startDate);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(p.endDate);
-        endDate.setHours(23, 59, 59, 999);
+        // Traz as datas para o fuso horário local para evitar problemas de um dia a mais ou a menos.
+        const startDate = new Date(p.startDate + 'T00:00:00');
+        const endDate = new Date(p.endDate + 'T23:59:59');
         return today >= startDate && today <= endDate;
     });
 
@@ -126,11 +125,11 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     });
 
     return schedule.sort((a, b) => {
-        if (a.type === 'visit' && b.type === 'visit') {
+        if (a.time && b.time) {
             return new Date(a.date).getTime() - new Date(b.date).getTime();
         }
-        if (a.type === 'visit' && b.type === 'project') return -1;
-        if (a.type === 'project' && b.type === 'visit') return 1;
+        if (a.time) return -1;
+        if (b.time) return 1;
         return a.title.localeCompare(b.title);
     });
 };
@@ -265,6 +264,7 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     }
     const allVisits = getVisits();
     
+    // Filter out the visit being edited
     const otherClientVisits = allVisits.filter(v => {
         return v.clientId === newVisit.clientId && v.id !== newVisit.visitId;
     });
