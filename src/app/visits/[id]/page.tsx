@@ -1,8 +1,8 @@
+
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useState, useRef, FormEvent } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useEffect, useState, useRef, FormEvent } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
@@ -25,26 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { addPhotoAction } from '@/lib/actions';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
-
-function SubmitButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button type="submit" disabled={pending}>
-            {pending ? (
-                <>
-                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando Foto...
-                </>
-            ) : (
-                <>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    Adicionar Foto
-                </>
-            )}
-        </Button>
-    )
-}
-
 
 export default function VisitDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -185,7 +165,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
             <PageHeader title={`Visita de ${formatDate(visit.date)}`} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-3 space-y-8">
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Detalhes da Visita</CardTitle>
