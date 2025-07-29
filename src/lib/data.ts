@@ -143,6 +143,9 @@ export const addPhotoToVisit = (photoData: Omit<Photo, 'id'> & { visitId: string
         throw new Error("Visita não encontrada");
     }
     const newPhoto = { ...photoData, id: `ph${Date.now()}` };
+    if (!visits[visitIndex].photos) {
+        visits[visitIndex].photos = [];
+    }
     visits[visitIndex].photos.push(newPhoto);
     saveData('visits', visits);
     return newPhoto;
@@ -198,11 +201,11 @@ export const updateMasterData = (data: MasterData) => {
 export const checkForVisitConflict = (newVisit: { clientId: string, date: string, visitId?: string }): Visit | null => {
     const allVisits = getVisits();
     // Filter out the visit being edited
-    const clientVisits = allVisits.filter(v => v.clientId === newVisit.clientId && v.id !== newVisit.visitId);
+    const otherClientVisits = allVisits.filter(v => v.clientId === newVisit.clientId && v.id !== newVisit.visitId);
     const newVisitTime = new Date(newVisit.date).getTime();
     const twoHours = 2 * 60 * 60 * 1000;
 
-    for (const visit of clientVisits) {
+    for (const visit of otherClientVisits) {
         const existingVisitTime = new Date(visit.date).getTime();
         if (Math.abs(newVisitTime - existingVisitTime) < twoHours) {
             return visit;
