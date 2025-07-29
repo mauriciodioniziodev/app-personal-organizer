@@ -109,6 +109,7 @@ export async function addPhotoAction(prevState: any, formData: FormData) {
 
     if(!validatedFields.success) {
         return {
+            success: false,
             errors: validatedFields.error.flatten().fieldErrors,
             message: 'A validação falhou. Verifique os campos.',
         }
@@ -117,8 +118,8 @@ export async function addPhotoAction(prevState: any, formData: FormData) {
     try {
         addPhotoToVisit(validatedFields.data);
         revalidatePath(`/visits/${validatedFields.data.visitId}`);
-        return { message: 'Foto adicionada com sucesso.', errors: {} }
+        return { success: true, message: 'Foto adicionada com sucesso.', errors: null }
     } catch(e) {
-        return { message: 'Erro de servidor ao adicionar foto.', errors: {} }
+        return { success: false, message: 'Erro de servidor ao adicionar foto.', errors: null }
     }
 }

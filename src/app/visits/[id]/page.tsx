@@ -1,8 +1,7 @@
-
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useState, useRef, useActionState } from 'react';
+import { use, useEffect, useState, useRef, FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
@@ -64,8 +63,8 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     
     const photoFormRef = useRef<HTMLFormElement>(null);
-
-    const [photoFormState, dispatchPhoto] = useActionState(addPhotoAction, { message: null, errors: {} });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
     
 
     useEffect(() => {
@@ -80,22 +79,6 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
             notFound();
         }
     }, [id]);
-
-    // Effect to show toast and reset form on successful submission
-    useEffect(() => {
-        if (photoFormState.message?.includes('sucesso')) {
-            toast({ title: "Sucesso!", description: photoFormState.message });
-            setVisit(getVisitById(id) ?? null); // Refresh visit data
-            if(photoFormRef.current) {
-                photoFormRef.current.reset();
-            }
-            setCapturedImage(null);
-            setUploadedImage(null);
-        } else if (photoFormState.message) {
-            toast({ variant: 'destructive', title: "Erro", description: photoFormState.message });
-        }
-    }, [photoFormState, id, toast]);
-
 
     useEffect(() => {
         if (!isCaptureOpen) {
@@ -154,6 +137,36 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
             reader.readAsDataURL(file);
         }
     };
+    
+    const handlePhotoSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setIsSubmitting(true);
+        setFormErrors({});
+        
+        const formData = new FormData(event.currentTarget);
+        const imageUri = capturedImage || uploadedImage;
+        if(imageUri) {
+            formData.set('url', imageUri);
+        }
+
+        const result = await addPhotoAction(null, formData);
+        
+        if (result.success) {
+            toast({ title: "Sucesso!", description: result.message });
+            setVisit(getVisitById(id) ?? null); // Refresh visit data
+            if(photoFormRef.current) {
+                photoFormRef.current.reset();
+            }
+            setCapturedImage(null);
+            setUploadedImage(null);
+        } else {
+            toast({ variant: 'destructive', title: "Erro ao Adicionar Foto", description: result.message });
+            if (result.errors) {
+                setFormErrors(result.errors);
+            }
+        }
+        setIsSubmitting(false);
+    }
 
 
     if (!visit || !client) {
@@ -258,13 +271,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
                             <CardTitle className="font-headline">Adicionar Foto</CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
-                            <form ref={photoFormRef} action={(formData) => {
-                                const imageUri = capturedImage || uploadedImage;
-                                if (imageUri) {
-                                    formData.set('url', imageUri);
-                                }
-                                dispatchPhoto(formData);
-                            }} className="space-y-4">
+                            <form ref={photoFormRef} onSubmit={handlePhotoSubmit} className="space-y-4">
                                 <input type="hidden" name="visitId" value={visit.id} />
                                 
                                 <div className='grid grid-cols-2 gap-2'>
@@ -308,12 +315,24 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
                                         </Button>
                                     </div>
                                 )}
-                                {photoFormState?.errors?.url && <p className="text-sm text-destructive">{photoFormState.errors.url[0]}</p>}
+                                {formErrors?.url && <p className="text-sm text-destructive">{formErrors.url[0]}</p>}
                                 <div>
                                     <Textarea id="description" name="description" placeholder="Descreva a foto" required />
-                                    {photoFormState?.errors?.description && <p className="text-sm text-destructive">{photoFormState.errors.description[0]}</p>}
+                                    {formErrors?.description && <p className="text-sm text-destructive">{formErrors.description[0]}</p>}
                                 </div>
-                                <SubmitButton />
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? (
+                                        <>
+                                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                            Salvando Foto...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ImageIcon className="mr-2 h-4 w-4" />
+                                            Adicionar Foto
+                                        </>
+                                    )}
+                                </Button>
                             </form>
                         </CardContent>
                     </Card>
@@ -323,5 +342,3 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         </div>
     );
 }
-
-    
