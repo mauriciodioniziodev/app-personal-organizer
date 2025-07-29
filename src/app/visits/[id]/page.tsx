@@ -9,7 +9,7 @@ import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X, DollarSign, FileUp, Download } from 'lucide-react';
+import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X, DollarSign, FileUp, Download, Edit } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -248,7 +248,14 @@ function VisitDetailsPageContent({ id }: { id: string }) {
 
     return (
         <div className="flex flex-col gap-8">
-            <PageHeader title={!client ? "Carregando Visita..." : `Visita: ${client.name}`} />
+            <PageHeader title={!client ? "Carregando Visita..." : `Visita: ${client.name}`}>
+                 <Link href={`/visits/${visit.id}/edit`}>
+                    <Button variant="outline">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar Visita
+                    </Button>
+                </Link>
+            </PageHeader>
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-3 space-y-8">
