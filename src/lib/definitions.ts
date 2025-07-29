@@ -78,5 +78,4 @@ export type ScheduleItem = {
     clientAddress?: string;
     projectStartDate?: string;
     projectEndDate?: string;
-    isOverdue?: boolean;
 };

@@ -73,7 +73,9 @@ export default function Dashboard() {
                 <CardContent>
                     {dailySchedule.length > 0 ? (
                         <ul className="space-y-4">
-                            {dailySchedule.map((item, index) => (
+                            {dailySchedule.map((item, index) => {
+                                const isOverdue = item.type === 'visit' && item.status === 'pendente' && new Date() > new Date(item.date);
+                                return (
                                 <React.Fragment key={item.id}>
                                 <li>
                                     <Link href={item.path} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
@@ -88,7 +90,7 @@ export default function Dashboard() {
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {item.isOverdue && (
+                                                        {isOverdue && (
                                                             <Badge variant="destructive">Atrasada</Badge>
                                                         )}
                                                         {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
@@ -122,7 +124,7 @@ export default function Dashboard() {
                                 </li>
                                  {index < dailySchedule.length - 1 && <Separator />}
                                 </React.Fragment>
-                            ))}
+                            )})}
                         </ul>
                     ) : (
                         <p className="text-muted-foreground text-center py-8">Nenhum compromisso para hoje.</p>
