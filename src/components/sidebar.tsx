@@ -24,7 +24,7 @@ export default function Sidebar() {
         <Link href="/" className="flex items-center gap-3">
             <Image 
                 data-ai-hint="logo"
-                src="/logo.png"
+                src="https://placehold.co/40x40.png"
                 width={40}
                 height={40}
                 alt="Logo Amanda Martins"
