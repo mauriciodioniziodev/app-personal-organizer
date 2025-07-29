@@ -27,7 +27,7 @@ export default function VisitsPage() {
     
     useEffect(() => {
         const refetch = () => {
-            const visitsData = getVisits().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const visitsData = getVisits().sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             const clientsData = getClients();
             setAllVisits(visitsData);
             setProjects(getProjects());

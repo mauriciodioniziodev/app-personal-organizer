@@ -49,7 +49,7 @@ export const getProjectsByClientId = (clientId: string): Project[] => getProject
 
 export const getVisits = (): Visit[] => loadData('visits', defaultVisits);
 export const getVisitById = (id: string): Visit | undefined => getVisits().find(v => v.id === id);
-export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 export const getMasterData = () => loadData('masterData', defaultMasterData);
 

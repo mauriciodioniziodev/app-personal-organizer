@@ -51,7 +51,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }, [id, router, toast]);
 
   const handleVisitCreated = (newVisit: Visit) => {
-    setVisits(prev => [newVisit, ...prev]);
+    setVisits(prev => [newVisit, ...prev].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     setIsVisitFormOpen(false);
     toast({
         title: "Visita Agendada!",
