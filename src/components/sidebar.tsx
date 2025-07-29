@@ -1,7 +1,7 @@
-
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet } from "lucide-react";
@@ -22,13 +22,14 @@ export default function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 bg-card border-r">
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                 <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-foreground h-6 w-6">
-                    <path d="M20 80L35 30L50 80" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M50 80L65 30L80 80" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M28 60H72" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/>
-                </svg>
-            </div>
+            <Image 
+                data-ai-hint="logo"
+                src="https://placehold.co/40x40.png"
+                width={40}
+                height={40}
+                alt="Logo Amanda Martins"
+                className="rounded-lg"
+            />
           <div>
             <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
             <p className="text-xs text-muted-foreground">Organização personalizada</p>
@@ -72,4 +73,3 @@ function NavItem({ item, isActive }: NavItemProps) {
     </li>
   );
 }
-
