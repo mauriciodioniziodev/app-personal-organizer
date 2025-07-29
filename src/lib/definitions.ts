@@ -2,6 +2,7 @@
 
 export type Client = {
   id: string;
+  created_at: string;
   name: string;
   phone: string;
   email:string;
@@ -13,14 +14,17 @@ export type Client = {
 
 export type Payment = {
   id: string;
+  created_at: string;
+  project_id: string;
   amount: number;
   status: 'pendente' | 'pago';
-  dueDate: string;
+  due_date: string;
   description: string;
 }
 
 export type Project = {
   id: string;
+  created_at: string;
   clientId: string;
   visitId: string; // Projeto pode ser originado de uma visita
   name: string;
@@ -33,7 +37,7 @@ export type Project = {
   finalValue: number; // Valor com desconto
   paymentMethod: 'vista' | 'parcelado';
   paymentInstrument: string;
-  payments: Payment[];
+  payments: Payment[]; // Fetched separately
   paymentStatus: string; // 'pendente' | 'pago' | 'parcialmente pago' - Derivado dos pagamentos
   photosBefore: Photo[];
   photosAfter: Photo[];
@@ -41,6 +45,7 @@ export type Project = {
 
 export type Visit = {
   id: string;
+  created_at: string;
   clientId: string; // Visita pertence a um cliente
   projectId: string; // Projeto associado (pode ser vazio inicialmente)
   date: string;

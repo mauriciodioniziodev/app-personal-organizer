@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClients } from "@/lib/data";
-import { PlusCircle, Mail, Phone, Search } from "lucide-react";
+import { PlusCircle, Mail, Phone, Search, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import type { Client } from "@/lib/definitions";
 import { Input } from '@/components/ui/input';
@@ -15,32 +15,20 @@ export default function ClientsPage() {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Carrega e ordena os clientes na montagem inicial.
-    const clientsData = getClients().sort((a, b) => a.name.localeCompare(b.name));
-    setAllClients(clientsData);
-    setFilteredClients(clientsData);
+    async function fetchClients() {
+        setLoading(true);
+        const clientsData = await getClients();
+        const sortedClients = clientsData.sort((a, b) => a.name.localeCompare(b.name));
+        setAllClients(sortedClients);
+        setFilteredClients(sortedClients);
+        setLoading(false);
+    }
+    fetchClients();
   }, []);
 
-  // Garante que a lista seja atualizada se os dados mudarem em outra aba.
-  useEffect(() => {
-    const handleFocus = () => {
-      const clientsData = getClients().sort((a, b) => a.name.localeCompare(b.name));
-      setAllClients(clientsData);
-      // Re-aplica o filtro com os dados atualizados
-      setFilteredClients(
-        clientsData.filter(client =>
-          client.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [searchTerm]);
 
   useEffect(() => {
     const results = allClients.filter(client =>
@@ -48,6 +36,14 @@ export default function ClientsPage() {
     );
     setFilteredClients(results);
   }, [searchTerm, allClients]);
+
+  if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import PageHeader from "@/components/page-header";
@@ -7,9 +8,10 @@ import { getMasterData, updateMasterData } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { LoaderCircle, Save, Settings, DatabaseZap } from "lucide-react";
 import { useFormStatus } from "react-dom";
+import type { MasterData } from "@/lib/definitions";
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -62,32 +64,52 @@ function SyncButton() {
 
 export default function AdminPage() {
     const { toast } = useToast();
-    const masterData = getMasterData();
+    const [masterData, setMasterData] = useState<MasterData | null>(null);
 
     const [state, dispatch] = useActionState(async (prevState: any, formData: FormData) => {
         const paymentStatus = formData.getAll('paymentStatus').filter(s => s).map(s => s.toString());
         const visitStatus = formData.getAll('visitStatus').filter(s => s).map(s => s.toString());
         const photoTypes = formData.getAll('photoTypes').filter(s => s).map(s => s.toString());
 
-        updateMasterData({ paymentStatus, visitStatus, photoTypes });
+        await updateMasterData({ paymentStatus, visitStatus, photoTypes });
         toast({ title: "Dados Mestres Atualizados", description: "As listas de opções foram salvas com sucesso." });
         return { message: "success" };
     }, { message: null });
+    
+    useEffect(() => {
+        const fetchMasterData = async () => {
+            const data = await getMasterData();
+            setMasterData(data);
+        }
+        fetchMasterData();
+    }, []);
 
-    const [paymentStatus, setPaymentStatus] = useState(masterData.paymentStatus);
-    const [visitStatus, setVisitStatus] = useState(masterData.visitStatus);
-    const [photoTypes, setPhotoTypes] = useState(masterData.photoTypes);
-
-    const addField = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
-        setter(prev => [...prev, '']);
+    const addField = (key: keyof Omit<MasterData, 'paymentInstruments'>) => {
+        if (!masterData) return;
+        setMasterData(prev => prev ? {...prev, [key]: [...prev[key], '']} : null);
     }
 
-    const removeField = (index: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
-        setter(prev => prev.filter((_, i) => i !== index));
+    const removeField = (key: keyof Omit<MasterData, 'paymentInstruments'>, index: number) => {
+        if (!masterData) return;
+        setMasterData(prev => prev ? {...prev, [key]: prev[key].filter((_, i) => i !== index)} : null);
     }
 
-    const updateField = (index: number, value: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
-        setter(prev => prev.map((item, i) => i === index ? value : item));
+    const updateField = (key: keyof Omit<MasterData, 'paymentInstruments'>, index: number, value: string) => {
+        if (!masterData) return;
+        setMasterData(prev => {
+            if (!prev) return null;
+            const updatedValues = [...prev[key]];
+            updatedValues[index] = value;
+            return {...prev, [key]: updatedValues};
+        });
+    }
+
+    if (!masterData) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
+            </div>
+        );
     }
 
 
@@ -124,46 +146,46 @@ export default function AdminPage() {
                         <div className="space-y-4">
                             <h3 className="font-semibold">Status de Pagamento</h3>
                             <div className="grid gap-2">
-                                {paymentStatus.map((status, index) => (
+                                {masterData.paymentStatus.map((status, index) => (
                                     <div key={index} className="flex items-center gap-2">
-                                        <Input name="paymentStatus" value={status} onChange={(e) => updateField(index, e.target.value, setPaymentStatus)} placeholder="Ex: Pendente" />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField(index, setPaymentStatus)}>
+                                        <Input name="paymentStatus" value={status} onChange={(e) => updateField('paymentStatus', index, e.target.value)} placeholder="Ex: Pendente" />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField('paymentStatus', index)}>
                                             <span className="text-destructive">X</span>
                                         </Button>
                                     </div>
                                 ))}
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addField(setPaymentStatus)}>Adicionar Status</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addField('paymentStatus')}>Adicionar Status</Button>
                         </div>
 
                         <div className="space-y-4">
                             <h3 className="font-semibold">Status de Visita</h3>
                              <div className="grid gap-2">
-                                {visitStatus.map((status, index) => (
+                                {masterData.visitStatus.map((status, index) => (
                                     <div key={index} className="flex items-center gap-2">
-                                        <Input name="visitStatus" value={status} onChange={(e) => updateField(index, e.target.value, setVisitStatus)} placeholder="Ex: Realizada" />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField(index, setVisitStatus)}>
+                                        <Input name="visitStatus" value={status} onChange={(e) => updateField('visitStatus', index, e.target.value)} placeholder="Ex: Realizada" />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField('visitStatus', index)}>
                                             <span className="text-destructive">X</span>
                                         </Button>
                                     </div>
                                 ))}
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addField(setVisitStatus)}>Adicionar Status</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addField('visitStatus')}>Adicionar Status</Button>
                         </div>
                         
                         <div className="space-y-4">
                             <h3 className="font-semibold">Tipos de Foto</h3>
                             <div className="grid gap-2">
-                                {photoTypes.map((type, index) => (
+                                {masterData.photoTypes.map((type, index) => (
                                     <div key={index} className="flex items-center gap-2">
-                                        <Input name="photoTypes" value={type} onChange={(e) => updateField(index, e.target.value, setPhotoTypes)} placeholder="Ex: Antes" />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField(index, setPhotoTypes)}>
+                                        <Input name="photoTypes" value={type} onChange={(e) => updateField('photoTypes', index, e.target.value)} placeholder="Ex: Antes" />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeField('photoTypes', index)}>
                                             <span className="text-destructive">X</span>
                                         </Button>
                                     </div>
                                 ))}
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addField(setPhotoTypes)}>Adicionar Tipo</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addField('photoTypes')}>Adicionar Tipo</Button>
                         </div>
 
                         <div className="flex justify-end">

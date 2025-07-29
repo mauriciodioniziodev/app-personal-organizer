@@ -12,13 +12,12 @@ import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { addClient } from "@/lib/data"; // Importa a função que interage com o localStorage
+import { addClient } from "@/lib/data";
 
-// Zod schema para validação no lado do cliente
 import { z } from "zod";
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  email: z.string().email("E-mail inválido."),
+  email: z.string().email("E-mail inválido.").or(z.literal('')),
   phone: z.string().min(10, "Telefone inválido."),
   address: z.string().min(5, "Endereço inválido."),
   cpf: z.string().optional(),
@@ -58,7 +57,7 @@ export default function NewClientPage() {
     }
 
     try {
-      const newClient = addClient(validationResult.data);
+      const newClient = await addClient(validationResult.data);
       toast({
         title: "Cliente Criado com Sucesso!",
         description: `${newClient.name} foi adicionado(a) à sua lista de clientes.`,
@@ -92,7 +91,7 @@ export default function NewClientPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" placeholder="email@example.com" required />
+                <Input id="email" name="email" type="email" placeholder="email@example.com" />
                 {errors?.email && <p className="text-sm text-destructive">{errors.email[0]}</p>}
               </div>
             </div>

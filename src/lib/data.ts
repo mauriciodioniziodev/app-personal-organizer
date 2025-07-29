@@ -1,38 +1,10 @@
 
 
 import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem, Payment } from './definitions';
-import { v4 as uuidv4 } from 'uuid';
-
-// --- Data Persistence Layer (using localStorage) ---
-
-const isServer = typeof window === 'undefined';
-
-function saveData<T>(key: string, data: T) {
-  if (isServer) return;
-  localStorage.setItem(key, JSON.stringify(data));
-}
-
-function loadData<T>(key: string, defaultValue: T): T {
-  if (isServer) return defaultValue;
-  const saved = localStorage.getItem(key);
-  if (saved) {
-    try {
-      return JSON.parse(saved);
-    } catch (e) {
-      console.error(`Error parsing localStorage data for key "${key}"`, e);
-      return defaultValue;
-    }
-  }
-  return defaultValue;
-}
+import { supabase } from './supabaseClient';
 
 
 // --- Initial/Default Data ---
-
-const defaultClients: Client[] = [];
-const defaultVisits: Visit[] = [];
-const defaultProjects: Project[] = [];
-
 
 const defaultMasterData: MasterData = {
     paymentStatus: ['pendente', 'pago'],
@@ -42,78 +14,196 @@ const defaultMasterData: MasterData = {
 }
 
 // --- Helper Functions ---
-const getProjectPaymentStatus = (project: Project): string => {
-    if (!project.payments || project.payments.length === 0) {
+const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
+    if (!payments || payments.length === 0) {
         return 'pendente';
     }
-    const paidCount = project.payments.filter(p => p.status === 'pago').length;
+    const paidCount = payments.filter(p => p.status === 'pago').length;
     if (paidCount === 0) return 'pendente';
-    if (paidCount === project.payments.length) return 'pago';
+    if (paidCount === payments.length) return 'pago';
     return 'parcialmente pago';
 }
 
-
 // --- Data Access Functions ---
 
-export const getClients = (): Client[] => loadData('clients', defaultClients);
-export const getClientById = (id: string): Client | undefined => getClients().find(c => c.id === id);
-
-export const getProjects = (): Project[] => {
-    let projects = loadData<Project[]>('projects', defaultProjects);
-    // Data migration for old projects without the payments array
-    projects = projects.map(p => {
-        if (!p.payments) {
-            console.warn(`Project with id ${p.id} is missing payments array. Migrating...`);
-            const payment: Payment = {
-                id: uuidv4(),
-                amount: p.value,
-                status: (p as any).paymentStatus === 'pago' ? 'pago' : 'pendente',
-                dueDate: p.endDate,
-                description: "Pagamento Único"
-            };
-            p.payments = [payment];
-            p.paymentMethod = 'vista';
-            p.finalValue = p.value;
-            p.discountAmount = 0;
-            p.discountPercentage = 0;
-            p.paymentInstrument = 'Não informado';
-        }
-        return { ...p, paymentStatus: getProjectPaymentStatus(p) }
-    });
-    return projects;
+export const getClients = async (): Promise<Client[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('clients').select('*').order('name');
+    if (error) {
+        console.error("Error fetching clients:", error);
+        return [];
+    }
+    return data as Client[];
 };
-export const getProjectById = (id: string): Project | undefined => getProjects().find(p => p.id === id);
-export const getProjectsByClientId = (clientId: string): Project[] => getProjects().filter(p => p.clientId === clientId);
+export const getClientById = async (id: string): Promise<Client | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
+    if (error) {
+        console.error(`Error fetching client ${id}:`, error);
+        return null;
+    }
+    return data as Client;
+};
 
-export const getVisits = (): Visit[] => loadData('visits', defaultVisits);
-export const getVisitById = (id: string): Visit | undefined => getVisits().find(v => v.id === id);
-export const getVisitsByClientId = (clientId: string): Visit[] => getVisits().filter(v => v.clientId === clientId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+export const getProjects = async (): Promise<Project[]> => {
+    if (!supabase) return [];
+    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('start_date', { ascending: false });
+    if (projectsError) {
+        console.error("Error fetching projects:", projectsError);
+        return [];
+    }
 
-export const getMasterData = () => loadData('masterData', defaultMasterData);
+    const projectIds = projectsData.map(p => p.id);
+    if(projectIds.length === 0) return [];
+    
+    const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
+     if (paymentsError) {
+        console.error("Error fetching payments:", paymentsError);
+        return [];
+    }
+
+    return projectsData.map(p => {
+        const payments = paymentsData.filter(payment => payment.project_id === p.id) as Payment[];
+        return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
+    });
+};
+
+export const getProjectById = async (id: string): Promise<Project | null> => {
+    if (!supabase) return null;
+    const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
+    if (projectError) {
+        console.error(`Error fetching project ${id}:`, projectError);
+        return null;
+    }
+
+    const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('project_id', id);
+    if (paymentsError) {
+        console.error(`Error fetching payments for project ${id}:`, paymentsError);
+        // Return project data even if payments fail
+        return { ...projectData, payments: [], paymentStatus: 'pendente' } as Project;
+    }
+
+    return { ...projectData, payments: paymentsData as Payment[], paymentStatus: getProjectPaymentStatus(paymentsData as Payment[]) } as Project;
+};
+
+export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
+    if (!supabase) return [];
+    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').eq('client_id', clientId);
+    if (projectsError) {
+        console.error("Error fetching projects:", projectsError);
+        return [];
+    }
+    
+    if (projectsData.length === 0) return [];
+
+    const projectIds = projectsData.map(p => p.id);
+    const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
+     if (paymentsError) {
+        console.error("Error fetching payments:", paymentsError);
+        return [];
+    }
+
+    return projectsData.map(p => {
+        const payments = paymentsData.filter(payment => payment.project_id === p.id) as Payment[];
+        return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
+    });
+};
+
+export const getVisits = async (): Promise<Visit[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('visits').select('*').order('date', { ascending: false });
+    if (error) {
+        console.error("Error fetching visits:", error);
+        return [];
+    }
+    return data as Visit[];
+};
+export const getVisitById = async (id: string): Promise<Visit | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
+    if (error) {
+        console.error(`Error fetching visit ${id}:`, error);
+        return null;
+    }
+    return data as Visit;
+};
+export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('visits').select('*').eq('client_id', clientId).order('date', { ascending: false });
+     if (error) {
+        console.error(`Error fetching visits for client ${clientId}:`, error);
+        return [];
+    }
+    return data as Visit[];
+};
+
+// This function can remain synchronous as it doesn't interact with Supabase
+export const getMasterData = () => {
+    return defaultMasterData;
+}
 
 
 // --- Dashboard Functions ---
-export const getTotalRevenue = () => getProjects().flatMap(p => p.payments).reduce((sum, payment) => payment.status === 'pago' ? sum + payment.amount : sum, 0);
-export const getTotalPendingRevenue = () => getProjects().flatMap(p => p.payments).reduce((sum, payment) => payment.status === 'pendente' ? sum + payment.amount : sum, 0);
-export const getActiveProjects = () => getProjects().filter(p => new Date(p.endDate) >= new Date() && p.paymentStatus !== 'pago');
-export const getUpcomingVisits = () => {
+export const getTotalRevenue = async () => {
+    if (!supabase) return 0;
+    const { data, error } = await supabase.from('payments').select('amount').eq('status', 'pago');
+    if (error) {
+        console.error("Error fetching total revenue:", error);
+        return 0;
+    }
+    return data.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+};
+
+export const getTotalPendingRevenue = async () => {
+    if (!supabase) return 0;
+    const { data, error } = await supabase.from('payments').select('amount').eq('status', 'pendente');
+    if (error) {
+        console.error("Error fetching pending revenue:", error);
+        return 0;
+    }
+    return data.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+};
+
+export const getActiveProjects = async () => {
+    if (!supabase) return [];
+    const projects = await getProjects();
+    return projects.filter(p => new Date(p.endDate) >= new Date() && p.paymentStatus !== 'pago');
+}
+
+export const getUpcomingVisits = async () => {
+    if (!supabase) return [];
     const now = new Date();
     const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return getVisits().filter(v => {
-        const visitDate = new Date(v.date);
-        return visitDate >= now && visitDate <= oneWeekFromNow && v.status === 'pendente';
-    }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const { data, error } = await supabase.from('visits')
+        .select('*')
+        .eq('status', 'pendente')
+        .gte('date', now.toISOString())
+        .lte('date', oneWeekFromNow.toISOString())
+        .order('date', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching upcoming visits:", error);
+        return [];
+    }
+    return data as Visit[];
 }
-export const getVisitsSummary = (): VisitsSummary => {
-    const visits = getVisits();
-    return visits.reduce((acc, visit) => {
+export const getVisitsSummary = async (): Promise<VisitsSummary> => {
+    if (!supabase) return {};
+    const { data, error } = await supabase.from('visits').select('status');
+    if(error) {
+        console.error("Error fetching visits summary:", error);
+        return {};
+    }
+    return data.reduce((acc, visit) => {
         acc[visit.status] = (acc[visit.status] || 0) + 1;
         return acc;
     }, {} as VisitsSummary);
 };
 
-export const getTodaysSchedule = (): ScheduleItem[] => {
-    const clients = getClients();
+export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
+    if (!supabase) return [];
+    const clients = await getClients();
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
 
     const now = new Date();
@@ -122,23 +212,30 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const todayVisits = getVisits().filter(v => {
-        const visitDate = new Date(v.date);
-        return visitDate.getFullYear() === now.getFullYear() &&
-               visitDate.getMonth() === now.getMonth() &&
-               visitDate.getDate() === now.getDate();
-    });
+    const { data: todayVisits, error: visitsError } = await supabase.from('visits')
+        .select('*')
+        .gte('date', startOfDay.toISOString())
+        .lte('date', endOfDay.toISOString());
+
+    if(visitsError) {
+        console.error("Error fetching today's visits:", visitsError);
+        return [];
+    }
     
-    const todayProjects = getProjects().filter(p => {
-        const startDate = new Date(p.startDate.replace(/-/g, '/'));
-        const endDate = new Date(p.endDate.replace(/-/g, '/'));
-        return startOfDay.getTime() <= endDate.getTime() && endOfDay.getTime() >= startDate.getTime();
-    });
+    const { data: todayProjects, error: projectsError } = await supabase.from('projects')
+        .select('*')
+        .lte('start_date', endOfDay.toISOString().split('T')[0])
+        .gte('end_date', startOfDay.toISOString().split('T')[0]);
+
+    if(projectsError) {
+        console.error("Error fetching today's projects:", projectsError);
+        return [];
+    }
 
     const schedule: ScheduleItem[] = [];
 
     todayVisits.forEach(v => {
-        const client = getClient(v.clientId);
+        const client = getClient(v.client_id);
         const visitDate = new Date(v.date);
         schedule.push({
             id: v.id,
@@ -147,7 +244,7 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
             time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             title: `Visita`,
             clientName: client?.name ?? 'Cliente desconhecido',
-            clientId: v.clientId,
+            clientId: v.client_id,
             clientPhone: client?.phone,
             clientAddress: client?.address,
             status: v.status,
@@ -156,23 +253,30 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
         });
     });
 
-     todayProjects.forEach(p => {
-        const client = getClient(p.clientId);
-        schedule.push({
-            id: p.id,
-            type: 'project',
-            date: p.startDate, // Using start date for sorting consistency
-            title: p.name,
-            clientName: client?.name ?? 'Cliente desconhecido',
-            clientId: p.clientId,
-            clientPhone: client?.phone,
-            clientAddress: client?.address,
-            projectStartDate: p.startDate,
-            projectEndDate: p.endDate,
-            status: p.paymentStatus,
-            path: `/projects/${p.id}`
+    const projectIds = todayProjects.map(p => p.id);
+    if (projectIds.length > 0) {
+        const { data: paymentsData } = await supabase.from('payments').select('*').in('project_id', projectIds);
+        
+        todayProjects.forEach(p => {
+            const client = getClient(p.client_id);
+            const payments = paymentsData?.filter(pm => pm.project_id === p.id) || [];
+            schedule.push({
+                id: p.id,
+                type: 'project',
+                date: p.start_date, // Using start date for sorting consistency
+                title: p.name,
+                clientName: client?.name ?? 'Cliente desconhecido',
+                clientId: p.client_id,
+                clientPhone: client?.phone,
+                clientAddress: client?.address,
+                projectStartDate: p.start_date,
+                projectEndDate: p.end_date,
+                status: getProjectPaymentStatus(payments as Payment[]),
+                path: `/projects/${p.id}`
+            });
         });
-    });
+    }
+
 
     return schedule.sort((a, b) => {
         const aDate = new Date(a.date);
@@ -193,185 +297,268 @@ export const getTodaysSchedule = (): ScheduleItem[] => {
 
 
 // --- Data Mutation Functions (used by server actions) ---
-export const addClient = (client: Omit<Client, 'id'>) => {
-  const clients = getClients();
-  const newClient = { ...client, id: String(Date.now()) };
-  saveData('clients', [...clients, newClient]);
-  return newClient;
-};
-
-export const addProject = (projectData: Omit<Project, 'id' | 'photosBefore' | 'photosAfter' | 'paymentStatus'>) => {
-  const projects = getProjects();
-  const newProject: Project = { 
-      ...projectData, 
-      id: `p${Date.now()}`,
-      photosBefore: [],
-      photosAfter: [],
-      paymentStatus: 'pendente' // Initial status
-  };
-  
-  newProject.paymentStatus = getProjectPaymentStatus(newProject);
-  
-  saveData('projects', [...projects, newProject]);
-
-  if (projectData.visitId) {
-    const visits = getVisits();
-    const visitIndex = visits.findIndex(v => v.id === projectData.visitId);
-    if(visitIndex !== -1) {
-      visits[visitIndex].projectId = newProject.id;
-      saveData('visits', visits);
-    }
+export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
+  if (!supabase) throw new Error("Supabase client is not initialized.");
+  const { data, error } = await supabase.from('clients').insert([client]).select().single();
+  if (error) {
+      console.error("Error adding client:", error);
+      throw new Error("Falha ao adicionar cliente.");
   }
-
-  return newProject;
+  return data as Client;
 };
 
-export const updateProject = (project: Project) => {
-    const projects = getProjects();
-    const index = projects.findIndex(p => p.id === project.id);
-    if(index === -1) throw new Error("Project not found");
+export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] }) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const { payments: paymentsData, ...projectCoreData } = projectData;
     
-    // Recalculate payment status before saving
-    project.paymentStatus = getProjectPaymentStatus(project);
-    projects[index] = project;
+    const dbProjectData = {
+      client_id: projectCoreData.clientId,
+      visit_id: projectCoreData.visitId,
+      name: projectCoreData.name,
+      description: projectCoreData.description,
+      start_date: projectCoreData.startDate,
+      end_date: projectCoreData.endDate,
+      value: projectCoreData.value,
+      discount_percentage: projectCoreData.discountPercentage,
+      discount_amount: projectCoreData.discountAmount,
+      final_value: projectCoreData.finalValue,
+      payment_method: projectCoreData.paymentMethod,
+      payment_instrument: projectCoreData.paymentInstrument,
+      photos_before: [],
+      photos_after: [],
+    };
+
+
+    // 1. Insert the project
+    const { data: newProject, error: projectError } = await supabase.from('projects')
+        .insert([dbProjectData])
+        .select()
+        .single();
     
-    saveData('projects', projects);
-    return project;
-}
-
-
-export const createVisitFromClient = (visit: Omit<Visit, 'id' | 'photos' | 'projectId'>) => {
-  const visits = getVisits();
-  const newVisit = { ...visit, id: `v${Date.now()}`, photos: [], projectId: '' };
-  saveData('visits', [...visits, newVisit]);
-  return newVisit;
-}
-
-
-export const addVisit = (visit: Omit<Visit, 'id' | 'photos' | 'projectId' >) => {
-    const visits = getVisits();
-    const newVisit: Visit = { ...visit, id: `v${Date.now()}`, photos: [], projectId: '' };
-    saveData('visits', [...visits, newVisit]);
-    return newVisit;
-}
-
-export const updateVisit = (visit: Visit) => {
-    const visits = getVisits();
-    const index = visits.findIndex(v => v.id === visit.id);
-    if (index === -1) {
-        throw new Error("Visita não encontrada");
+    if (projectError) {
+        console.error("Error creating project:", projectError);
+        throw new Error("Falha ao criar projeto.");
     }
-    visits[index] = visit;
-    saveData('visits', visits);
-    return visit;
+
+    // 2. Insert payments associated with the new project
+    const paymentsToInsert = paymentsData.map(p => ({ ...p, project_id: newProject.id, due_date: p.dueDate }));
+    const { error: paymentsError } = await supabase.from('payments').insert(paymentsToInsert);
+
+    if (paymentsError) {
+        console.error("Error creating payments:", paymentsError);
+        // Optionally, delete the created project for consistency
+        await supabase.from('projects').delete().eq('id', newProject.id);
+        throw new Error("Falha ao salvar parcelas do projeto.");
+    }
+  
+    // 3. If it came from a visit, update the visit
+    if (projectData.visitId) {
+        const { error: visitUpdateError } = await supabase.from('visits')
+            .update({ project_id: newProject.id })
+            .eq('id', projectData.visitId);
+        if (visitUpdateError) {
+            console.error("Error updating visit with project id:", visitUpdateError);
+            // This is not a critical failure, so we can just log it
+        }
+    }
+
+    return newProject;
 };
 
-export const addPhotoToVisit = (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
-    const visits = getVisits();
-    const visitIndex = visits.findIndex(v => v.id === photoData.visitId);
-    if (visitIndex === -1) {
-        throw new Error("Visita não encontrada");
+export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const { payments, photosBefore, photosAfter, ...coreProjectData } = project;
+    
+    const dbProjectData = {
+        client_id: coreProjectData.clientId,
+        visit_id: coreProjectData.visitId,
+        name: coreProjectData.name,
+        description: coreProjectData.description,
+        start_date: coreProjectData.startDate,
+        end_date: coreProjectData.endDate,
+        value: coreProjectData.value,
+        discount_percentage: coreProjectData.discountPercentage,
+        discount_amount: coreProjectData.discountAmount,
+        final_value: coreProjectData.finalValue,
+        payment_method: coreProjectData.paymentMethod,
+        payment_instrument: coreProjectData.paymentInstrument,
+        photos_before: photosBefore,
+        photos_after: photosAfter,
+    };
+    
+    // 1. Update the core project data
+    const { data: updatedProject, error: projectError } = await supabase.from('projects')
+        .update(dbProjectData)
+        .eq('id', project.id)
+        .select()
+        .single();
+
+    if (projectError) {
+        console.error("Error updating project:", projectError);
+        throw new Error("Falha ao atualizar o projeto.");
     }
-    const newPhoto = { ...photoData, id: `ph${Date.now()}` };
-    if (!visits[visitIndex].photos) {
-        visits[visitIndex].photos = [];
+
+    // 2. Upsert payments (update existing, insert new)
+    const paymentsToUpsert = payments.map(p => ({...p, project_id: project.id, due_date: p.dueDate}));
+    const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
+    
+    if(paymentsError) {
+        console.error("Error upserting payments:", paymentsError);
+        throw new Error("Falha ao atualizar as parcelas do projeto.");
     }
-    visits[visitIndex].photos.push(newPhoto);
-    saveData('visits', visits);
-    return newPhoto;
+    
+    const finalProject = await getProjectById(project.id);
+    if (!finalProject) throw new Error("Could not retrieve updated project.");
+
+    return finalProject;
 }
 
-export const addPhotoToProject = (
+
+export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos' | 'projectId' | 'budgetAmount' | 'budgetPdfUrl'>) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const dbVisitData = {
+        client_id: visit.clientId,
+        date: visit.date,
+        status: visit.status,
+        summary: visit.summary,
+        photos: []
+    };
+    const { data: newVisit, error } = await supabase.from('visits').insert([dbVisitData]).select().single();
+    if(error) {
+        console.error("Error creating visit:", error);
+        throw new Error("Falha ao agendar visita.");
+    }
+    return newVisit as Visit;
+}
+
+export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const dbVisitData = {
+        id: visit.id,
+        client_id: visit.clientId,
+        project_id: visit.projectId,
+        date: visit.date,
+        status: visit.status,
+        summary: visit.summary,
+        photos: visit.photos,
+        budget_amount: visit.budgetAmount,
+        budget_pdf_url: visit.budgetPdfUrl
+    }
+    const { data, error } = await supabase.from('visits').update(dbVisitData).eq('id', visit.id).select().single();
+    if (error) {
+        console.error("Error updating visit:", error);
+        throw new Error("Falha ao atualizar a visita.");
+    }
+    return data as Visit;
+};
+
+export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const visit = await getVisitById(photoData.visitId);
+    if (!visit) throw new Error("Visita não encontrada");
+    
+    const newPhoto: Photo = { ...photoData, id: crypto.randomUUID() };
+    const updatedPhotos = [...(visit.photos || []), newPhoto];
+    
+    const { data, error } = await supabase.from('visits').update({ photos: updatedPhotos }).eq('id', photoData.visitId).select().single();
+    if(error) {
+        console.error("Error adding photo to visit:", error);
+        throw new Error("Falha ao adicionar foto.");
+    }
+    return data;
+}
+
+export const addPhotoToProject = async (
     projectId: string, 
     photoType: 'before' | 'after', 
     photoData: Omit<Photo, 'id'>
 ) => {
-    const projects = getProjects();
-    const projectIndex = projects.findIndex(p => p.id === projectId);
-    if (projectIndex === -1) {
-        throw new Error("Projeto não encontrado");
-    }
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const project = await getProjectById(projectId);
+    if(!project) throw new Error("Projeto não encontrado");
 
-    // Ensure photosBefore and photosAfter arrays exist
-    if (!projects[projectIndex].photosBefore) {
-        projects[projectIndex].photosBefore = [];
+    const newPhoto = { ...photoData, id: crypto.randomUUID() };
+    const fieldName = photoType === 'before' ? 'photos_before' : 'photos_after';
+    const currentPhotos = (photoType === 'before' ? project.photosBefore : project.photosAfter) || [];
+    const updatedPhotos = [...currentPhotos, newPhoto];
+
+    const { data, error } = await supabase.from('projects').update({ [fieldName]: updatedPhotos }).eq('id', projectId).select().single();
+     if(error) {
+        console.error(`Error adding ${photoType} photo to project:`, error);
+        throw new Error("Falha ao adicionar foto ao projeto.");
     }
-    if (!projects[projectIndex].photosAfter) {
-        projects[projectIndex].photosAfter = [];
-    }
-    
-    const newPhoto = { ...photoData, id: `ph${Date.now()}` };
-    if (photoType === 'before') {
-        projects[projectIndex].photosBefore.push(newPhoto);
-    } else {
-        projects[projectIndex].photosAfter.push(newPhoto);
-    }
-    saveData('projects', projects);
-    return projects[projectIndex];
+    const updatedProject = await getProjectById(projectId);
+    if (!updatedProject) throw new Error("Could not retrieve updated project after photo add.");
+    return updatedProject;
 }
 
-export const addBudgetToVisit = (visitId: string, budgetAmount: number, budgetPdfUrl: string) => {
-    const visits = getVisits();
-    const visitIndex = visits.findIndex(v => v.id === visitId);
-    if (visitIndex === -1) {
-        throw new Error("Visita não encontrada");
+export const addBudgetToVisit = async (visitId: string, budgetAmount: number, budgetPdfUrl: string) => {
+    if (!supabase) throw new Error("Supabase client is not initialized.");
+    const { data, error } = await supabase.from('visits').update({ budget_amount: budgetAmount, budget_pdf_url: budgetPdfUrl }).eq('id', visitId).select().single();
+    if (error) {
+        console.error("Error adding budget to visit:", error);
+        throw new Error("Falha ao adicionar orçamento.");
     }
-    visits[visitIndex].budgetAmount = budgetAmount;
-    visits[visitIndex].budgetPdfUrl = budgetPdfUrl;
-    saveData('visits', visits);
-    return visits[visitIndex];
+    return data as Visit;
 }
 
 
-export const updateMasterData = (data: Omit<MasterData, 'paymentInstruments'>) => {
-    const currentMasterData = getMasterData();
-    const newMasterData = { ...currentMasterData, ...data };
-    saveData('masterData', newMasterData);
-    return newMasterData;
+export const updateMasterData = async (data: Omit<MasterData, 'paymentInstruments'>) => {
+    // This function will now have to be handled differently, as this data is static.
+    // For now, we will log a warning. In a real app, this could be a settings table in Supabase.
+    console.warn("updateMasterData is not implemented for Supabase yet. Data is static.");
+    return defaultMasterData;
 }
 
-export const checkForVisitConflict = (newVisit: { clientId: string, date: string, visitId?: string }): Visit | null => {
+export const checkForVisitConflict = async (newVisit: { clientId: string, date: string, visitId?: string }): Promise<Visit | null> => {
+    if (!supabase) return null;
     if (!newVisit.clientId || !newVisit.date) {
         return null;
     }
     
-    const allVisits = getVisits();
+    const newVisitTime = new Date(newVisit.date).getTime();
+    const fourHours = 4 * 60 * 60 * 1000;
+    const lowerBound = new Date(newVisitTime - fourHours).toISOString();
+    const upperBound = new Date(newVisitTime + fourHours).toISOString();
+
+    let query = supabase.from('visits')
+        .select('*')
+        .eq('client_id', newVisit.clientId)
+        .gte('date', lowerBound)
+        .lte('date', upperBound);
+
+    if (newVisit.visitId) {
+        query = query.neq('id', newVisit.visitId);
+    }
     
-    const otherClientVisits = allVisits.filter(v => {
-        return v.clientId === newVisit.clientId && v.id !== newVisit.visitId;
-    });
+    const { data, error } = await query;
     
-    if (otherClientVisits.length === 0) {
+    if (error) {
+        console.error("Error checking for visit conflict:", error);
+        return null;
+    }
+    
+    return data && data.length > 0 ? data[0] as Visit : null;
+}
+
+export const checkForProjectConflict = async (newProject: { clientId: string, startDate: string, endDate: string, projectId?: string }): Promise<Project | null> => {
+    if (!supabase) return null;
+    let query = supabase.from('projects')
+        .select('*')
+        .eq('client_id', newProject.clientId)
+        .lte('start_date', newProject.endDate)
+        .gte('end_date', newProject.startDate)
+    
+    if (newProject.projectId) {
+        query = query.neq('id', newProject.projectId);
+    }
+    
+    const { data, error } = await query;
+
+     if (error) {
+        console.error("Error checking for project conflict:", error);
         return null;
     }
 
-    const newVisitTime = new Date(newVisit.date).getTime();
-    const fourHours = 4 * 60 * 60 * 1000;
-
-    for (const visit of otherClientVisits) {
-        const existingVisitTime = new Date(visit.date).getTime();
-        if (Math.abs(newVisitTime - existingVisitTime) < fourHours) {
-            return visit; 
-        }
-    }
-    
-    return null;
-}
-
-export const checkForProjectConflict = (newProject: { clientId: string, startDate: string, endDate: string, projectId?: string }): Project | null => {
-    const allProjects = getProjects();
-    const clientProjects = allProjects.filter(p => p.clientId === newProject.clientId && p.id !== newProject.projectId);
-    const newStart = new Date(newProject.startDate).getTime();
-    const newEnd = new Date(newProject.endDate).getTime();
-
-    for(const project of clientProjects) {
-        const existingStart = new Date(project.startDate).getTime();
-        const existingEnd = new Date(project.endDate).getTime();
-
-        if (newStart <= existingEnd && newEnd >= existingStart) {
-            return project;
-        }
-    }
-
-    return null;
+    return data && data.length > 0 ? data[0] as Project : null;
 }

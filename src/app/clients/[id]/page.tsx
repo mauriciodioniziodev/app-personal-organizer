@@ -24,34 +24,40 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 
-export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ClientDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const { toast } = useToast();
   const router = useRouter();
 
-  const [client, setClient] = useState<Client | undefined>(undefined);
+  const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-      const clientData = getClientById(id);
-      if (clientData) {
-          setClient(clientData);
-          setProjects(getProjectsByClientId(clientData.id));
-          setVisits(getVisitsByClientId(clientData.id));
-      } else {
-         toast({
-            variant: "destructive",
-            title: "Cliente não encontrado",
-            description: "O cliente que você está tentando acessar não existe.",
-         });
-         router.push('/clients');
-      }
+    async function fetchData() {
+        setLoading(true);
+        const clientData = await getClientById(id);
+        if (clientData) {
+            setClient(clientData);
+            setProjects(await getProjectsByClientId(clientData.id));
+            setVisits(await getVisitsByClientId(clientData.id));
+        } else {
+           toast({
+              variant: "destructive",
+              title: "Cliente não encontrado",
+              description: "O cliente que você está tentando acessar não existe.",
+           });
+           router.push('/clients');
+        }
+        setLoading(false);
+    }
+    fetchData();
   }, [id, router, toast]);
 
-  const handleVisitCreated = (newVisit: Visit) => {
-    setVisits(prev => [newVisit, ...prev].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+  const handleVisitCreated = async (newVisit: Visit) => {
+    setVisits(prev => [newVisit, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setIsVisitFormOpen(false);
     toast({
         title: "Visita Agendada!",
@@ -59,7 +65,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     });
   }
 
-  if (!client) {
+  if (loading || !client) {
     return (
         <div className="flex items-center justify-center h-full">
             <LoaderCircle className="w-8 h-8 animate-spin" />

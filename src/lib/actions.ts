@@ -2,16 +2,20 @@
 "use server";
 
 import { z } from "zod";
-import { addClient, addProject, addVisit, addPhotoToVisit, getVisits } from "./data";
+import { addClient, addProject, addVisit, addPhotoToVisit } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Visit } from "./definitions";
 
-// Este schema é usado apenas para validação no lado do servidor.
-// A criação do cliente em si é feita no lado do cliente em NewClientPage.
+
+// This file is largely deprecated as mutations are handled on the client-side
+// with optimistic UI updates, calling the data layer functions directly.
+// However, it's kept for potential future use with server-only forms.
+// For now, the actions defined here are not actively used.
+
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  email: z.string().email("E-mail inválido."),
+  email: z.string().email("E-mail inválido.").optional(),
   phone: z.string().min(10, "Telefone inválido."),
   address: z.string().min(5, "Endereço inválido."),
   preferences: z.string().optional(),
@@ -34,10 +38,9 @@ export async function createClient(prevState: any, formData: FormData) {
   }
   
   try {
-    // A função addClient agora será chamada no lado do cliente
-    // Este server action serve mais como uma validação.
-    // O retorno de success aqui sinaliza que a validação passou.
-    return { success: true, clientData: validatedFields.data };
+    await addClient(validatedFields.data as any);
+    revalidatePath('/clients');
+    return { success: true };
   } catch (error) {
     return { message: "Erro de servidor ao validar cliente.", success: false };
   }
@@ -64,7 +67,7 @@ export async function createProject(prevState: any, formData: FormData) {
     }
 
     try {
-        addProject(validatedFields.data);
+        await addProject(validatedFields.data as any);
     } catch (e) {
         return { message: 'Erro ao criar projeto.'}
     }
@@ -92,7 +95,7 @@ export async function createVisit(formData: FormData): Promise<Visit> {
         throw new Error("Validação falhou");
     }
     
-    const newVisit = addVisit(validatedFields.data);
+    const newVisit = await addVisit(validatedFields.data as any);
     revalidatePath(`/clients/${validatedFields.data.clientId}`);
     revalidatePath('/visits');
     return newVisit;
@@ -118,7 +121,7 @@ export async function addPhotoAction(prevState: any, formData: FormData) {
     }
     
     try {
-        addPhotoToVisit(validatedFields.data);
+        await addPhotoToVisit(validatedFields.data);
         revalidatePath(`/visits/${validatedFields.data.visitId}`);
         return { success: true, message: 'Foto adicionada com sucesso.', errors: {} }
     } catch(e) {

@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue, getVisitsSummary, getTodaysSchedule } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass, CheckCircle, FileText, XCircle, Clock } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary } from "@/lib/data";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -17,29 +17,33 @@ import React from 'react';
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // A simple way to force re-fetch on focus to keep data fresh
-    // across tabs or after some inactivity.
-    const refetch = () => {
-        setActiveProjects(getActiveProjects());
-        setUpcomingVisits(getUpcomingVisits());
-        setClients(getClients());
-        setVisitsSummary(getVisitsSummary());
-        setDailySchedule(getTodaysSchedule());
+    async function fetchData() {
+        setLoading(true);
+        const [
+            activeProjectsData, 
+            upcomingVisitsData, 
+            visitsSummaryData, 
+            dailyScheduleData
+        ] = await Promise.all([
+            getActiveProjects(),
+            getUpcomingVisits(),
+            getVisitsSummary(),
+            getTodaysSchedule()
+        ]);
+
+        setActiveProjects(activeProjectsData);
+        setUpcomingVisits(upcomingVisitsData);
+        setVisitsSummary(visitsSummaryData);
+        setDailySchedule(dailyScheduleData);
+        setLoading(false);
     }
-    refetch();
-
-    window.addEventListener('focus', refetch);
-    return () => window.removeEventListener('focus', refetch);
+    fetchData();
   }, []);
-
-  const getClientData = (clientId: string) => {
-    return clients.find(c => c.id === clientId);
-  }
 
   const visitStatusIcons: { [key: string]: React.ReactNode } = {
         pendente: <Clock className="w-4 h-4 text-yellow-600" />,
@@ -59,6 +63,15 @@ export default function Dashboard() {
       visit: <CalendarClock className="w-5 h-5 text-accent-foreground" />,
       project: <FolderKanban className="w-5 h-5 text-accent-foreground" />,
   }
+  
+  if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -207,9 +220,7 @@ export default function Dashboard() {
             <CardContent className="p-4">
               {activeProjects.length > 0 ? (
                 <ul className="space-y-2">
-                  {activeProjects.slice(0, 5).map((project) => {
-                     const client = getClientData(project.clientId);
-                     return (
+                  {activeProjects.slice(0, 5).map((project) => (
                         <li key={project.id}>
                             <Link href={`/projects/${project.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start">
@@ -218,28 +229,12 @@ export default function Dashboard() {
                                         <p className="text-sm text-muted-foreground">
                                             Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
                                         </p>
-                                        {client && (
-                                            <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
-                                                <div className='flex items-center gap-2 font-medium text-foreground'>
-                                                    <User className="w-3 h-3"/>
-                                                    <span>{client.name}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                   <Phone className="w-3 h-3"/>
-                                                   <span>{client.phone}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                   <MapPin className="w-3 h-3"/>
-                                                   <span className='truncate'>{client.address}</span>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </Link>
                         </li>
                      )
-                  })}
+                  )}
                 </ul>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Nenhum projeto ativo no momento.</p>
@@ -254,29 +249,12 @@ export default function Dashboard() {
               {upcomingVisits.length > 0 ? (
                 <ul className="space-y-2">
                   {upcomingVisits.slice(0, 5).map((visit) => {
-                    const client = getClientData(visit.clientId);
                     return (
                         <li key={visit.id}>
                             <Link href={`/visits/${visit.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                                        {client && (
-                                            <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
-                                                 <div className='flex items-center gap-2 font-medium text-foreground'>
-                                                    <User className="w-3 h-3"/>
-                                                    <span>{client.name}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                   <Phone className="w-3 h-3"/>
-                                                   <span>{client.phone}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                   <MapPin className="w-3 h-3"/>
-                                                   <span className='truncate'>{client.address}</span>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
