@@ -2,13 +2,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue } from "@/lib/data";
-import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue, getVisitsSummary } from "@/lib/data";
+import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass, CheckCircle, FileText, XCircle, Clock } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { Project, Visit, Client } from '@/lib/definitions';
+import type { Project, Visit, Client, VisitsSummary } from '@/lib/definitions';
+import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
 
@@ -28,6 +30,7 @@ export default function Dashboard() {
         setActiveProjects(getActiveProjects());
         setUpcomingVisits(getUpcomingVisits());
         setClients(getClients());
+        setVisitsSummary(getVisitsSummary());
     }
     refetch();
 
@@ -38,6 +41,14 @@ export default function Dashboard() {
   const getClientData = (clientId: string) => {
     return clients.find(c => c.id === clientId);
   }
+
+  const visitStatusIcons: { [key: string]: React.ReactNode } = {
+        pendente: <Clock className="w-4 h-4 text-yellow-500" />,
+        realizada: <CheckCircle className="w-4 h-4 text-green-500" />,
+        cancelada: <XCircle className="w-4 h-4 text-red-500" />,
+        orçamento: <FileText className="w-4 h-4 text-blue-500" />,
+  };
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -126,6 +137,35 @@ export default function Dashboard() {
           </Card>
         </Link>
       </div>
+
+       <div className="grid gap-8">
+            <Link href="/visits">
+                <Card className="hover:bg-muted/50 transition-colors">
+                    <CardHeader>
+                        <CardTitle className="font-headline text-xl">Resumo de Visitas</CardTitle>
+                        <CardDescription>Status geral de todos os agendamentos.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {Object.keys(visitsSummary).length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {Object.entries(visitsSummary).map(([status, count]) => (
+                                    <div key={status} className="flex items-center gap-3">
+                                        {visitStatusIcons[status] || <div className="w-4 h-4" />}
+                                        <div>
+                                            <p className="font-bold text-lg">{count}</p>
+                                            <p className="text-sm capitalize text-muted-foreground">{status}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                             <p className="text-muted-foreground text-center py-4">Nenhuma visita registrada.</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </Link>
+        </div>
+
 
       <div className="grid gap-8 md:grid-cols-2">
         <div>
@@ -222,5 +262,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-    

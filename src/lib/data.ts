@@ -1,5 +1,5 @@
 
-import type { Client, Project, Visit, Photo, MasterData } from './definitions';
+import type { Client, Project, Visit, Photo, MasterData, VisitsSummary } from './definitions';
 
 // --- Data Persistence Layer (using localStorage) ---
 
@@ -66,6 +66,14 @@ export const getUpcomingVisits = () => {
         return visitDate >= now && visitDate <= oneWeekFromNow && v.status === 'pendente';
     }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
+export const getVisitsSummary = (): VisitsSummary => {
+    const visits = getVisits();
+    return visits.reduce((acc, visit) => {
+        acc[visit.status] = (acc[visit.status] || 0) + 1;
+        return acc;
+    }, {} as VisitsSummary);
+};
+
 
 // --- Data Mutation Functions (used by server actions) ---
 export const addClient = (client: Omit<Client, 'id'>) => {

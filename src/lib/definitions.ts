@@ -46,3 +46,7 @@ export type MasterData = {
   visitStatus: string[];
   photoTypes: string[];
 };
+
+export type VisitsSummary = {
+  [status: string]: number;
+};
