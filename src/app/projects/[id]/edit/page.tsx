@@ -40,63 +40,7 @@ const photoSchema = z.object({
 });
 
 
-export default function ProjectEditPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { id } = use(params);
-
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const { paymentStatus } = getMasterData();
-  
-  useEffect(() => {
-    const projectData = getProjectById(id);
-    if (projectData) {
-      setProject(projectData);
-    } else {
-      notFound();
-    }
-  }, [id]);
-
-  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!project) return;
-    setLoading(true);
-    setErrors({});
-
-    const formData = new FormData(event.currentTarget);
-    const projectData = {
-      ...project,
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      startDate: formData.get("startDate") as string,
-      endDate: formData.get("endDate") as string,
-      value: formData.get("value") as string,
-      paymentStatus: formData.get("paymentStatus") as string,
-    };
-
-    const validationResult = projectSchema.safeParse(projectData);
-
-    if (!validationResult.success) {
-      setErrors(validationResult.error.flatten().fieldErrors);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const updated = updateProject(validationResult.data as Project);
-      setProject(updated);
-      toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
-      router.push(`/projects/${id}`);
-    } catch (error) {
-      toast({ variant: 'destructive', title: "Erro", description: "Falha ao atualizar o projeto."});
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const PhotoUploader = ({ photoType }: { photoType: 'before' | 'after' }) => {
+function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project, photoType: 'before' | 'after', onPhotoAdded: (project: Project) => void }) {
     const [isCaptureOpen, setCaptureOpen] = useState(false);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -106,6 +50,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [photoErrors, setPhotoErrors] = useState<Record<string, string[]>>({});
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!isCaptureOpen) {
@@ -182,8 +127,8 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
       }
 
       try {
-          const updatedProject = addPhotoToProject(id, photoType, validationResult.data);
-          setProject(updatedProject);
+          const updatedProject = addPhotoToProject(project.id, photoType, validationResult.data);
+          onPhotoAdded(updatedProject);
           toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
           if(photoFormRef.current) photoFormRef.current.reset();
           setCapturedImage(null);
@@ -254,9 +199,65 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
         </CardContent>
       </Card>
     );
-  }
+}
 
 
+export default function ProjectEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { id } = use(params);
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const { paymentStatus } = getMasterData();
+  
+  useEffect(() => {
+    const projectData = getProjectById(id);
+    if (projectData) {
+      setProject(projectData);
+    } else {
+      notFound();
+    }
+  }, [id]);
+
+  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!project) return;
+    setLoading(true);
+    setErrors({});
+
+    const formData = new FormData(event.currentTarget);
+    const projectData = {
+      ...project,
+      name: formData.get("name") as string,
+      description: formData.get("description") as string,
+      startDate: formData.get("startDate") as string,
+      endDate: formData.get("endDate") as string,
+      value: formData.get("value") as string,
+      paymentStatus: formData.get("paymentStatus") as string,
+    };
+
+    const validationResult = projectSchema.safeParse(projectData);
+
+    if (!validationResult.success) {
+      setErrors(validationResult.error.flatten().fieldErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const updated = updateProject(validationResult.data as Project);
+      setProject(updated);
+      toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
+      // We don't redirect here, so the user can continue editing or adding photos.
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Erro", description: "Falha ao atualizar o projeto."});
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   if (!project) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
@@ -265,7 +266,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
     <div className="flex flex-col gap-8">
       <PageHeader title={`Editar: ${project.name}`} />
       
-      <form onSubmit={handleProjectSubmit} className="space-y-6">
+       <form onSubmit={handleProjectSubmit}>
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -313,27 +314,26 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
                         </RadioGroup>
                     </div>
                 </div>
+                 <div className="flex justify-end gap-2 pt-4">
+                    <Link href={`/projects/${id}`}>
+                        <Button type="button" variant="outline">Voltar</Button>
+                    </Link>
+                    <Button type="submit" disabled={loading}>
+                         {loading ? (
+                            <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                        ) : (
+                            <><Save className="mr-2 h-4 w-4"/> Salvar Alterações</>
+                        )}
+                    </Button>
+                </div>
             </CardContent>
         </Card>
+      </form>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PhotoUploader photoType="before" />
-            <PhotoUploader photoType="after" />
+            <PhotoUploader project={project} photoType="before" onPhotoAdded={setProject} />
+            <PhotoUploader project={project} photoType="after" onPhotoAdded={setProject} />
         </div>
-
-        <div className="flex justify-end gap-2 pt-4">
-            <Link href={`/projects/${id}`}>
-                <Button type="button" variant="outline">Cancelar</Button>
-            </Link>
-            <Button type="submit" disabled={loading}>
-                 {loading ? (
-                    <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
-                ) : (
-                    <><Save className="mr-2 h-4 w-4"/> Salvar Alterações</>
-                )}
-            </Button>
-        </div>
-      </form>
     </div>
   );
 }
