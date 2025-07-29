@@ -1,5 +1,5 @@
 
-import type { Client, Project, Visit, Photo, MasterData, VisitsSummary } from './definitions';
+import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem } from './definitions';
 
 // --- Data Persistence Layer (using localStorage) ---
 
@@ -72,6 +72,67 @@ export const getVisitsSummary = (): VisitsSummary => {
         acc[visit.status] = (acc[visit.status] || 0) + 1;
         return acc;
     }, {} as VisitsSummary);
+};
+
+export const getTodaysSchedule = (): ScheduleItem[] => {
+    const clients = getClients();
+    const getClientName = (clientId: string) => clients.find(c => c.id === clientId)?.name ?? 'Cliente desconhecido';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayVisits = getVisits().filter(v => {
+        const visitDate = new Date(v.date);
+        return visitDate >= today && visitDate <= endOfDay;
+    });
+    
+    const todayProjects = getProjects().filter(p => {
+        const startDate = new Date(p.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(p.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        return today >= startDate && today <= endDate;
+    });
+
+    const schedule: ScheduleItem[] = [];
+
+    todayVisits.forEach(v => {
+        schedule.push({
+            id: v.id,
+            type: 'visit',
+            date: v.date,
+            time: new Date(v.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            title: `Visita`,
+            clientName: getClientName(v.clientId),
+            clientId: v.clientId,
+            status: v.status,
+            path: `/visits/${v.id}`
+        });
+    });
+
+     todayProjects.forEach(p => {
+        schedule.push({
+            id: p.id,
+            type: 'project',
+            date: p.startDate, // Using start date for sorting consistency
+            title: p.name,
+            clientName: getClientName(p.clientId),
+            clientId: p.clientId,
+            status: p.paymentStatus,
+            path: `/projects/${p.id}`
+        });
+    });
+
+    return schedule.sort((a, b) => {
+        if (a.type === 'visit' && b.type === 'visit') {
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+        }
+        if (a.type === 'visit' && b.type === 'project') return -1;
+        if (a.type === 'project' && b.type === 'visit') return 1;
+        return a.title.localeCompare(b.title);
+    });
 };
 
 
@@ -204,13 +265,8 @@ export const checkForVisitConflict = (newVisit: { clientId: string, date: string
     }
     const allVisits = getVisits();
     
-    // Filter for other visits of the same client
     const otherClientVisits = allVisits.filter(v => {
-        // It's for the same client
-        const isSameClient = v.clientId === newVisit.clientId;
-        // It's a different visit (not the one we are currently editing)
-        const isDifferentVisit = v.id !== newVisit.visitId;
-        return isSameClient && isDifferentVisit;
+        return v.clientId === newVisit.clientId && v.id !== newVisit.visitId;
     });
     
     if (otherClientVisits.length === 0) {

@@ -3,14 +3,15 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue, getVisitsSummary } from "@/lib/data";
+import { getActiveProjects, getUpcomingVisits, getTotalRevenue, getClients, getTotalPendingRevenue, getVisitsSummary, getTodaysSchedule } from "@/lib/data";
 import { CalendarClock, FolderKanban, Wallet, Eye, EyeOff, Phone, MapPin, User, Hourglass, CheckCircle, FileText, XCircle, Clock } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { Project, Visit, Client, VisitsSummary } from '@/lib/definitions';
+import type { Project, Visit, Client, VisitsSummary, ScheduleItem } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 export default function Dashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
+  const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
 
@@ -32,6 +34,7 @@ export default function Dashboard() {
         setUpcomingVisits(getUpcomingVisits());
         setClients(getClients());
         setVisitsSummary(getVisitsSummary());
+        setDailySchedule(getTodaysSchedule());
     }
     refetch();
 
@@ -56,11 +59,60 @@ export default function Dashboard() {
       cancelada: 'text-red-800 bg-red-100',
       orçamento: 'text-blue-800 bg-blue-100',
   }
+  
+  const paymentStatusColors: { [key: string]: string } = {
+      pago: 'text-green-800 bg-green-100',
+      pendente: 'text-yellow-800 bg-yellow-100',
+  }
 
+  const scheduleIcons: { [key: string]: React.ReactNode } = {
+      visit: <CalendarClock className="w-5 h-5 text-accent-foreground" />,
+      project: <FolderKanban className="w-5 h-5 text-accent-foreground" />,
+  }
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Dashboard" />
+
+       <div className="grid gap-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline text-xl">Agenda do Dia</CardTitle>
+                    <CardDescription>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {dailySchedule.length > 0 ? (
+                        <ul className="space-y-4">
+                            {dailySchedule.map((item, index) => (
+                                <>
+                                <li key={item.id}>
+                                    <Link href={item.path} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent">
+                                                {scheduleIcons[item.type]}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-center">
+                                                    <p className="font-semibold">{item.title}</p>
+                                                    {item.time && <p className="text-sm font-bold">{item.time}</p>}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">{item.clientName}</p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </li>
+                                 {index < dailySchedule.length - 1 && <Separator />}
+                                </>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhum compromisso para hoje.</p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -1,4 +1,5 @@
 
+
 export type Client = {
   id: string;
   name: string;
@@ -49,4 +50,16 @@ export type MasterData = {
 
 export type VisitsSummary = {
   [status: string]: number;
+};
+
+export type ScheduleItem = {
+    id: string;
+    type: 'visit' | 'project';
+    date: string; // The date of the event. For projects, this will be the current day.
+    time?: string; // Only for visits
+    title: string;
+    clientName: string;
+    clientId: string;
+    status: string;
+    path: string;
 };
