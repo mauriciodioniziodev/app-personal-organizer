@@ -2,25 +2,34 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
 
 export function GlobalLoadingIndicator() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isNavigating, setIsNavigating] = useState(false);
+  const previousPath = useRef(pathname + searchParams.toString());
 
   useEffect(() => {
-    // Quando a rota muda, consideramos que a navegação começou.
-    // O indicador será desativado pelo useEffect de limpeza quando o componente desmontar
-    // na conclusão da navegação.
-    setIsNavigating(true);
-    
-    // A função de limpeza do useEffect será chamada quando a navegação
-    // para a próxima página for concluída e este componente for desmontado.
-    return () => {
+    const currentPath = pathname + searchParams.toString();
+    if (currentPath !== previousPath.current) {
+      // Path has changed, navigation has started.
+      setIsNavigating(true);
+      previousPath.current = currentPath;
+    }
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    // When isNavigating becomes true, this effect will run.
+    // When the new page is rendered and this component re-evaluates,
+    // this effect's cleanup or re-run will hide the indicator.
+    // This second effect ensures the indicator is hidden after the new page is ready.
+    if (isNavigating) {
       setIsNavigating(false);
-    };
+    }
+    // We only want this to run when the path changes and after the above effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams]);
 
 
