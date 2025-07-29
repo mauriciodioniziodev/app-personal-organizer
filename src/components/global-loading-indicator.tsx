@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
@@ -8,22 +9,64 @@ export function GlobalLoadingIndicator() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isNavigating, setIsNavigating] = useState(false);
-
+  
   useEffect(() => {
-    // This is a bit of a trick to detect navigation start.
-    // It assumes that the path or search params will change on navigation.
-    // We set navigating to true and a timeout to set it to false if the effect below doesn't run.
-    const timer = setTimeout(() => setIsNavigating(false), 500); // Failsafe
-    setIsNavigating(true);
+    // We store the current path in a variable.
+    const currentPath = pathname + searchParams.toString();
+    
+    // This is a component-level variable to track the path *before* the navigation starts.
+    // It's not a state variable because we don't want to re-render when it changes.
+    let previousPath = currentPath;
 
-    return () => clearTimeout(timer);
+    // When the effect for the new page is mounted, this will be called.
+    const handleNavigationComplete = () => {
+        setIsNavigating(false);
+    }
+
+    // If the path changes, it means a navigation has started.
+    if (currentPath !== previousPath) {
+        setIsNavigating(true);
+    }
+    
+    // We listen for the component to be unmounted, which happens when navigation is complete.
+    return () => {
+        handleNavigationComplete();
+        previousPath = currentPath;
+    };
+
   }, [pathname, searchParams]);
 
-  useEffect(() => {
-    // When the component re-mounts or the dependencies change after a navigation,
-    // this effect will run and set navigating to false.
-    setIsNavigating(false);
-  }, [pathname, searchParams]);
+
+  // A different effect to detect navigation start, as the above one detects the end.
+   useEffect(() => {
+    const handleRouteChangeStart = () => setIsNavigating(true);
+
+    // This is a trick to tap into Next.js's navigation events.
+    // We are essentially monkey-patching pushState and replaceState to detect when they are called.
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function(...args) {
+      handleRouteChangeStart();
+      originalPushState.apply(window.history, args);
+    };
+    
+    const originalReplaceState = window.history.replaceState;
+    window.history.replaceState = function(...args) {
+        handleRouteChangeStart();
+        originalReplaceState.apply(window.history, args)
+    }
+
+    // Also listen to popstate for browser back/forward buttons
+    window.addEventListener('popstate', handleRouteChangeStart);
+    
+    return () => {
+        // Restore original methods on cleanup
+        window.history.pushState = originalPushState;
+        window.history.replaceState = originalReplaceState;
+        window.removeEventListener('popstate', handleRouteChangeStart);
+    }
+
+  }, []);
+
 
   if (!isNavigating) return null;
 
