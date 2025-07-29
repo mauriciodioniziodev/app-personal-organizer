@@ -23,7 +23,11 @@ export default function Sidebar() {
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-foreground"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                 <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-foreground h-6 w-6">
+                    <path d="M20 80L35 30L50 80" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M50 80L65 30L80 80" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M28 60H72" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/>
+                </svg>
             </div>
           <div>
             <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
@@ -68,3 +72,4 @@ function NavItem({ item, isActive }: NavItemProps) {
     </li>
   );
 }
+
