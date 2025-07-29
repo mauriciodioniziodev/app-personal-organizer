@@ -104,20 +104,21 @@ const photoSchema = z.object({
     type: z.string(), // 'upload' or 'camera'
 })
 
-export async function addPhotoAction(formData: FormData) {
+export async function addPhotoAction(prevState: any, formData: FormData) {
     const validatedFields = photoSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if(!validatedFields.success) {
         return {
             errors: validatedFields.error.flatten().fieldErrors,
+            message: 'A validação falhou.',
         }
     }
     
     try {
         addPhotoToVisit(validatedFields.data);
         revalidatePath(`/visits/${validatedFields.data.visitId}`);
-        return { message: 'Foto adicionada com sucesso.' }
+        return { message: 'Foto adicionada com sucesso.', errors: null }
     } catch(e) {
-        return { message: 'Erro ao adicionar foto.'}
+        return { message: 'Erro ao adicionar foto.', errors: null }
     }
 }

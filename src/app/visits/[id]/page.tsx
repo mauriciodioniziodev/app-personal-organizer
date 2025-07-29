@@ -2,7 +2,7 @@
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useState, useRef, useActionState } from 'react';
+import { use, useEffect, useState, useRef } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
-import { useFormStatus } from 'react-dom';
+import { useFormState, useFormStatus } from 'react-dom';
 import { addPhotoAction } from '@/lib/actions';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
@@ -66,14 +66,14 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     
     const photoFormRef = useRef<HTMLFormElement>(null);
 
-    const [photoFormState, dispatchPhoto] = useActionState(async (prevState: any, formData: FormData) => {
+    const [photoFormState, dispatchPhoto] = useFormState(async (prevState: any, formData: FormData) => {
         const imageUri = capturedImage || uploadedImage;
         if (!imageUri) {
             return { errors: { url: ["Por favor, capture ou envie uma imagem."] }};
         }
         formData.set('url', imageUri);
         
-        const result = await addPhotoAction(formData);
+        const result = await addPhotoAction(prevState, formData);
 
         if (result?.message?.includes('sucesso')) {
             toast({ title: result.message });
@@ -176,8 +176,8 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         <div className="flex flex-col gap-8">
             <PageHeader title={`Visita de ${formatDate(visit.date)}`} />
             
-            <div className="grid md:grid-cols-3 gap-8 items-start">
-                <div className="md:col-span-2 space-y-8">
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-8">
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Detalhes da Visita</CardTitle>
@@ -255,7 +255,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
 
                 </div>
 
-                <div className="space-y-8">
+                <div className="lg:col-span-1 space-y-8">
                      <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Adicionar Foto</CardTitle>
