@@ -2,7 +2,7 @@
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { useEffect, useState, useRef, FormEvent } from 'react';
+import { useEffect, useState, useRef, FormEvent, use } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
