@@ -194,3 +194,39 @@ export const updateMasterData = (data: MasterData) => {
     saveData('masterData', data);
     return data;
 }
+
+export const checkForVisitConflict = (newVisit: { clientId: string, date: string }): Visit | null => {
+    const allVisits = getVisits();
+    const clientVisits = allVisits.filter(v => v.clientId === newVisit.clientId);
+    const newVisitTime = new Date(newVisit.date).getTime();
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    for (const visit of clientVisits) {
+        const existingVisitTime = new Date(visit.date).getTime();
+        if (Math.abs(newVisitTime - existingVisitTime) < twoHours * 2) { // 4 hour window
+            return visit;
+        }
+    }
+    return null;
+}
+
+export const checkForProjectConflict = (newProject: { clientId: string, startDate: string, endDate: string }): Project | null => {
+    const allProjects = getProjects();
+    const clientProjects = allProjects.filter(p => p.clientId === newProject.clientId);
+    const newStart = new Date(newProject.startDate).getTime();
+    const newEnd = new Date(newProject.endDate).getTime();
+
+    for(const project of clientProjects) {
+        const existingStart = new Date(project.startDate).getTime();
+        const existingEnd = new Date(project.endDate).getTime();
+
+        // Check for overlap
+        if (newStart <= existingEnd && newEnd >= existingStart) {
+            return project;
+        }
+    }
+
+    return null;
+}
+
+    

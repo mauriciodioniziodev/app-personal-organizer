@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, FormEvent, useRef } from "react";
-import { addVisit, getMasterData } from "@/lib/data";
+import { addVisit, getMasterData, checkForVisitConflict } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,9 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
-    const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
+    const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
+    const [conflictMessage, setConflictMessage] = useState("");
     const formRef = useRef<HTMLFormElement>(null);
 
 
@@ -70,20 +72,34 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             setLoading(false);
         }
     }
-
-
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
+    
+    const handleValidation = () => {
+        if (!formRef.current) return;
+        const formData = new FormData(formRef.current);
         const date = formData.get("date") as string;
+
+        const conflict = checkForVisitConflict({ clientId, date });
+        if(conflict) {
+            const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
+            setConflictMessage(`Este cliente já tem uma visita agendada para ${conflictDate} (${conflict.summary}).`);
+            setIsConflictAlertOpen(true);
+            return;
+        }
+
         const today = new Date();
         const selectedDate = new Date(date);
 
         if (selectedDate < today) {
-            setIsAlertOpen(true);
+            setIsPastDateAlertOpen(true);
         } else {
             proceedToSubmit();
         }
+    }
+
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        handleValidation();
     };
 
     return (
@@ -122,7 +138,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
                 </Button>
             </div>
         </form>
-         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+         <AlertDialog open={isPastDateAlertOpen} onOpenChange={setIsPastDateAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Data no Passado</AlertDialogTitle>
@@ -135,7 +151,23 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
                         <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
-            </AlertDialog>
+        </AlertDialog>
+        <AlertDialog open={isConflictAlertOpen} onOpenChange={setIsConflictAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Conflito de Agendamento</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           {conflictMessage} Deseja continuar mesmo assim?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Alterar</AlertDialogCancel>
+                        <AlertDialogAction onClick={proceedToSubmit}>Continuar Mesmo Assim</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+        </AlertDialog>
         </>
     )
 }
+
+    

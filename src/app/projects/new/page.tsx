@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getClients, getMasterData, getVisitById, addProject } from "@/lib/data";
+import { getClients, getMasterData, getVisitById, addProject, checkForProjectConflict } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +48,9 @@ function NewProjectPageContent() {
   
   const { paymentStatus } = getMasterData();
 
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
+  const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -103,20 +105,41 @@ function NewProjectPageContent() {
         setLoading(false);
     }
   }
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+  
+  const handleValidation = () => {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
     const startDate = formData.get("startDate") as string;
+    const endDate = formData.get("endDate") as string;
+
+    const projectData = {
+        clientId: selectedClientId,
+        startDate,
+        endDate
+    };
+    
+    const conflict = checkForProjectConflict(projectData);
+    if (conflict) {
+        setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${new Date(conflict.startDate).toLocaleDateString('pt-BR')} a ${new Date(conflict.endDate).toLocaleDateString('pt-BR')}.`);
+        setIsConflictAlertOpen(true);
+        return;
+    }
+
     const today = new Date();
-    today.setHours(0,0,0,0); // Reset time part to compare only dates
+    today.setHours(0,0,0,0);
     const selectedDate = new Date(`${startDate}T00:00:00`);
 
     if (selectedDate < today) {
-        setIsAlertOpen(true);
+        setIsPastDateAlertOpen(true);
     } else {
         proceedToSubmit();
     }
+  }
+
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleValidation();
   }
 
   return (
@@ -213,7 +236,7 @@ function NewProjectPageContent() {
           </CardContent>
         </Card>
       </form>
-       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+       <AlertDialog open={isPastDateAlertOpen} onOpenChange={setIsPastDateAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Data no Passado</AlertDialogTitle>
@@ -224,6 +247,20 @@ function NewProjectPageContent() {
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
                     <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isConflictAlertOpen} onOpenChange={setIsConflictAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Conflito de Agendamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {conflictMessage} Deseja continuar mesmo assim?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Alterar</AlertDialogCancel>
+                    <AlertDialogAction onClick={proceedToSubmit}>Continuar Mesmo Assim</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -239,3 +276,5 @@ export default function NewProjectPage() {
         </Suspense>
     )
 }
+
+    
