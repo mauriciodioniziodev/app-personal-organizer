@@ -63,7 +63,7 @@ export default function NewProjectPage() {
     const formData = new FormData(event.currentTarget);
     const projectData = {
         clientId: formData.get("clientId") as string,
-        visitId: formData.get("visitId") as string | undefined,
+        visitId: visitId ?? undefined,
         name: formData.get("name") as string,
         description: formData.get("description") as string,
         startDate: formData.get("startDate") as string,
@@ -101,7 +101,6 @@ export default function NewProjectPage() {
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
       <form onSubmit={handleSubmit}>
-        {visitId && <input type="hidden" name="visitId" value={visitId} />}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>

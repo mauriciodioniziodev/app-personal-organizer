@@ -1,10 +1,9 @@
 
-// src/app/visits/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, useRef, FormEvent, use } from 'react';
 import { notFound, useRouter } from 'next/navigation';
-import { getVisitById, getClientById, getProjectById } from '@/lib/data';
+import { getVisitById, getClientById, getProjectById, addPhotoToVisit } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,9 +21,17 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
-import { addPhotoAction } from '@/lib/actions';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
+import { z } from 'zod';
+
+
+const photoSchema = z.object({
+    visitId: z.string(),
+    url: z.string().min(1, "Por favor, capture ou envie uma imagem."),
+    description: z.string().min(3, "Descrição é obrigatória."),
+    type: z.string(),
+});
 
 export default function VisitDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -35,6 +42,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     const [client, setClient] = useState<Client | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [isCaptureOpen, setCaptureOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -44,10 +52,11 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
     
 
     useEffect(() => {
+        setLoading(true);
         const visitData = getVisitById(id);
         if (visitData) {
             setVisit(visitData);
@@ -58,11 +67,11 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         } else {
             notFound();
         }
+        setLoading(false);
     }, [id]);
 
     useEffect(() => {
         if (!isCaptureOpen) {
-            // Stop camera stream when dialog is closed
             if (videoRef.current && videoRef.current.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
@@ -121,36 +130,45 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     const handlePhotoSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
-        setFormErrors({});
+        setErrors({});
         
         const formData = new FormData(event.currentTarget);
         const imageUri = capturedImage || uploadedImage;
-        if(imageUri) {
-            formData.set('url', imageUri);
+        
+        const photoData = {
+            visitId: formData.get("visitId") as string,
+            url: imageUri ?? "",
+            description: formData.get("description") as string,
+            type: formData.get("type") as string
         }
 
-        const result = await addPhotoAction(null, formData);
-        
-        if (result.success) {
-            toast({ title: "Sucesso!", description: result.message });
-            setVisit(getVisitById(id) ?? null); // Refresh visit data
+        const validationResult = photoSchema.safeParse(photoData);
+
+        if (!validationResult.success) {
+            setErrors(validationResult.error.flatten().fieldErrors);
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            addPhotoToVisit(validationResult.data);
+            toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
+            setVisit(getVisitById(id) ?? null);
             if(photoFormRef.current) {
                 photoFormRef.current.reset();
             }
             setCapturedImage(null);
             setUploadedImage(null);
-        } else {
-            toast({ variant: 'destructive', title: "Erro ao Adicionar Foto", description: result.message });
-            if (result.errors) {
-                setFormErrors(result.errors);
-            }
+        } catch (error) {
+             toast({ variant: 'destructive', title: "Erro ao Adicionar Foto", description: "Ocorreu um erro ao salvar a foto." });
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsSubmitting(false);
     }
 
 
-    if (!visit || !client) {
-        return <div>Carregando...</div>;
+    if (loading || !visit || !client) {
+        return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
     }
 
     const visitStatusIcons: { [key: string]: React.ReactNode } = {
@@ -162,7 +180,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="flex flex-col gap-8">
-            <PageHeader title={`Visita de ${formatDate(visit.date)}`} />
+            <PageHeader title={`Visita: ${client.name} - ${formatDate(visit.date)}`} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-3 space-y-8">
@@ -295,10 +313,10 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
                                         </Button>
                                     </div>
                                 )}
-                                {formErrors?.url && <p className="text-sm text-destructive">{formErrors.url[0]}</p>}
+                                {errors?.url && <p className="text-sm text-destructive">{errors.url[0]}</p>}
                                 <div>
-                                    <Textarea id="description" name="description" placeholder="Descreva a foto" required />
-                                    {formErrors?.description && <p className="text-sm text-destructive">{formErrors.description[0]}</p>}
+                                    <Textarea id="description" name="description" placeholder="Descreva a foto" />
+                                    {errors?.description && <p className="text-sm text-destructive">{errors.description[0]}</p>}
                                 </div>
                                 <Button type="submit" disabled={isSubmitting}>
                                     {isSubmitting ? (

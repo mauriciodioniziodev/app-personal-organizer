@@ -2,11 +2,11 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { notFound, useRouter } from "next/navigation";
-import { getClientById, getProjectsByClientId, getVisitsByClientId, createVisitFromClient } from "@/lib/data";
+import { useRouter } from "next/navigation";
+import { getClientById, getProjectsByClientId, getVisitsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, Lightbulb, LoaderCircle } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
@@ -31,7 +31,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [projects, setProjects] = useState<Project[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   useEffect(() => {
       const clientData = getClientById(id);

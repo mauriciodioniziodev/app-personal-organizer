@@ -84,9 +84,11 @@ const visitSchema = z.object({
 });
 
 export async function createVisit(formData: FormData): Promise<Visit> {
-    const validatedFields = visitSchema.safeParse(Object.fromEntries(formData.entries()));
+    const data = Object.fromEntries(formData.entries());
+    const validatedFields = visitSchema.safeParse(data);
 
     if(!validatedFields.success) {
+        console.error("Validation errors:", validatedFields.error.flatten().fieldErrors);
         throw new Error("Validação falhou");
     }
     
@@ -106,7 +108,7 @@ const photoSchema = z.object({
 
 export async function addPhotoAction(prevState: any, formData: FormData) {
     const validatedFields = photoSchema.safeParse(Object.fromEntries(formData.entries()));
-
+    
     if(!validatedFields.success) {
         return {
             success: false,
@@ -118,8 +120,8 @@ export async function addPhotoAction(prevState: any, formData: FormData) {
     try {
         addPhotoToVisit(validatedFields.data);
         revalidatePath(`/visits/${validatedFields.data.visitId}`);
-        return { success: true, message: 'Foto adicionada com sucesso.', errors: null }
+        return { success: true, message: 'Foto adicionada com sucesso.', errors: {} }
     } catch(e) {
-        return { success: false, message: 'Erro de servidor ao adicionar foto.', errors: null }
+        return { success: false, message: 'Erro de servidor ao adicionar foto.', errors: {} }
     }
 }
