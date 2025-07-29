@@ -336,7 +336,7 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                             <CardDescription>Imagens registradas durante a visita.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {visit.photos.length > 0 ? (
+                            {visit.photos && visit.photos.length > 0 ? (
                                 <Carousel className="w-full max-w-xl mx-auto">
                                     <CarouselContent>
                                         {visit.photos.map((photo) => (
