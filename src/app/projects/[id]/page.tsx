@@ -1,3 +1,4 @@
+
 "use client";
 
 import { notFound, useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
@@ -16,8 +17,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Image from "next/image";
 
 
-export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
