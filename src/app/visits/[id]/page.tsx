@@ -2,7 +2,7 @@
 // src/app/visits/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useState, useRef } from 'react';
+import { use, useEffect, useState, useRef, useActionState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { addPhotoAction } from '@/lib/actions';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Image from 'next/image';
@@ -66,7 +66,7 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
     
     const photoFormRef = useRef<HTMLFormElement>(null);
 
-    const [photoFormState, dispatchPhoto] = useFormState(async (prevState: any, formData: FormData) => {
+    const [photoFormState, dispatchPhoto] = useActionState(async (prevState: any, formData: FormData) => {
         const imageUri = capturedImage || uploadedImage;
         if (!imageUri) {
             return { errors: { url: ["Por favor, capture ou envie uma imagem."] }};
@@ -78,7 +78,9 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         if (result?.message?.includes('sucesso')) {
             toast({ title: result.message });
             setVisit(getVisitById(id) ?? null); // Refresh visit data
-            photoFormRef.current?.reset();
+            if(photoFormRef.current) {
+                photoFormRef.current.reset();
+            }
             setCapturedImage(null);
             setUploadedImage(null);
         } else {
@@ -222,101 +224,106 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="font-headline">Fotos da Visita</CardTitle>
-                            <CardDescription>Imagens registradas durante a visita.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {visit.photos.length > 0 ? (
-                                <Carousel className="w-full max-w-xl mx-auto">
-                                    <CarouselContent>
-                                        {visit.photos.map((photo) => (
-                                            <CarouselItem key={photo.id}>
-                                                <div className="p-1">
-                                                <Card>
-                                                    <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
-                                                        <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
-                                                    </CardContent>
-                                                    <CardDescription className="p-4">{photo.description}</CardDescription>
-                                                </Card>
+                    <div className="space-y-8">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="font-headline">Fotos da Visita</CardTitle>
+                                <CardDescription>Imagens registradas durante a visita.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {visit.photos.length > 0 ? (
+                                    <Carousel className="w-full max-w-xl mx-auto">
+                                        <CarouselContent>
+                                            {visit.photos.map((photo) => (
+                                                <CarouselItem key={photo.id}>
+                                                    <div className="p-1">
+                                                    <Card>
+                                                        <CardContent className="flex aspect-video items-center justify-center p-0 overflow-hidden rounded-lg">
+                                                            <Image data-ai-hint="organized room" src={photo.url} alt={photo.description} width={600} height={400} className="w-full h-full object-cover"/>
+                                                        </CardContent>
+                                                        <CardDescription className="p-4">{photo.description}</CardDescription>
+                                                    </Card>
+                                                    </div>
+                                                </CarouselItem>
+                                            ))}
+                                        </CarouselContent>
+                                        <CarouselPrevious />
+                                        <CarouselNext />
+                                    </Carousel>
+                                ) : (
+                                    <p className="text-muted-foreground text-center py-8">Nenhuma foto adicionada a esta visita.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle className="font-headline">Adicionar Foto</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4">
+                                <form ref={photoFormRef} action={dispatchPhoto} className="space-y-4">
+                                    <input type="hidden" name="visitId" value={visit.id} />
+                                    
+                                    <div className='grid grid-cols-2 gap-2'>
+                                        <Dialog open={isCaptureOpen} onOpenChange={setCaptureOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button type="button" variant="outline"><Camera className="mr-2"/> Tirar Foto</Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader><DialogTitle>Capturar Imagem</DialogTitle></DialogHeader>
+                                                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />
+                                                <canvas ref={canvasRef} className="hidden" />
+                                                {hasCameraPermission === false && (
+                                                    <Alert variant="destructive">
+                                                        <AlertTitle>Câmera Indisponível</AlertTitle>
+                                                        <AlertDescription>
+                                                            Permita o acesso à câmera para usar este recurso.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                <div className='flex justify-end gap-2'>
+                                                    <Button type="button" variant="secondary" onClick={() => setCaptureOpen(false)}>Cancelar</Button>
+                                                    <Button type="button" onClick={() => { handleCapture(); setCaptureOpen(false); }} disabled={!hasCameraPermission}>Capturar</Button>
                                                 </div>
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                    <CarouselPrevious />
-                                    <CarouselNext />
-                                </Carousel>
-                            ) : (
-                                <p className="text-muted-foreground text-center py-8">Nenhuma foto adicionada a esta visita.</p>
-                            )}
-                        </CardContent>
-                    </Card>
+                                            </DialogContent>
+                                        </Dialog>
+
+                                        <Button type="button" variant="outline" asChild>
+                                            <label htmlFor="file-upload" className="cursor-pointer">
+                                                <Upload className="mr-2"/> Enviar Arquivo
+                                                <input id="file-upload" name="file" type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} />
+                                            </label>
+                                        </Button>
+                                    </div>
+                                    <input type="hidden" name="type" value={capturedImage ? 'camera' : 'upload'} />
+
+                                    {(capturedImage || uploadedImage) && (
+                                        <div className='relative border-2 border-dashed rounded-md p-2'>
+                                            <Image src={capturedImage || uploadedImage || ''} alt="Pré-visualização" width={400} height={300} className='w-full h-auto rounded-md object-cover' />
+                                            <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 h-6 w-6" onClick={() => {setCapturedImage(null); setUploadedImage(null)}}>
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {photoFormState?.errors?.url && <p className="text-sm text-destructive">{photoFormState.errors.url}</p>}
+                                    <div>
+                                        <Textarea id="description" name="description" placeholder="Descreva a foto" required />
+                                        {photoFormState?.errors?.description && <p className="text-sm text-destructive">{photoFormState.errors.description}</p>}
+                                    </div>
+                                    <SubmitButton />
+                                </form>
+                            </CardContent>
+                        </Card>
+                    </div>
 
                 </div>
 
-                <div className="lg:col-span-1 space-y-8">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="font-headline">Adicionar Foto</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                             <form ref={photoFormRef} action={dispatchPhoto} className="space-y-4">
-                                <input type="hidden" name="visitId" value={visit.id} />
-                                
-                                <div className='grid grid-cols-2 gap-2'>
-                                    <Dialog open={isCaptureOpen} onOpenChange={setCaptureOpen}>
-                                        <DialogTrigger asChild>
-                                             <Button type="button" variant="outline"><Camera className="mr-2"/> Tirar Foto</Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader><DialogTitle>Capturar Imagem</DialogTitle></DialogHeader>
-                                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />
-                                            <canvas ref={canvasRef} className="hidden" />
-                                            {hasCameraPermission === false && (
-                                                <Alert variant="destructive">
-                                                    <AlertTitle>Câmera Indisponível</AlertTitle>
-                                                    <AlertDescription>
-                                                        Permita o acesso à câmera para usar este recurso.
-                                                    </AlertDescription>
-                                                </Alert>
-                                            )}
-                                            <div className='flex justify-end gap-2'>
-                                                <Button type="button" variant="secondary" onClick={() => setCaptureOpen(false)}>Cancelar</Button>
-                                                <Button type="button" onClick={() => { handleCapture(); setCaptureOpen(false); }} disabled={!hasCameraPermission}>Capturar</Button>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
-
-                                    <Button type="button" variant="outline" asChild>
-                                        <label htmlFor="file-upload" className="cursor-pointer">
-                                            <Upload className="mr-2"/> Enviar Arquivo
-                                            <input id="file-upload" name="file" type="file" className="sr-only" accept="image/*" onChange={handleFileUpload} />
-                                        </label>
-                                    </Button>
-                                </div>
-                                <input type="hidden" name="type" value={capturedImage ? 'camera' : 'upload'} />
-
-                                {(capturedImage || uploadedImage) && (
-                                    <div className='relative border-2 border-dashed rounded-md p-2'>
-                                        <Image src={capturedImage || uploadedImage || ''} alt="Pré-visualização" width={400} height={300} className='w-full h-auto rounded-md object-cover' />
-                                        <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 h-6 w-6" onClick={() => {setCapturedImage(null); setUploadedImage(null)}}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                )}
-                                 {photoFormState?.errors?.url && <p className="text-sm text-destructive">{photoFormState.errors.url}</p>}
-                                 <div>
-                                    <Textarea id="description" name="description" placeholder="Descreva a foto" required />
-                                     {photoFormState?.errors?.description && <p className="text-sm text-destructive">{photoFormState.errors.description}</p>}
-                                </div>
-                                <SubmitButton />
-                            </form>
-                        </CardContent>
-                     </Card>
+                <div className="lg:col-span-1 space-y-8 hidden">
+                    {/* Placeholder for potential future content, kept hidden to follow user instructions */}
                 </div>
             </div>
 
         </div>
     );
 }
+
+    
