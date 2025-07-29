@@ -1,3 +1,4 @@
+
 "use client";
 
 import { notFound, useRouter } from "next/navigation";
@@ -6,7 +7,7 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, FormEvent, useRef } from "react";
+import { useEffect, useState, FormEvent, useRef, use } from "react";
 import Link from "next/link";
 import type { Project, Photo } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
@@ -39,10 +40,10 @@ const photoSchema = z.object({
 });
 
 
-export default function ProjectEditPage({ params }: { params: { id: string } }) {
+export default function ProjectEditPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { id } = params;
+  const { id } = use(params);
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
@@ -336,3 +337,5 @@ export default function ProjectEditPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
