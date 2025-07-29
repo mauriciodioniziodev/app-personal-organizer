@@ -58,9 +58,9 @@ export const getClients = (): Client[] => loadData('clients', defaultClients);
 export const getClientById = (id: string): Client | undefined => getClients().find(c => c.id === id);
 
 export const getProjects = (): Project[] => {
-    const projects = loadData<Project[]>('projects', defaultProjects);
+    let projects = loadData<Project[]>('projects', defaultProjects);
     // Data migration for old projects without the payments array
-    return projects.map(p => {
+    projects = projects.map(p => {
         if (!p.payments) {
             console.warn(`Project with id ${p.id} is missing payments array. Migrating...`);
             const payment: Payment = {
@@ -75,6 +75,7 @@ export const getProjects = (): Project[] => {
         }
         return { ...p, paymentStatus: getProjectPaymentStatus(p) }
     });
+    return projects;
 };
 export const getProjectById = (id: string): Project | undefined => getProjects().find(p => p.id === id);
 export const getProjectsByClientId = (clientId: string): Project[] => getProjects().filter(p => p.clientId === clientId);
