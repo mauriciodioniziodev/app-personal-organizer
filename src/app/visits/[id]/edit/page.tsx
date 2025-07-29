@@ -94,12 +94,12 @@ export default function EditVisitPage({ params }: { params: Promise<{ id: string
     };
     
     const handleValidation = () => {
-        if (!formRef.current) return;
+        if (!formRef.current || !visit) return;
         const formData = new FormData(formRef.current);
         const date = formData.get("date") as string;
         const clientId = formData.get("clientId") as string;
         
-        const conflict = checkForVisitConflict({ clientId, date, visitId: id });
+        const conflict = checkForVisitConflict({ clientId, date, visitId: visit.id });
         if(conflict) {
             const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
             setConflictMessage(`Este cliente já tem uma visita agendada para ${conflictDate} (${conflict.summary}).`);

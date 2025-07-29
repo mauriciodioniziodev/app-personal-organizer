@@ -199,15 +199,22 @@ export const updateMasterData = (data: MasterData) => {
 }
 
 export const checkForVisitConflict = (newVisit: { clientId: string, date: string, visitId?: string }): Visit | null => {
+    if (!newVisit.clientId || !newVisit.date) {
+        return null; // Don't check if essential data is missing
+    }
     const allVisits = getVisits();
-    // Filter out the visit being edited
     const otherClientVisits = allVisits.filter(v => v.clientId === newVisit.clientId && v.id !== newVisit.visitId);
+    
+    if (otherClientVisits.length === 0) {
+        return null;
+    }
+
     const newVisitTime = new Date(newVisit.date).getTime();
-    const twoHours = 2 * 60 * 60 * 1000;
+    const fourHours = 4 * 60 * 60 * 1000;
 
     for (const visit of otherClientVisits) {
         const existingVisitTime = new Date(visit.date).getTime();
-        if (Math.abs(newVisitTime - existingVisitTime) < twoHours) {
+        if (Math.abs(newVisitTime - existingVisitTime) < fourHours) {
             return visit;
         }
     }
