@@ -40,7 +40,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-    const photoFormRef = useRef<HTMLFormElement>(null);
+    const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [photoError, setPhotoError] = useState<string | null>(null);
     const { toast } = useToast();
@@ -104,10 +104,8 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
       setIsSubmitting(true);
       setPhotoError(null);
       
-      const formData = new FormData(event.currentTarget);
       const imageUri = capturedImage || uploadedImage;
-      const description = formData.get("description") as string;
-
+      
       if (!imageUri) {
           setPhotoError("Por favor, capture ou envie uma imagem.");
           setIsSubmitting(false);
@@ -129,9 +127,9 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
           const updatedProject = addPhotoToProject(project.id, photoType, photoData);
           onPhotoAdded(updatedProject);
           toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
-          if(photoFormRef.current) photoFormRef.current.reset();
           setCapturedImage(null);
           setUploadedImage(null);
+          setDescription('');
       } catch (error) {
            toast({ variant: 'destructive', title: "Erro ao Adicionar Foto" });
       } finally {
@@ -146,7 +144,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
           <CardDescription>Adicione imagens de {photoType === 'before' ? 'antes' : 'depois'} da organização.</CardDescription>
         </CardHeader>
         <CardContent className="p-4 space-y-4">
-          <form ref={photoFormRef} onSubmit={handlePhotoSubmit} className="space-y-4">
+          <form onSubmit={handlePhotoSubmit} className="space-y-4">
               <div className='grid grid-cols-2 gap-2'>
                   <Dialog open={isCaptureOpen} onOpenChange={setCaptureOpen}>
                       <DialogTrigger asChild>
@@ -187,7 +185,13 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
               )}
               
               <div>
-                  <Textarea id="description" name="description" placeholder="Descreva a foto" />
+                  <Textarea 
+                    id="description" 
+                    name="description" 
+                    placeholder="Descreva a foto" 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
               </div>
                {photoError && <p className="text-sm text-destructive">{photoError}</p>}
               <Button type="submit" disabled={isSubmitting}>
@@ -335,4 +339,5 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
         </div>
     </div>
   );
-}
+
+    
