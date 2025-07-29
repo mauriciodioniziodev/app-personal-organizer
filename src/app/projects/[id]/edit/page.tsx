@@ -131,7 +131,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
           setUploadedImage(null);
           setDescription('');
       } catch (error) {
-           toast({ variant: 'destructive', title: "Erro ao Adicionar Foto" });
+           toast({ variant: 'destructive', title: "Erro ao Adicionar Foto", description: (error as Error).message });
            console.error(error);
       } finally {
           setIsSubmitting(false);
