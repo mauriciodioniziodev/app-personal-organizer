@@ -122,7 +122,7 @@ export default function EditVisitPage() {
             return;
         }
         
-        const now = new Date();
+        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         const selectedDate = new Date(date);
 
         if (selectedDate < now) {

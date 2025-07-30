@@ -406,6 +406,10 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const v = v_raw as any;
         const client = getClient(v.client_id);
         const visitDate = new Date(v.date);
+        
+        // Correctly get the current time in Brazil's timezone
+        const nowInBrazil = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+
         schedule.push({
             id: v.id,
             type: 'visit',
@@ -418,7 +422,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
-            isOverdue: v.status === 'pendente' && new Date().getTime() > visitDate.getTime(),
+            isOverdue: v.status === 'pendente' && nowInBrazil.getTime() > visitDate.getTime(),
         });
     });
 
@@ -477,7 +481,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] }) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'id' | 'created_at' | 'project_id'>[] }) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
