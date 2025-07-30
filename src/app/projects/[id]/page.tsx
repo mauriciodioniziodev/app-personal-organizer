@@ -2,14 +2,14 @@
 
 "use client";
 
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import { cn, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import type { Project, Client, Visit } from "@/lib/definitions";
@@ -19,14 +19,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Separator } from "@/components/ui/separator";
 
 
-export default function ProjectDetailsPage({ params }: { params: Promise<{ id:string }> }) {
-  const { id } = use(params);
+export default function ProjectDetailsPage() {
+  const params = useParams();
+  const id = params.id as string;
   
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
   
   useEffect(() => {
+    if (!id) return;
     const projectData = getProjectById(id);
     if (projectData) {
       setProject(projectData);

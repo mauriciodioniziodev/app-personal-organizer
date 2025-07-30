@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState, useRef, FormEvent, use, Suspense } from 'react';
-import { notFound, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, FormEvent } from 'react';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getMasterData, addBudgetToVisit } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
@@ -37,7 +37,9 @@ const photoSchema = z.object({
     type: z.string(),
 });
 
-function VisitDetailsPageContent({ id }: { id: string }) {
+export default function VisitDetailsPage() {
+    const params = useParams();
+    const id = params.id as string;
     const router = useRouter();
     const { toast } = useToast();
 
@@ -65,13 +67,19 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     
 
     useEffect(() => {
+        if (!id) return;
+
         const fetchData = async () => {
+            console.log(`Fetching data for visit ID: ${id}`);
             setLoading(true);
             try {
                 const visitData = await getVisitById(id);
+                console.log("Fetched Visit Data:", visitData);
 
                 if (!visitData) {
-                    notFound();
+                    setVisit(null);
+                    setClient(null);
+                    setProject(null);
                     return;
                 }
                 
@@ -79,6 +87,9 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                     getClientById(visitData.clientId),
                     visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
                 ]);
+
+                console.log("Fetched Client Data:", clientData);
+                console.log("Fetched Project Data:", projectData);
 
                 setVisit(visitData);
                 setClient(clientData);
@@ -516,11 +527,3 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     );
 }
 
-export default function VisitDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
-    return (
-        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
-            <VisitDetailsPageContent id={id} />
-        </Suspense>
-    );
-}

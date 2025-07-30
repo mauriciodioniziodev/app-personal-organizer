@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getMasterData } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, FormEvent, useRef, use } from "react";
+import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
 import type { Project, Payment } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
@@ -235,11 +235,12 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
 }
 
 
-export default function ProjectEditPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ProjectEditPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const { toast } = useToast();
-  const { id } = use(params);
-
+  
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
@@ -253,6 +254,7 @@ export default function ProjectEditPage({ params }: { params: Promise<{ id: stri
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
   
   useEffect(() => {
+    if (!id) return;
     const projectData = getProjectById(id);
     if (projectData) {
       setProject(projectData);

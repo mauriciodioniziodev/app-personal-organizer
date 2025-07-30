@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent, useRef, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, FormEvent, useRef } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { getVisitById, getClients, getMasterData, updateVisit, checkForVisitConflict } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import PageHeader from "@/components/page-header";
@@ -27,8 +27,9 @@ const visitSchema = z.object({
     status: z.string(),
 });
 
-export default function EditVisitPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function EditVisitPage() {
+    const params = useParams();
+    const id = params.id as string;
     const router = useRouter();
     const { toast } = useToast();
 
@@ -44,6 +45,7 @@ export default function EditVisitPage({ params }: { params: Promise<{ id: string
     const [conflictMessage, setConflictMessage] = useState("");
 
     useEffect(() => {
+        if (!id) return;
         const visitData = getVisitById(id);
         if (visitData) {
             setVisit(visitData);
