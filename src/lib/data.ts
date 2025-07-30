@@ -585,7 +585,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
         project_id: p.project_id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate,
+        due_date: p.dueDate, // Correctly map from camelCase to snake_case
         description: p.description
     }));
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
@@ -754,6 +754,7 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
 
 
 
