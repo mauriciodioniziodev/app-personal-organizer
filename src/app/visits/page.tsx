@@ -49,16 +49,12 @@ export default function VisitsPage() {
     }, []);
 
     useEffect(() => {
-        // Ensure clients data is loaded before filtering
-        if (clients.length === 0 && allVisits.length > 0) {
-            setFilteredVisits(allVisits); // Show all visits initially if clients aren't loaded yet
-            return;
+        const getClientName = (clientId: string) => {
+            return clients.find(c => c.id === clientId)?.name || '';
         }
-
-        const getClient = (clientId: string) => clients.find(c => c.id === clientId);
         
         const results = allVisits.filter(visit => {
-            const clientNameMatch = (getClient(visit.clientId)?.name || 'Desconhecido').toLowerCase().includes(searchTerm.toLowerCase());
+            const clientNameMatch = getClientName(visit.clientId).toLowerCase().includes(searchTerm.toLowerCase());
             const statusMatch = statusFilter === 'all' ? true : visit.status === statusFilter;
             return clientNameMatch && statusMatch;
         });
