@@ -63,7 +63,7 @@ export const getProjects = async (): Promise<Project[]> => {
     }
 
     return projectsData.map(p => {
-        const payments = paymentsData.filter(payment => payment.project_id === p.id) as Payment[];
+        const payments = paymentsData.filter(payment => payment.project_id === p.id).map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
         return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
     });
 };
@@ -82,8 +82,11 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
         // Return project data even if payments fail
         return { ...projectData, payments: [], paymentStatus: 'pendente' } as Project;
     }
+    
+    const payments = paymentsData.map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
 
-    return { ...projectData, payments: paymentsData as Payment[], paymentStatus: getProjectPaymentStatus(paymentsData as Payment[]) } as Project;
+
+    return { ...projectData, payments: payments as Payment[], paymentStatus: getProjectPaymentStatus(payments as Payment[]) } as Project;
 };
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
@@ -104,7 +107,7 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
     }
 
     return projectsData.map(p => {
-        const payments = paymentsData.filter(payment => payment.project_id === p.id) as Payment[];
+        const payments = paymentsData.filter(payment => payment.project_id === p.id).map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
         return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
     });
 };
@@ -137,8 +140,10 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
     return data as Visit[];
 };
 
-// This function can remain synchronous as it doesn't interact with Supabase
-export const getMasterData = () => {
+// This function now only returns static data and should be used cautiously.
+// For a fully dynamic system, this data should come from the database.
+export const getMasterData = (): MasterData => {
+    console.warn("getMasterData is returning static data. For a fully dynamic application, consider fetching this from the database.");
     return defaultMasterData;
 }
 
@@ -399,7 +404,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
     }
 
     // 2. Upsert payments (update existing, insert new)
-    const paymentsToUpsert = payments.map(p => ({...p, project_id: project.id, due_date: p.dueDate}));
+    const paymentsToUpsert = payments.map(p => ({...p, project_id: project.id, due_date: p.dueDate }));
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
     
     if(paymentsError) {
@@ -465,14 +470,14 @@ export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: 
         console.error("Error adding photo to visit:", error);
         throw new Error("Falha ao adicionar foto.");
     }
-    return data;
+    return data as Visit;
 }
 
 export const addPhotoToProject = async (
     projectId: string, 
     photoType: 'before' | 'after', 
     photoData: Omit<Photo, 'id'>
-) => {
+): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const project = await getProjectById(projectId);
     if(!project) throw new Error("Projeto não encontrado");
@@ -482,13 +487,23 @@ export const addPhotoToProject = async (
     const currentPhotos = (photoType === 'before' ? project.photosBefore : project.photosAfter) || [];
     const updatedPhotos = [...currentPhotos, newPhoto];
 
-    const { data: updatedProject, error } = await supabase.from('projects').update({ [fieldName]: updatedPhotos }).eq('id', projectId).select().single();
+    const { data: updatedProjectData, error } = await supabase.from('projects')
+        .update({ [fieldName]: updatedPhotos })
+        .eq('id', projectId)
+        .select()
+        .single();
+        
      if(error) {
         console.error(`Error adding ${photoType} photo to project:`, error);
         throw new Error("Falha ao adicionar foto ao projeto.");
     }
-    if (!updatedProject) throw new Error("Could not retrieve updated project after photo add.");
-    return updatedProject;
+    if (!updatedProjectData) throw new Error("Could not retrieve updated project after photo add.");
+    
+    // We need to re-fetch payments to return the full Project object
+    const { data: paymentsData } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
+    const payments = paymentsData?.map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment)) || [];
+
+    return { ...updatedProjectData, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
 }
 
 export const addBudgetToVisit = async (visitId: string, budgetAmount: number, budgetPdfUrl: string) => {

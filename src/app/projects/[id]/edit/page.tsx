@@ -128,7 +128,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
         }
     };
 
-    const handlePhotoSubmit = (event: FormEvent) => {
+    const handlePhotoSubmit = async (event: FormEvent) => {
       event.preventDefault();
       setIsSubmitting(true);
       setPhotoError(null);
@@ -153,7 +153,7 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
       }
 
       try {
-          const updatedProject = addPhotoToProject(project.id, photoType, photoData);
+          const updatedProject = await addPhotoToProject(project.id, photoType, photoData);
           onPhotoAdded(updatedProject);
           toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
           setCapturedImage(null);
@@ -250,72 +250,83 @@ export default function ProjectEditPage() {
   const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
-  const { paymentInstruments } = getMasterData();
+  const [paymentInstruments, setPaymentInstruments] = useState<string[]>([]);
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
   
   useEffect(() => {
     if (!id) return;
-    const projectData = getProjectById(id);
-    if (projectData) {
-      setProject(projectData);
-      if(projectData.paymentMethod === 'parcelado' && projectData.payments.length === 2 && projectData.finalValue > 0) {
-          const percentage = (projectData.payments[0].amount / projectData.finalValue) * 100;
-          setFirstInstallmentPercentage(Math.round(percentage));
-      }
-    } else {
-      router.push("/projects"); // Or a not-found page
-    }
-  }, [id, router]);
-
-  const updateProjectState = (updatedProject: Project) => {
-        // Recalculate financial values
-        if (updatedProject.paymentMethod === 'vista') {
-            updatedProject.discountAmount = (updatedProject.value * (updatedProject.discountPercentage || 0)) / 100;
+    const fetchProjectData = async () => {
+        const projectData = await getProjectById(id);
+        if (projectData) {
+            setProject(projectData);
+            if(projectData.paymentMethod === 'parcelado' && projectData.payments.length === 2 && projectData.finalValue > 0) {
+                const percentage = (projectData.payments[0].amount / projectData.finalValue) * 100;
+                setFirstInstallmentPercentage(Math.round(percentage));
+            }
         } else {
-            updatedProject.discountPercentage = 0;
-            updatedProject.discountAmount = 0;
+            toast({ variant: 'destructive', title: 'Erro', description: 'Projeto não encontrado.'});
+            router.push("/projects");
         }
-        updatedProject.finalValue = updatedProject.value - (updatedProject.discountAmount || 0);
+        // Fetch master data dynamically
+        const masterData = getMasterData();
+        setPaymentInstruments(masterData.paymentInstruments);
+    }
+    fetchProjectData();
+  }, [id, router, toast]);
+
+  const updateProjectState = (updatedProject: Project | null) => {
+        if (!updatedProject) return;
+
+        let finalProject = { ...updatedProject };
+
+        // Recalculate financial values
+        if (finalProject.paymentMethod === 'vista') {
+            finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
+        } else {
+            finalProject.discountPercentage = 0;
+            finalProject.discountAmount = 0;
+        }
+        finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
 
         // Recalculate payments
-        if (updatedProject.paymentMethod === 'vista') {
-            updatedProject.payments = [{
-                id: updatedProject.payments[0]?.id || uuidv4(),
-                amount: updatedProject.finalValue,
-                status: updatedProject.payments[0]?.status || 'pendente',
-                dueDate: updatedProject.endDate,
+        if (finalProject.paymentMethod === 'vista') {
+            finalProject.payments = [{
+                id: finalProject.payments[0]?.id || uuidv4(),
+                amount: finalProject.finalValue,
+                status: finalProject.payments[0]?.status || 'pendente',
+                dueDate: finalProject.endDate,
                 description: "Pagamento Único"
             }];
         } else {
-            const firstInstallmentValue = (updatedProject.finalValue * firstInstallmentPercentage) / 100;
-            const secondInstallmentValue = updatedProject.finalValue - firstInstallmentValue;
-             updatedProject.payments = [
+            const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
+            const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
+             finalProject.payments = [
                 {
-                    id: updatedProject.payments[0]?.id || uuidv4(),
+                    id: finalProject.payments[0]?.id || uuidv4(),
                     amount: firstInstallmentValue,
-                    status: updatedProject.payments[0]?.status || 'pendente',
-                    dueDate: updatedProject.startDate,
+                    status: finalProject.payments[0]?.status || 'pendente',
+                    dueDate: finalProject.startDate,
                     description: '1ª Parcela (Entrada)'
                 },
                 {
-                    id: updatedProject.payments[1]?.id || uuidv4(),
+                    id: finalProject.payments[1]?.id || uuidv4(),
                     amount: secondInstallmentValue,
-                    status: updatedProject.payments[1]?.status || 'pendente',
-                    dueDate: updatedProject.endDate,
+                    status: finalProject.payments[1]?.status || 'pendente',
+                    dueDate: finalProject.endDate,
                     description: '2ª Parcela (Conclusão)'
                 }
             ]
         }
-        setProject(updatedProject);
+        setProject(finalProject);
   }
   
-  const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
+  const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     const updatedPayments = project.payments.map(p => p.id === paymentId ? {...p, status} : p);
     const updatedProjectData = {...project, payments: updatedPayments};
     
     try {
-        const updated = updateProject(updatedProjectData);
+        const updated = await updateProject(updatedProjectData);
         setProject(updated);
         toast({ title: "Status do Pagamento Atualizado!"});
     } catch(e) {
@@ -324,12 +335,12 @@ export default function ProjectEditPage() {
   }
 
 
-  const proceedToSubmit = () => {
+  const proceedToSubmit = async () => {
     if (!project || !formRef.current) return;
     setLoading(true);
     setErrors({});
 
-    const projectData = { ...project }; // Use the state as the source of truth
+    const projectData = { ...project }; 
 
     const validationResult = projectSchema.safeParse(projectData);
 
@@ -340,8 +351,8 @@ export default function ProjectEditPage() {
     }
 
     try {
-      const updated = updateProject(validationResult.data as Project);
-      setProject(updated); // Update the state with the new data
+      const updated = await updateProject(validationResult.data as Project);
+      setProject(updated); 
       toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
     } catch (error) {
       toast({ variant: 'destructive', title: "Erro", description: "Falha ao atualizar o projeto."});
@@ -350,10 +361,10 @@ export default function ProjectEditPage() {
     }
   };
 
-  const handleValidation = () => {
+  const handleValidation = async () => {
     if (!formRef.current || !project) return;
     
-    const conflict = checkForProjectConflict({ clientId: project.clientId, startDate: project.startDate, endDate: project.endDate, projectId: project.id });
+    const conflict = await checkForProjectConflict({ clientId: project.clientId, startDate: project.startDate, endDate: project.endDate, projectId: project.id });
     if (conflict) {
         setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
         setIsConflictAlertOpen(true);
@@ -367,7 +378,7 @@ export default function ProjectEditPage() {
     if (selectedDate < today) {
         setIsPastDateAlertOpen(true);
     } else {
-        proceedToSubmit();
+        await proceedToSubmit();
     }
   };
 
@@ -603,5 +614,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
-    

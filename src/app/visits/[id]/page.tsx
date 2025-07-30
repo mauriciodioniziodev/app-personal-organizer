@@ -76,24 +76,36 @@ export default function VisitDetailsPage() {
             setLoading(true);
             try {
                 const visitData = await getVisitById(id);
-
-                if (visitData) {
-                    setVisit(visitData);
-                    const clientData = await getClientById(visitData.clientId);
-                    setClient(clientData);
-
-                    if (visitData.projectId) {
-                        const projectData = await getProjectById(visitData.projectId);
-                        setProject(projectData);
-                    }
-                } else {
+                if (!visitData) {
                     toast({
                         variant: 'destructive',
                         title: 'Visita não encontrada',
                         description: 'A visita que você está tentando acessar não existe.'
                     });
                     router.push('/visits');
+                    return;
                 }
+                
+                setVisit(visitData);
+
+                const [clientData, projectData] = await Promise.all([
+                    getClientById(visitData.clientId),
+                    visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
+                ]);
+
+                if (!clientData) {
+                     toast({
+                        variant: 'destructive',
+                        title: 'Cliente não encontrado',
+                        description: 'O cliente associado a esta visita não foi encontrado.'
+                    });
+                     router.push('/visits');
+                     return;
+                }
+                
+                setClient(clientData);
+                setProject(projectData);
+
             } catch (error) {
                  toast({
                     variant: 'destructive',
@@ -166,6 +178,8 @@ export default function VisitDetailsPage() {
     
     const handlePhotoSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (!visit) return;
+
         setIsSubmittingPhoto(true);
         setPhotoErrors({});
         
@@ -173,7 +187,7 @@ export default function VisitDetailsPage() {
         const imageUri = capturedImage || uploadedImage;
         
         const photoData = {
-            visitId: formData.get("visitId") as string,
+            visitId: visit.id,
             url: imageUri ?? "",
             description: formData.get("description") as string,
             type: formData.get("type") as string
@@ -188,10 +202,9 @@ export default function VisitDetailsPage() {
         }
 
         try {
-            await addPhotoToVisit(validationResult.data);
+            const updatedVisit = await addPhotoToVisit(validationResult.data);
+            setVisit(updatedVisit);
             toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
-            const updatedVisit = await getVisitById(id);
-            if (updatedVisit) setVisit(updatedVisit);
             if(photoFormRef.current) {
                 photoFormRef.current.reset();
             }
