@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, FormEvent, useRef } from "react";
-import { addVisit, getMasterData, checkForVisitConflict } from "@/lib/data";
+import { useState, FormEvent, useRef, useEffect } from "react";
+import { addVisit, getVisitStatusOptions, checkForVisitConflict } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ const visitSchema = z.object({
 });
 
 export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
-    const { visitStatus } = getMasterData();
+    const [visitStatus, setVisitStatus] = useState<string[]>([]);
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -36,8 +36,16 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     const [conflictMessage, setConflictMessage] = useState("");
     const formRef = useRef<HTMLFormElement>(null);
 
+    useEffect(() => {
+        async function fetchStatusOptions() {
+            const options = await getVisitStatusOptions();
+            setVisitStatus(options);
+        }
+        fetchStatusOptions();
+    }, []);
 
-    const proceedToSubmit = () => {
+
+    const proceedToSubmit = async () => {
          if (!formRef.current) return;
         setLoading(true);
         setErrors({});
@@ -59,7 +67,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
         }
 
         try {
-            const newVisit = addVisit(validationResult.data);
+            const newVisit = await addVisit(validationResult.data);
             onVisitCreated(newVisit);
         } catch (error) {
             toast({
@@ -73,12 +81,12 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
         }
     }
     
-    const handleValidation = () => {
+    const handleValidation = async () => {
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
         const date = formData.get("date") as string;
 
-        const conflict = checkForVisitConflict({ clientId, date });
+        const conflict = await checkForVisitConflict({ clientId, date });
         if(conflict) {
             const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
             setConflictMessage(`Este cliente já tem uma visita agendada para ${conflictDate} (${conflict.summary}).`);
@@ -92,7 +100,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
         if (selectedDate < today) {
             setIsPastDateAlertOpen(true);
         } else {
-            proceedToSubmit();
+            await proceedToSubmit();
         }
     }
 
@@ -169,5 +177,3 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
         </>
     )
 }
-
-    
