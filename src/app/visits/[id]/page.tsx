@@ -9,7 +9,7 @@ import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X, DollarSign, FileUp, Download, Edit } from 'lucide-react';
+import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -254,8 +254,12 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     }
 
 
-    if (loading || !visit || !client) {
+    if (loading) {
         return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
+    }
+    
+    if (!visit || !client) {
+         return <div className="flex items-center justify-center h-full"><p>Visita não encontrada.</p></div>;
     }
 
     const visitStatusIcons: { [key: string]: React.ReactNode } = {
@@ -480,7 +484,7 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                                     <div className='relative border-2 border-dashed rounded-md p-2'>
                                         <Image src={capturedImage || uploadedImage || ''} alt="Pré-visualização" width={400} height={300} className='w-full h-auto rounded-md object-cover' />
                                         <Button type="button" size="icon" variant="destructive" className="absolute top-2 right-2 h-6 w-6" onClick={() => {setCapturedImage(null); setUploadedImage(null)}}>
-                                            <X className="h-4 w-4" />
+                                            <XIcon className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 )}
@@ -520,5 +524,3 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         </Suspense>
     );
 }
-
-    
