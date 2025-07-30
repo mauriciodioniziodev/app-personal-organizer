@@ -8,8 +8,6 @@ let supabaseInstance = null;
 
 if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('YOUR_SUPABASE_URL') && !supabaseAnonKey.includes('YOUR_SUPABASE_ANON_KEY')) {
     supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey);
-} else {
-    console.warn("Supabase credentials are not set correctly in .env file. Supabase client will not be initialized.");
 }
 
 export const supabase = supabaseInstance;
