@@ -69,7 +69,7 @@ export const getProjects = async (): Promise<Project[]> => {
 };
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
-    if (!supabase) return null;
+    if (!supabase || !id) return null;
     const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
     if (projectError) {
         console.error(`Error fetching project ${id}:`, projectError);
@@ -119,7 +119,7 @@ export const getVisits = async (): Promise<Visit[]> => {
     return data as Visit[];
 };
 export const getVisitById = async (id: string): Promise<Visit | null> => {
-    if (!supabase) return null;
+    if (!supabase || !id) return null;
     const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
     if (error) {
         console.error(`Error fetching visit ${id}:`, error);

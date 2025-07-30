@@ -24,7 +24,6 @@ export default function VisitsPage() {
     const [loading, setLoading] = useState(true);
 
     const { visitStatus: masterVisitStatus } = getMasterData();
-    const getClient = (clientId: string) => clients.find(c => c.id === clientId);
     
     useEffect(() => {
         const refetch = async () => {
@@ -40,23 +39,24 @@ export default function VisitsPage() {
             setAllVisits(sortedVisits);
             setClients(clientsData);
             setProjects(projectsData);
-            setFilteredVisits(sortedVisits);
             setLoading(false);
         };
         refetch();
 
-        window.addEventListener('focus', refetch);
-        return () => window.removeEventListener('focus', refetch);
+        const handleFocus = () => refetch();
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
     }, []);
 
     useEffect(() => {
+        const getClient = (clientId: string) => clients.find(c => c.id === clientId);
         const results = allVisits.filter(visit => {
             const clientNameMatch = (getClient(visit.clientId)?.name || 'Desconhecido').toLowerCase().includes(searchTerm.toLowerCase());
             const statusMatch = statusFilter === 'all' ? true : visit.status === statusFilter;
             return clientNameMatch && statusMatch;
         });
         setFilteredVisits(results);
-    }, [searchTerm, statusFilter, allVisits]);
+    }, [searchTerm, statusFilter, allVisits, clients]);
 
 
     const getProjectName = (projectId?: string) => {
@@ -120,7 +120,7 @@ export default function VisitsPage() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {filteredVisits.map(visit => {
                         const projectName = getProjectName(visit.projectId);
-                        const client = getClient(visit.clientId);
+                        const client = clients.find(c => c.id === visit.clientId);
                         return (
                         <Card key={visit.id} className="flex flex-col">
                             <CardHeader>
