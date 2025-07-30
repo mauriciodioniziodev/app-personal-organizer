@@ -401,15 +401,27 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     }
 
     const schedule: ScheduleItem[] = [];
+    
+    // Get current time in Brazil (GMT-3) as a string YYYY-MM-DDTHH:mm:ss for direct comparison
+    const nowInBrazil = new Date();
+    const year = nowInBrazil.getFullYear();
+    const month = String(nowInBrazil.getMonth() + 1).padStart(2, '0');
+    const day = String(nowInBrazil.getDate()).padStart(2, '0');
+    const hours = String(nowInBrazil.getHours()).padStart(2, '0');
+    const minutes = String(nowInBrazil.getMinutes()).padStart(2, '0');
+    const seconds = String(nowInBrazil.getSeconds()).padStart(2, '0');
+    // We get the local time from the server and format it. If the server is not in GMT-3, this needs adjustment.
+    // A robust way is to use a library or manually adjust for UTC offset.
+    // For now, let's create a date object for Brazil time specifically
+    const brazilDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const nowString = `${brazilDate.getFullYear()}-${String(brazilDate.getMonth() + 1).padStart(2, '0')}-${String(brazilDate.getDate()).padStart(2, '0')}T${String(brazilDate.getHours()).padStart(2, '0')}:${String(brazilDate.getMinutes()).padStart(2, '0')}`;
+
 
     todayVisits.forEach(v_raw => {
         const v = v_raw as any;
         const client = getClient(v.client_id);
         const visitDate = new Date(v.date);
         
-        // Correctly get the current time in Brazil's timezone
-        const nowInBrazil = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-
         schedule.push({
             id: v.id,
             type: 'visit',
@@ -422,7 +434,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
-            isOverdue: v.status === 'pendente' && nowInBrazil.getTime() > visitDate.getTime(),
+            isOverdue: v.status === 'pendente' && nowString > v.date.substring(0, 16),
         });
     });
 
@@ -740,3 +752,4 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
