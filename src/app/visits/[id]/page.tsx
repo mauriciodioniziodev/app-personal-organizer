@@ -67,23 +67,35 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const visitData = await getVisitById(id);
+            try {
+                const visitData = await getVisitById(id);
 
-            if (!visitData) {
-                notFound();
-                return;
+                if (!visitData) {
+                    notFound();
+                    return;
+                }
+                
+                const [clientData, projectData] = await Promise.all([
+                    getClientById(visitData.clientId),
+                    visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
+                ]);
+
+                setVisit(visitData);
+                setClient(clientData);
+                setProject(projectData);
+            } catch (error) {
+                console.error("Failed to fetch visit details:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao carregar visita',
+                    description: 'Não foi possível buscar os detalhes da visita. Tente novamente mais tarde.'
+                });
+            } finally {
+                setLoading(false);
             }
-            
-            const clientData = await getClientById(visitData.clientId);
-            const projectData = visitData.projectId ? await getProjectById(visitData.projectId) : null;
-            
-            setVisit(visitData);
-            setClient(clientData);
-            setProject(projectData);
-            setLoading(false);
         }
         fetchData();
-    }, [id]);
+    }, [id, toast]);
 
     useEffect(() => {
         if (!isCaptureOpen) {
@@ -508,3 +520,5 @@ export default function VisitDetailsPage({ params }: { params: Promise<{ id: str
         </Suspense>
     );
 }
+
+    

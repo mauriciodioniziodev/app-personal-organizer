@@ -28,35 +28,45 @@ export default function VisitsPage() {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const [visitsData, clientsData, projectsData] = await Promise.all([
-                getVisits(),
-                getClients(),
-                getProjects()
-            ]);
-            
-            setAllVisits(visitsData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-            setClients(clientsData);
-            setProjects(projectsData);
-            setLoading(false);
+            try {
+                const [visitsData, clientsData, projectsData] = await Promise.all([
+                    getVisits(),
+                    getClients(),
+                    getProjects()
+                ]);
+                
+                setAllVisits(visitsData);
+                setClients(clientsData);
+                setProjects(projectsData);
+            } catch (error) {
+                console.error("Failed to fetch page data:", error);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchData();
-
-        window.addEventListener('focus', fetchData);
-        return () => window.removeEventListener('focus', fetchData);
     }, []);
 
     useEffect(() => {
-        if (loading) return; // Don't filter until data is loaded
+        if (loading) return; 
 
         const getClientName = (clientId: string) => {
             return clients.find(c => c.id === clientId)?.name || '';
         }
         
-        const results = allVisits.filter(visit => {
-            const clientNameMatch = getClientName(visit.clientId).toLowerCase().includes(searchTerm.toLowerCase());
-            const statusMatch = statusFilter === 'all' ? true : visit.status === statusFilter;
-            return clientNameMatch && statusMatch;
-        });
+        let results = [...allVisits];
+
+        if (statusFilter !== 'all') {
+            results = results.filter(visit => visit.status === statusFilter);
+        }
+
+        if (searchTerm) {
+            results = results.filter(visit => 
+                getClientName(visit.clientId).toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        results.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         setFilteredVisits(results);
     }, [searchTerm, statusFilter, allVisits, clients, loading]);
@@ -191,3 +201,5 @@ export default function VisitsPage() {
         </div>
     );
 }
+
+    
