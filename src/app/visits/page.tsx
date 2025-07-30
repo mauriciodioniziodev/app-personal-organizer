@@ -37,7 +37,8 @@ export default function VisitsPage() {
                     getVisitStatusOptions()
                 ]);
                 
-                setAllVisits(visitsData);
+                const sortedVisits = visitsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setAllVisits(sortedVisits);
                 setClients(clientsData);
                 setProjects(projectsData);
                 setMasterVisitStatus(statusOptions);
@@ -69,8 +70,10 @@ export default function VisitsPage() {
             );
         }
 
-        results.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+        // The sorting is now done once when the data is fetched.
+        // If you needed to re-sort based on filters, you would do it here.
+        // For now, the initial sort is sufficient.
+        
         setFilteredVisits(results);
     }, [searchTerm, statusFilter, allVisits, clients, loading]);
 
