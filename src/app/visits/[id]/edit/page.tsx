@@ -18,6 +18,7 @@ import type { Client, Visit, MasterDataItem } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { formatDateTimeForInput } from "@/lib/utils";
 
 
 const visitSchema = z.object({
@@ -140,15 +141,6 @@ export default function EditVisitPage() {
         return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
     }
     
-    // Format date for datetime-local input
-    const formatDateForInput = (isoDate: string) => {
-        const date = new Date(isoDate);
-        // Adjust for timezone offset
-        const timezoneOffset = date.getTimezoneOffset() * 60000;
-        const localDate = new Date(date.getTime() - timezoneOffset);
-        return localDate.toISOString().slice(0, 16);
-    };
-
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Editar Agendamento" />
@@ -178,7 +170,7 @@ export default function EditVisitPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="date">Data e Hora</Label>
-                            <Input id="date" name="date" type="datetime-local" required defaultValue={formatDateForInput(visit.date)} />
+                            <Input id="date" name="date" type="datetime-local" required defaultValue={formatDateTimeForInput(visit.date)} />
                              {errors.date && <p className="text-sm text-destructive">{errors.date[0]}</p>}
                         </div>
                         <div className="space-y-2">
