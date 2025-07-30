@@ -209,12 +209,28 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
 };
 
 // --- Dynamic Master Data Functions ---
+// Fallback static data if the database is not connected or tables don't exist.
+const STATIC_VISIT_STATUS: MasterDataItem[] = [
+    { id: '1', name: 'pendente', created_at: new Date().toISOString() },
+    { id: '2', name: 'realizada', created_at: new Date().toISOString() },
+    { id: '3', name: 'cancelada', created_at: new Date().toISOString() },
+    { id: '4', name: 'orçamento', created_at: new Date().toISOString() },
+];
+
+const STATIC_PAYMENT_INSTRUMENTS: MasterDataItem[] = [
+    { id: '1', name: 'PIX', created_at: new Date().toISOString() },
+    { id: '2', name: 'Cartão de Crédito', created_at: new Date().toISOString() },
+    { id: '3', name: 'Dinheiro', created_at: new Date().toISOString() },
+    { id: '4', name: 'Transferência Bancária', created_at: new Date().toISOString() },
+];
+
+
 export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [];
+    if (!supabase) return STATIC_VISIT_STATUS;
     const { data, error } = await supabase.from('master_visit_status').select('*').order('name');
-    if (error) {
-        console.error("Error fetching visit status options:", error);
-        return [];
+    if (error || !data || data.length === 0) {
+        if(error) console.error("Error fetching visit status options, using fallback.", error);
+        return STATIC_VISIT_STATUS;
     }
     return data as MasterDataItem[];
 }
@@ -239,11 +255,11 @@ export const deleteVisitStatusOption = async (id: string) => {
 
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
-     if (!supabase) return [];
+     if (!supabase) return STATIC_PAYMENT_INSTRUMENTS;
      const { data, error } = await supabase.from('master_payment_instruments').select('*').order('name');
-     if (error) {
-         console.error("Error fetching payment instruments:", error);
-         return [];
+     if (error || !data || data.length === 0) {
+         if(error) console.error("Error fetching payment instruments, using fallback.", error);
+         return STATIC_PAYMENT_INSTRUMENTS;
      }
      return data as MasterDataItem[];
 }
