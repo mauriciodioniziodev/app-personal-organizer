@@ -341,7 +341,7 @@ export default function VisitDetailsPage() {
                                      <Label className="text-sm font-semibold">Data</Label>
                                      <div className="flex items-center gap-2 mt-2">
                                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                                        <p>{new Date(visit.date).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })}</p>
+                                        <p>{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'short' })}</p>
                                     </div>
                                  </div>
                             </div>
