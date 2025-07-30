@@ -64,10 +64,11 @@ export default function NewClientPage() {
       });
       router.push(`/clients`); 
     } catch (error) {
+      console.error("Error creating client:", error);
       toast({
         variant: "destructive",
         title: "Erro ao criar cliente",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: (error as Error).message || "Ocorreu um erro inesperado. Verifique o console para mais detalhes.",
       });
     } finally {
       setLoading(false);
