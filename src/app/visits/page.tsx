@@ -37,7 +37,8 @@ export default function VisitsPage() {
                     getVisitStatusOptions()
                 ]);
                 
-                const sortedVisits = visitsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                // Correção: Ordena por data crescente (mais antiga para mais nova)
+                const sortedVisits = visitsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                 setAllVisits(sortedVisits);
                 setClients(clientsData);
                 setProjects(projectsData);
@@ -69,10 +70,6 @@ export default function VisitsPage() {
                 getClientName(visit.clientId).toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
-
-        // The sorting is now done once when the data is fetched.
-        // If you needed to re-sort based on filters, you would do it here.
-        // For now, the initial sort is sufficient.
         
         setFilteredVisits(results);
     }, [searchTerm, statusFilter, allVisits, clients, loading]);
@@ -144,7 +141,7 @@ export default function VisitsPage() {
                         <Card key={visit.id} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="font-headline text-xl">
-                                    {new Date(visit.date).toLocaleDateString('pt-BR', { timeZone: 'UTC', dateStyle: 'long' })}
+                                    {new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
                                 </CardTitle>
                                 <CardDescription>
                                     {new Date(visit.date).toLocaleTimeString('pt-BR', { timeZone: 'UTC', timeStyle: 'short' })}
