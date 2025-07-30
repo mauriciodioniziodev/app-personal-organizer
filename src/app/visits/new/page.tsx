@@ -38,10 +38,14 @@ export default function NewVisitPage() {
     const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
-        setClients(getClients());
+        async function fetchClients() {
+            const clientsData = await getClients();
+            setClients(clientsData);
+        }
+        fetchClients();
     }, []);
 
-    const proceedToSubmit = () => {
+    const proceedToSubmit = async () => {
         if (!formRef.current) return;
         setLoading(true);
         setErrors({});
@@ -62,7 +66,7 @@ export default function NewVisitPage() {
         }
 
         try {
-            addVisit(validationResult.data);
+            await addVisit(validationResult.data);
             toast({
                 title: "Visita Agendada!",
                 description: "A nova visita foi salva com sucesso.",
@@ -79,13 +83,13 @@ export default function NewVisitPage() {
         }
     }
 
-    const handleValidation = () => {
+    const handleValidation = async () => {
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
         const date = formData.get("date") as string;
         const clientId = formData.get("clientId") as string;
         
-        const conflict = checkForVisitConflict({ clientId, date });
+        const conflict = await checkForVisitConflict({ clientId, date });
         if(conflict) {
             const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
             setConflictMessage(`Este cliente já tem uma visita agendada para ${conflictDate} (${conflict.summary}).`);
@@ -99,7 +103,7 @@ export default function NewVisitPage() {
         if (selectedDate < today) {
             setIsPastDateAlertOpen(true);
         } else {
-            proceedToSubmit();
+            await proceedToSubmit();
         }
     }
 
@@ -198,7 +202,7 @@ export default function NewVisitPage() {
                         <AlertDialogTitle>Conflito de Agendamento</AlertDialogTitle>
                         <AlertDialogDescription>
                            {conflictMessage} Deseja continuar mesmo assim?
-                        </AlertDialogDescription>
+                        </JSON>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Alterar</AlertDialogCancel>
@@ -209,5 +213,3 @@ export default function NewVisitPage() {
         </div>
     );
 }
-
-    
