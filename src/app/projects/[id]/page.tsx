@@ -29,16 +29,21 @@ export default function ProjectDetailsPage() {
   
   useEffect(() => {
     if (!id) return;
-    const projectData = getProjectById(id);
-    if (projectData) {
-      setProject(projectData);
-      setClient(getClientById(projectData.clientId) ?? null);
-      if (projectData.visitId) {
-          setVisit(getVisitById(projectData.visitId) ?? null);
-      }
-    } else {
-      notFound();
-    }
+    
+    const fetchProjectData = async () => {
+        const projectData = await getProjectById(id);
+        if (projectData) {
+          setProject(projectData);
+          setClient(await getClientById(projectData.clientId));
+          if (projectData.visitId) {
+              setVisit(await getVisitById(projectData.visitId));
+          }
+        } else {
+          notFound();
+        }
+    };
+    
+    fetchProjectData();
   }, [id]);
 
   if (!project || !client) {
@@ -201,7 +206,7 @@ export default function ProjectDetailsPage() {
                       <div>
                           <h4 className="font-semibold mb-2">Parcelas</h4>
                           <div className="space-y-2">
-                              {project.payments.map(payment => (
+                              {project.payments && project.payments.map(payment => (
                                   <div key={payment.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
                                       <div className="flex items-center gap-2">
                                           {payment.status === 'pago' ? <CheckCircle className="w-4 h-4 text-green-500"/> : <Hourglass className="w-4 h-4 text-yellow-500"/>}
@@ -219,3 +224,4 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
+
