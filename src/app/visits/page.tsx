@@ -141,10 +141,10 @@ export default function VisitsPage() {
                         <Card key={visit.id} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="font-headline text-xl">
-                                    {new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                                    {new Date(visit.date).toLocaleDateString('pt-BR', { timeZone: 'UTC', dateStyle: 'long' })}
                                 </CardTitle>
                                 <CardDescription>
-                                    {new Date(visit.date).toLocaleTimeString('pt-BR', { timeStyle: 'short' })}
+                                    {new Date(visit.date).toLocaleTimeString('pt-BR', { timeZone: 'UTC', timeStyle: 'short' })}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">

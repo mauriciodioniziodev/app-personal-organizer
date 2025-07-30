@@ -205,7 +205,21 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
         console.error(`Error fetching visits for client ${clientId}:`, error);
         return [];
     }
-    return data as Visit[];
+    return data.map(v_raw => {
+        const v = v_raw as any;
+        return {
+            id: v.id,
+            created_at: v.created_at,
+            clientId: v.client_id,
+            projectId: v.project_id,
+            date: v.date,
+            status: v.status,
+            summary: v.summary,
+            photos: v.photos,
+            budgetAmount: v.budget_amount,
+            budgetPdfUrl: v.budget_pdf_url,
+        } as Visit
+    });
 };
 
 // --- Dynamic Master Data Functions ---
@@ -229,6 +243,7 @@ export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return STATIC_VISIT_STATUS;
     const { data, error } = await supabase.from('master_visit_status').select('*').order('name');
     if (error || !data || data.length === 0) {
+        if(error) console.log("Error fetching visit status options, using fallback.");
         return STATIC_VISIT_STATUS;
     }
     return data as MasterDataItem[];
@@ -257,6 +272,7 @@ export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> 
      if (!supabase) return STATIC_PAYMENT_INSTRUMENTS;
      const { data, error } = await supabase.from('master_payment_instruments').select('*').order('name');
      if (error || !data || data.length === 0) {
+        if(error) console.log("Error fetching payment instruments, using fallback.");
          return STATIC_PAYMENT_INSTRUMENTS;
      }
      return data as MasterDataItem[];
@@ -324,7 +340,21 @@ export const getUpcomingVisits = async () => {
         console.error("Error fetching upcoming visits:", error);
         return [];
     }
-    return data as Visit[];
+    return data.map(v_raw => {
+        const v = v_raw as any;
+        return {
+            id: v.id,
+            created_at: v.created_at,
+            clientId: v.client_id,
+            projectId: v.project_id,
+            date: v.date,
+            status: v.status,
+            summary: v.summary,
+            photos: v.photos,
+            budgetAmount: v.budget_amount,
+            budgetPdfUrl: v.budget_pdf_url,
+        } as Visit
+    });
 }
 export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     if (!supabase) return {};
@@ -380,7 +410,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
             id: v.id,
             type: 'visit',
             date: v.date,
-            time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
             title: `Visita`,
             clientName: client?.name ?? 'Cliente desconhecido',
             clientId: v.client_id,
@@ -607,7 +637,8 @@ export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: 
         console.error("Error adding photo to visit:", error);
         throw new Error("Falha ao adicionar foto.");
     }
-    return data as Visit;
+    const v = data as any;
+    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
 }
 
 export const addPhotoToProject = async (
@@ -649,7 +680,8 @@ export const addBudgetToVisit = async (visitId: string, budgetAmount: number, bu
         console.error("Error adding budget to visit:", error);
         throw new Error("Falha ao adicionar orçamento.");
     }
-    return data as Visit;
+    const v = data as any;
+    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
 }
 
 export const checkForVisitConflict = async (newVisit: { clientId: string, date: string, visitId?: string }): Promise<Visit | null> => {

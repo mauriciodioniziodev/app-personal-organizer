@@ -254,7 +254,7 @@ export default function Dashboard() {
                             <Link href={`/visits/${visit.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                                     </div>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
