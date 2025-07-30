@@ -418,7 +418,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
-            isOverdue: v.status === 'pendente' && now.getTime() > visitDate.getTime(),
+            isOverdue: v.status === 'pendente' && new Date().getTime() > visitDate.getTime(),
         });
     });
 

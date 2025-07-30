@@ -122,10 +122,10 @@ export default function EditVisitPage() {
             return;
         }
         
-        const today = new Date();
+        const now = new Date();
         const selectedDate = new Date(date);
 
-        if (selectedDate < today) {
+        if (selectedDate < now) {
             setIsPastDateAlertOpen(true);
         } else {
             await proceedToSubmit();
