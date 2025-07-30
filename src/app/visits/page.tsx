@@ -56,7 +56,7 @@ export default function VisitsPage() {
             return clientNameMatch && statusMatch;
         });
         setFilteredVisits(results);
-    }, [searchTerm, statusFilter, allVisits, clients]);
+    }, [searchTerm, statusFilter, allVisits]);
 
 
     const getProjectName = (projectId?: string) => {
