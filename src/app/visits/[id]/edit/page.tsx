@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { getVisitById, getClients, getMasterData, updateVisit, checkForVisitConflict } from "@/lib/data";
+import { getVisitById, getClients, updateVisit, checkForVisitConflict, getVisitStatusOptions } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export default function EditVisitPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
-    const { visitStatus } = getMasterData();
+    const [visitStatus, setVisitStatus] = useState<string[]>([]);
     const formRef = useRef<HTMLFormElement>(null);
     
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
@@ -46,16 +46,22 @@ export default function EditVisitPage() {
 
     useEffect(() => {
         if (!id) return;
-        const visitData = getVisitById(id);
-        if (visitData) {
-            setVisit(visitData);
-        } else {
-            router.push('/visits');
+        async function fetchData() {
+            const visitData = await getVisitById(id);
+            if (visitData) {
+                setVisit(visitData);
+            } else {
+                router.push('/visits');
+            }
+            const clientsData = await getClients();
+            setClients(clientsData);
+            const statusOptions = await getVisitStatusOptions();
+            setVisitStatus(statusOptions);
         }
-        setClients(getClients());
+        fetchData();
     }, [id, router]);
 
-    const proceedToSubmit = () => {
+    const proceedToSubmit = async () => {
         if (!formRef.current || !visit) return;
         setLoading(true);
         setErrors({});
@@ -78,7 +84,7 @@ export default function EditVisitPage() {
         }
 
         try {
-            updateVisit(validationResult.data);
+            await updateVisit(validationResult.data);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
@@ -95,13 +101,13 @@ export default function EditVisitPage() {
         }
     };
     
-    const handleValidation = () => {
+    const handleValidation = async () => {
         if (!formRef.current || !visit) return;
         const formData = new FormData(formRef.current);
         const date = formData.get("date") as string;
         const clientId = formData.get("clientId") as string;
         
-        const conflict = checkForVisitConflict({ clientId, date, visitId: visit.id });
+        const conflict = await checkForVisitConflict({ clientId, date, visitId: visit.id });
         if(conflict) {
             const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
             setConflictMessage(`Este cliente já tem uma visita agendada para ${conflictDate} (${conflict.summary}).`);
@@ -115,7 +121,7 @@ export default function EditVisitPage() {
         if (selectedDate < today) {
             setIsPastDateAlertOpen(true);
         } else {
-            proceedToSubmit();
+            await proceedToSubmit();
         }
     };
 
