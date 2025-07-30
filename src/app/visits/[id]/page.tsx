@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef, FormEvent } from 'react';
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getMasterData, addBudgetToVisit } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
@@ -67,46 +66,36 @@ export default function VisitDetailsPage() {
     
 
     useEffect(() => {
-        if (!id) return;
+        if (!id) {
+            setLoading(false);
+            return;
+        };
 
         const fetchData = async () => {
-            console.log(`Fetching data for visit ID: ${id}`);
             setLoading(true);
-            try {
-                const visitData = await getVisitById(id);
-                console.log("Fetched Visit Data:", visitData);
+            const visitData = await getVisitById(id);
 
-                if (!visitData) {
-                    setVisit(null);
-                    setClient(null);
-                    setProject(null);
-                    return;
-                }
-                
-                const [clientData, projectData] = await Promise.all([
-                    getClientById(visitData.clientId),
-                    visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
-                ]);
-
-                console.log("Fetched Client Data:", clientData);
-                console.log("Fetched Project Data:", projectData);
-
+            if (visitData) {
                 setVisit(visitData);
+                const clientData = await getClientById(visitData.clientId);
                 setClient(clientData);
-                setProject(projectData);
-            } catch (error) {
-                console.error("Failed to fetch visit details:", error);
-                toast({
+
+                if (visitData.projectId) {
+                    const projectData = await getProjectById(visitData.projectId);
+                    setProject(projectData);
+                }
+            } else {
+                 toast({
                     variant: 'destructive',
-                    title: 'Erro ao carregar visita',
-                    description: 'Não foi possível buscar os detalhes da visita. Tente novamente mais tarde.'
+                    title: 'Visita não encontrada',
+                    description: 'A visita que você está tentando acessar não existe.'
                 });
-            } finally {
-                setLoading(false);
+                router.push('/visits');
             }
+             setLoading(false);
         }
         fetchData();
-    }, [id, toast]);
+    }, [id, router, toast]);
 
     useEffect(() => {
         if (!isCaptureOpen) {
@@ -526,4 +515,3 @@ export default function VisitDetailsPage() {
         </div>
     );
 }
-
