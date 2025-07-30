@@ -202,7 +202,7 @@ export default function NewVisitPage() {
                         <AlertDialogTitle>Conflito de Agendamento</AlertDialogTitle>
                         <AlertDialogDescription>
                            {conflictMessage} Deseja continuar mesmo assim?
-                        </JSON>
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Alterar</AlertDialogCancel>
