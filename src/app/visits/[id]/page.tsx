@@ -74,16 +74,12 @@ function VisitDetailsPageContent({ id }: { id: string }) {
                 return;
             }
             
+            const clientData = await getClientById(visitData.clientId);
+            const projectData = visitData.projectId ? await getProjectById(visitData.projectId) : null;
+            
             setVisit(visitData);
-
-            const [clientData, projectData] = await Promise.all([
-                getClientById(visitData.clientId),
-                visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
-            ]);
-
             setClient(clientData);
             setProject(projectData);
-            
             setLoading(false);
         }
         fetchData();
@@ -172,7 +168,8 @@ function VisitDetailsPageContent({ id }: { id: string }) {
         try {
             await addPhotoToVisit(validationResult.data);
             toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
-            setVisit(await getVisitById(id) ?? null); // Refetch visit data to show new photo
+            const updatedVisit = await getVisitById(id);
+            if (updatedVisit) setVisit(updatedVisit);
             if(photoFormRef.current) {
                 photoFormRef.current.reset();
             }
