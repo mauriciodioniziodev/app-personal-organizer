@@ -177,7 +177,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold font-headline">{upcomingVisits.length}</div>
               <p className="text-xs text-muted-foreground">
-                Visitas nos próximos 7 dias
+                Visitas agendadas para os próximos 7 dias.
               </p>
             </CardContent>
           </Card>
