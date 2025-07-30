@@ -91,7 +91,7 @@ export default function EditVisitPage() {
         }
 
         try {
-            await updateVisit(validationResult.data);
+            await updateVisit(validationResult.data as Visit);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",

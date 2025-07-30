@@ -76,7 +76,7 @@ export const getProjects = async (): Promise<Project[]> => {
                     project_id: pay.project_id,
                     amount: pay.amount,
                     status: pay.status,
-                    dueDate: pay.due_date.split('T')[0],
+                    dueDate: pay.due_date,
                     description: pay.description
                  } as Payment
             });
@@ -124,7 +124,7 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
            project_id: pay.project_id,
            amount: pay.amount,
            status: pay.status,
-           dueDate: pay.due_date.split('T')[0],
+           dueDate: pay.due_date,
            description: pay.description
         } as Payment
    });
@@ -558,7 +558,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos'
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const dbVisitData = {
         client_id: visit.clientId,
-        date: visit.date,
+        date: visit.date, // The string from datetime-local is sent as is
         status: visit.status,
         summary: visit.summary,
         photos: []
@@ -568,7 +568,8 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos'
         console.error("Error creating visit:", error);
         throw new Error("Falha ao agendar visita.");
     }
-    return newVisit as Visit;
+    const v = newVisit as any;
+    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
 }
 
 export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
@@ -577,7 +578,7 @@ export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
         id: visit.id,
         client_id: visit.clientId,
         project_id: visit.projectId,
-        date: visit.date,
+        date: visit.date, // The string from datetime-local is sent as is
         status: visit.status,
         summary: visit.summary,
         photos: visit.photos,
@@ -589,7 +590,8 @@ export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
         console.error("Error updating visit:", error);
         throw new Error("Falha ao atualizar a visita.");
     }
-    return data as Visit;
+    const v = data as any;
+    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit;
 };
 
 export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
