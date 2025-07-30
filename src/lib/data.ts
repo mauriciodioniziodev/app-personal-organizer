@@ -402,19 +402,11 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const schedule: ScheduleItem[] = [];
     
-    // Get current time in Brazil (GMT-3) as a string YYYY-MM-DDTHH:mm:ss for direct comparison
-    const nowInBrazil = new Date();
-    const year = nowInBrazil.getFullYear();
-    const month = String(nowInBrazil.getMonth() + 1).padStart(2, '0');
-    const day = String(nowInBrazil.getDate()).padStart(2, '0');
-    const hours = String(nowInBrazil.getHours()).padStart(2, '0');
-    const minutes = String(nowInBrazil.getMinutes()).padStart(2, '0');
-    const seconds = String(nowInBrazil.getSeconds()).padStart(2, '0');
     // We get the local time from the server and format it. If the server is not in GMT-3, this needs adjustment.
     // A robust way is to use a library or manually adjust for UTC offset.
     // For now, let's create a date object for Brazil time specifically
-    const brazilDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const nowString = `${brazilDate.getFullYear()}-${String(brazilDate.getMonth() + 1).padStart(2, '0')}-${String(brazilDate.getDate()).padStart(2, '0')}T${String(brazilDate.getHours()).padStart(2, '0')}:${String(brazilDate.getMinutes()).padStart(2, '0')}`;
+    const nowInBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const nowString = `${nowInBrazil.getFullYear()}-${String(nowInBrazil.getMonth() + 1).padStart(2, '0')}-${String(nowInBrazil.getDate()).padStart(2, '0')}T${String(nowInBrazil.getHours()).padStart(2, '0')}:${String(nowInBrazil.getMinutes()).padStart(2, '0')}`;
 
 
     todayVisits.forEach(v_raw => {
@@ -493,7 +485,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'id' | 'created_at' | 'project_id'>[] }) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] }) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
@@ -527,7 +519,10 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
     }
 
     // 2. Insert payments associated with the new project
-    const paymentsToInsert = paymentsData.map(p => ({ ...p, project_id: newProject.id, due_date: p.dueDate }));
+    const paymentsToInsert = paymentsData.map(p => {
+        const { dueDate, ...rest } = p;
+        return { ...rest, project_id: newProject.id, due_date: dueDate };
+    });
     const { error: paymentsError } = await supabase.from('payments').insert(paymentsToInsert);
 
     if (paymentsError) {
@@ -585,7 +580,14 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
     }
 
     // 2. Upsert payments (update existing, insert new)
-    const paymentsToUpsert = payments.map(p => ({...p, project_id: project.id, due_date: p.dueDate }));
+    const paymentsToUpsert = payments.map(p => ({
+        id: p.id,
+        project_id: p.project_id,
+        amount: p.amount,
+        status: p.status,
+        due_date: p.due_date,
+        description: p.description
+    }));
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
     
     if(paymentsError) {
@@ -752,4 +754,5 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
 
