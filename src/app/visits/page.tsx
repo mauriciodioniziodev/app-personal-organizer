@@ -26,7 +26,7 @@ export default function VisitsPage() {
     const { visitStatus: masterVisitStatus } = getMasterData();
     
     useEffect(() => {
-        const refetch = async () => {
+        const fetchData = async () => {
             setLoading(true);
             const [visitsData, clientsData, projectsData] = await Promise.all([
                 getVisits(),
@@ -34,21 +34,20 @@ export default function VisitsPage() {
                 getProjects()
             ]);
             
-            const sortedVisits = visitsData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-            setAllVisits(sortedVisits);
+            setAllVisits(visitsData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
             setClients(clientsData);
             setProjects(projectsData);
             setLoading(false);
         };
-        refetch();
+        fetchData();
 
-        const handleFocus = () => refetch();
-        window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
+        window.addEventListener('focus', fetchData);
+        return () => window.removeEventListener('focus', fetchData);
     }, []);
 
     useEffect(() => {
+        if (loading) return; // Don't filter until data is loaded
+
         const getClientName = (clientId: string) => {
             return clients.find(c => c.id === clientId)?.name || '';
         }
@@ -60,7 +59,7 @@ export default function VisitsPage() {
         });
 
         setFilteredVisits(results);
-    }, [searchTerm, statusFilter, allVisits, clients]);
+    }, [searchTerm, statusFilter, allVisits, clients, loading]);
 
 
     const getProjectName = (projectId?: string) => {
