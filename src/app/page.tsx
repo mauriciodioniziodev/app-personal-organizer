@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary } from "@/lib/data";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
 import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
@@ -17,6 +17,7 @@ import React from 'react';
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,22 +29,29 @@ export default function Dashboard() {
             activeProjectsData, 
             upcomingVisitsData, 
             visitsSummaryData, 
-            dailyScheduleData
+            dailyScheduleData,
+            clientsData,
         ] = await Promise.all([
             getActiveProjects(),
             getUpcomingVisits(),
             getVisitsSummary(),
-            getTodaysSchedule()
+            getTodaysSchedule(),
+            getClients(),
         ]);
 
         setActiveProjects(activeProjectsData);
         setUpcomingVisits(upcomingVisitsData);
         setVisitsSummary(visitsSummaryData);
         setDailySchedule(dailyScheduleData);
+        setClients(clientsData);
         setLoading(false);
     }
     fetchData();
   }, []);
+
+  const getClient = (clientId: string) => {
+    return clients.find(c => c.id === clientId);
+  }
 
   const visitStatusIcons: { [key: string]: React.ReactNode } = {
         pendente: <Clock className="w-4 h-4 text-yellow-600" />,
@@ -219,22 +227,36 @@ export default function Dashboard() {
           <Card>
             <CardContent className="p-4">
               {activeProjects.length > 0 ? (
-                <ul className="space-y-2">
-                  {activeProjects.slice(0, 5).map((project) => (
+                <ul className="space-y-4">
+                  {activeProjects.slice(0, 5).map((project) => {
+                        const client = getClient(project.clientId);
+                        return (
                         <li key={project.id}>
-                            <Link href={`/projects/${project.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-semibold">{project.name}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
-                                        </p>
+                            <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                <p className="font-semibold">{project.name}</p>
+                                <p className="text-sm text-muted-foreground mb-2">
+                                    Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
+                                </p>
+                                {client && (
+                                     <div className='space-y-1 text-sm text-muted-foreground border-t pt-2'>
+                                        <div className='flex items-center gap-2 font-medium text-foreground'>
+                                            <User className="w-3 h-3"/>
+                                            <span>{client.name}</span>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <Phone className="w-3 h-3"/>
+                                            <span>{client.phone}</span>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <MapPin className="w-3 h-3"/>
+                                            <span className='truncate'>{client.address}</span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </Link>
                         </li>
                      )
-                  )}
+                  })}
                 </ul>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Nenhum projeto ativo no momento.</p>
@@ -248,19 +270,34 @@ export default function Dashboard() {
           <Card>
             <CardContent className="p-4">
               {upcomingVisits.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-4">
                   {upcomingVisits.slice(0, 5).map((visit) => {
+                    const client = getClient(visit.clientId);
                     return (
                         <li key={visit.id}>
-                            <Link href={`/visits/${visit.id}`} className="block p-4 -m-2 rounded-lg hover:bg-muted transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                                    </div>
+                            <Link href={`/visits/${visit.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
                                     </Badge>
                                 </div>
+                                 {client && (
+                                     <div className='space-y-1 text-sm text-muted-foreground border-t pt-2'>
+                                        <div className='flex items-center gap-2 font-medium text-foreground'>
+                                            <User className="w-3 h-3"/>
+                                            <span>{client.name}</span>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <Phone className="w-3 h-3"/>
+                                            <span>{client.phone}</span>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <MapPin className="w-3 h-3"/>
+                                            <span className='truncate'>{client.address}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </Link>
                         </li>
                     )
