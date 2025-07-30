@@ -75,10 +75,14 @@ function VisitDetailsPageContent({ id }: { id: string }) {
             }
             
             setVisit(visitData);
-            setClient(await getClientById(visitData.clientId) ?? null);
-            if (visitData.projectId) {
-                setProject(await getProjectById(visitData.projectId) ?? null);
-            }
+
+            const [clientData, projectData] = await Promise.all([
+                getClientById(visitData.clientId),
+                visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
+            ]);
+
+            setClient(clientData);
+            setProject(projectData);
             
             setLoading(false);
         }
