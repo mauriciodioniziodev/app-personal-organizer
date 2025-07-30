@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProjects, getClients } from "@/lib/data";
-import { PlusCircle, Search, User, Phone, MapPin, Calendar } from "lucide-react";
+import { PlusCircle, Search, User, Phone, MapPin, Calendar, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import type { Project, Client } from '@/lib/definitions';
@@ -19,25 +19,25 @@ export default function ProjectsPage() {
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const refetch = () => {
-      const projectsData = getProjects().sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-      const clientsData = getClients();
-      setAllProjects(projectsData);
+    const refetch = async () => {
+      setLoading(true);
+      const [projectsData, clientsData] = await Promise.all([getProjects(), getClients()]);
+      
+      const sortedProjects = projectsData.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      
+      setAllProjects(sortedProjects);
       setClients(clientsData);
-
-      setFilteredProjects(
-        projectsData.filter(project =>
-            (clientsData.find(c => c.id === project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
+      setFilteredProjects(sortedProjects);
+      setLoading(false);
     };
     refetch();
 
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
-  }, [searchTerm]); 
+  }, []); 
 
    useEffect(() => {
     const results = allProjects.filter(project =>
@@ -55,6 +55,14 @@ export default function ProjectsPage() {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
       'parcialmente pago': 'text-blue-800 bg-blue-100',
+  }
+  
+   if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
   }
 
   return (

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { CalendarPlus, Search, Phone, MapPin } from 'lucide-react';
+import { CalendarPlus, Search, Phone, MapPin, LoaderCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -21,17 +21,27 @@ export default function VisitsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [loading, setLoading] = useState(true);
 
     const { visitStatus: masterVisitStatus } = getMasterData();
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
     
     useEffect(() => {
-        const refetch = () => {
-            const visitsData = getVisits().sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-            const clientsData = getClients();
-            setAllVisits(visitsData);
-            setProjects(getProjects());
+        const refetch = async () => {
+            setLoading(true);
+            const [visitsData, clientsData, projectsData] = await Promise.all([
+                getVisits(),
+                getClients(),
+                getProjects()
+            ]);
+            
+            const sortedVisits = visitsData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            setAllVisits(sortedVisits);
             setClients(clientsData);
+            setProjects(projectsData);
+            setFilteredVisits(sortedVisits);
+            setLoading(false);
         };
         refetch();
 
@@ -60,6 +70,14 @@ export default function VisitsPage() {
       cancelada: 'text-red-800 bg-red-100',
       orçamento: 'text-blue-800 bg-blue-100',
     }
+    
+    if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
+  }
 
     return (
         <div className="flex flex-col gap-8">

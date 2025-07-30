@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects } from "@/lib/data";
-import { Wallet, Eye, EyeOff, Hourglass, User, Calendar } from "lucide-react";
+import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import type { Project, Client } from '@/lib/definitions';
@@ -18,16 +18,26 @@ export default function FinanceiroPage() {
   const [pendingRevenue, setPendingRevenue] = useState(0);
   const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
 
   useEffect(() => {
-    const refetch = () => {
-        setTotalRevenue(getTotalRevenue());
-        setPendingRevenue(getTotalPendingRevenue());
-        setClients(getClients());
-        setPendingProjects(getProjects().filter(p => p.paymentStatus !== 'pago'));
+    const refetch = async () => {
+        setLoading(true);
+        const [totalRevenueData, pendingRevenueData, clientsData, allProjectsData] = await Promise.all([
+            getTotalRevenue(),
+            getTotalPendingRevenue(),
+            getClients(),
+            getProjects()
+        ]);
+
+        setTotalRevenue(totalRevenueData);
+        setPendingRevenue(pendingRevenueData);
+        setClients(clientsData);
+        setPendingProjects(allProjectsData.filter(p => p.paymentStatus !== 'pago'));
+        setLoading(false);
     }
     refetch();
 
@@ -43,6 +53,14 @@ export default function FinanceiroPage() {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
       'parcialmente pago': 'text-blue-800 bg-blue-100',
+  }
+  
+    if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
   }
 
   return (
