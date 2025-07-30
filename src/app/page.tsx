@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle } from "lucide-react";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
@@ -65,6 +66,12 @@ export default function Dashboard() {
       realizada: 'text-green-800 bg-green-100',
       cancelada: 'text-red-800 bg-red-100',
       orçamento: 'text-blue-800 bg-blue-100',
+  }
+  
+  const paymentStatusColors: { [key: string]: string } = {
+      pago: 'text-green-800 bg-green-100',
+      pendente: 'text-yellow-800 bg-yellow-100',
+      'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
 
   const scheduleIcons: { [key: string]: React.ReactNode } = {
@@ -223,8 +230,19 @@ export default function Dashboard() {
 
       <div className="grid gap-8 md:grid-cols-2">
         <div>
-          <h2 className="text-xl font-headline mb-4">Projetos Ativos Recentes</h2>
-           <p className="text-sm text-muted-foreground -mt-4 mb-4">Os 5 projetos mais recentes com prazo futuro e pagamento pendente.</p>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-xl font-headline">Projetos Ativos Recentes</h2>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Os 5 projetos mais recentes com prazo futuro e pagamento pendente.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Card>
             <CardContent className="p-0">
               {activeProjects.length > 0 ? (
@@ -234,10 +252,17 @@ export default function Dashboard() {
                         return (
                         <li key={project.id}>
                             <Link href={`/projects/${project.id}`} className="block p-4 hover:bg-muted transition-colors">
-                                <p className="font-semibold">{project.name}</p>
-                                <p className="text-sm text-muted-foreground mb-2">
-                                    Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
-                                </p>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="font-semibold">{project.name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
+                                        </p>
+                                    </div>
+                                    <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                        {project.paymentStatus}
+                                    </Badge>
+                                </div>
                                 {client && (
                                      <div className='space-y-1 text-sm text-muted-foreground border-t pt-2'>
                                         <div className='flex items-center gap-2 font-medium text-foreground'>
@@ -266,8 +291,19 @@ export default function Dashboard() {
           </Card>
         </div>
         <div>
-          <h2 className="text-xl font-headline mb-4">Próximas Visitas</h2>
-          <p className="text-sm text-muted-foreground -mt-4 mb-4">As 5 próximas visitas nos próximos 7 dias.</p>
+           <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-xl font-headline">Próximas Visitas</h2>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>As 5 próximas visitas nos próximos 7 dias.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Card>
             <CardContent className="p-0">
               {upcomingVisits.length > 0 ? (
@@ -314,3 +350,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
