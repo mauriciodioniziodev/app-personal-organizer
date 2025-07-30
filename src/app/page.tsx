@@ -244,6 +244,7 @@ export default function Dashboard() {
         </div>
         <div>
           <h2 className="text-xl font-headline mb-4">Próximas Visitas</h2>
+          <p className="text-sm text-muted-foreground -mt-4 mb-4">As 5 próximas visitas nos próximos 7 dias.</p>
           <Card>
             <CardContent className="p-4">
               {upcomingVisits.length > 0 ? (
