@@ -229,7 +229,6 @@ export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return STATIC_VISIT_STATUS;
     const { data, error } = await supabase.from('master_visit_status').select('*').order('name');
     if (error || !data || data.length === 0) {
-        if(error) console.error("Error fetching visit status options, using fallback.", error);
         return STATIC_VISIT_STATUS;
     }
     return data as MasterDataItem[];
@@ -258,7 +257,6 @@ export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> 
      if (!supabase) return STATIC_PAYMENT_INSTRUMENTS;
      const { data, error } = await supabase.from('master_payment_instruments').select('*').order('name');
      if (error || !data || data.length === 0) {
-         if(error) console.error("Error fetching payment instruments, using fallback.", error);
          return STATIC_PAYMENT_INSTRUMENTS;
      }
      return data as MasterDataItem[];
