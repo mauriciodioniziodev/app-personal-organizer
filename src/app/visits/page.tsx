@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
 import { getVisits, getProjects, getClients, getVisitStatusOptions } from '@/lib/data';
-import type { Visit, Project, Client } from '@/lib/definitions';
+import type { Visit, Project, Client, MasterDataItem } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ export default function VisitsPage() {
     const [filteredVisits, setFilteredVisits] = useState<Visit[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
-    const [masterVisitStatus, setMasterVisitStatus] = useState<string[]>([]);
+    const [masterVisitStatus, setMasterVisitStatus] = useState<MasterDataItem[]>([]);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -124,7 +125,7 @@ export default function VisitsPage() {
                         <SelectContent>
                             <SelectItem value="all">Todos os Status</SelectItem>
                             {masterVisitStatus.map(status => (
-                                <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                                <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

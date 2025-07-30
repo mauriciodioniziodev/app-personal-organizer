@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, FormEvent, useRef, useEffect } from "react";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoaderCircle, Plus } from "lucide-react";
-import type { Visit } from "@/lib/definitions";
+import type { Visit, MasterDataItem } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
@@ -27,7 +28,7 @@ const visitSchema = z.object({
 });
 
 export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
-    const [visitStatus, setVisitStatus] = useState<string[]>([]);
+    const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -126,11 +127,11 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             </div>
             <div>
                 <Label htmlFor="status">Status</Label>
-                <Select name="status" defaultValue={visitStatus[0]}>
+                <Select name="status" defaultValue={visitStatus[0]?.name}>
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
                         {visitStatus.map(status => (
-                            <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                            <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>

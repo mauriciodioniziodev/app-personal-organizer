@@ -63,13 +63,6 @@ export type Photo = {
   description: string;
 };
 
-export type MasterData = {
-  paymentStatus: string[];
-  visitStatus: string[];
-  photoTypes: string[];
-  paymentInstruments: string[];
-};
-
 export type VisitsSummary = {
   [status: string]: number;
 };
@@ -90,3 +83,10 @@ export type ScheduleItem = {
     projectEndDate?: string;
     isOverdue?: boolean;
 };
+
+// --- Master Data Types ---
+export type MasterDataItem = {
+    id: string;
+    name: string;
+    created_at: string;
+}

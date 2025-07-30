@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useEffect, useState, FormEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { addVisit, getClients, getMasterData, checkForVisitConflict } from "@/lib/data";
+import { addVisit, getClients, getVisitStatusOptions, checkForVisitConflict } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarPlus, LoaderCircle } from "lucide-react";
-import type { Client } from "@/lib/definitions";
+import type { Client, MasterDataItem } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -31,18 +32,24 @@ export default function NewVisitPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
-    const { visitStatus } = getMasterData();
+    const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
     const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
     const [conflictMessage, setConflictMessage] = useState("");
     const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
-        async function fetchClients() {
-            const clientsData = await getClients();
+        async function fetchData() {
+            setLoading(true);
+            const [clientsData, statusOptions] = await Promise.all([
+                getClients(),
+                getVisitStatusOptions()
+            ]);
             setClients(clientsData);
+            setVisitStatus(statusOptions);
+            setLoading(false);
         }
-        fetchClients();
+        fetchData();
     }, []);
 
     const proceedToSubmit = async () => {
@@ -112,6 +119,14 @@ export default function NewVisitPage() {
         handleValidation();
     };
 
+    if (loading) {
+         return (
+            <div className="flex items-center justify-center h-full">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Agendar Nova Visita" />
@@ -151,11 +166,11 @@ export default function NewVisitPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
-                            <Select name="status" defaultValue={visitStatus[0]} required>
+                            <Select name="status" defaultValue={visitStatus[0]?.name} required>
                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                 <SelectContent>
                                     {visitStatus.map(status => (
-                                        <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                                        <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

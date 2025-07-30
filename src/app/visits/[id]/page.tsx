@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getVisitStatusOptions, addBudgetToVisit } from '@/lib/data';
-import type { Visit, Client, Project, Photo } from '@/lib/definitions';
+import type { Visit, Client, Project, Photo, MasterDataItem } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
@@ -47,7 +48,7 @@ export default function VisitDetailsPage() {
     const [client, setClient] = useState<Client | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
-    const [masterVisitStatus, setMasterVisitStatus] = useState<string[]>([]);
+    const [masterVisitStatus, setMasterVisitStatus] = useState<MasterDataItem[]>([]);
     
     // Photo state
     const [isCaptureOpen, setCaptureOpen] = useState(false);
@@ -322,8 +323,8 @@ export default function VisitDetailsPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {masterVisitStatus.map(status => (
-                                                <SelectItem key={status} value={status} className="capitalize">
-                                                    {status}
+                                                <SelectItem key={status.id} value={status.name} className="capitalize">
+                                                    {status.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

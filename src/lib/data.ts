@@ -1,15 +1,8 @@
 
 
-import type { Client, Project, Visit, Photo, MasterData, VisitsSummary, ScheduleItem, Payment } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem } from './definitions';
 import { supabase } from './supabaseClient';
 
-
-// --- Initial/Default Data ---
-// This is being deprecated in favor of dynamic fetching.
-const defaultMasterData: Omit<MasterData, 'visitStatus' | 'paymentInstruments'> = {
-    paymentStatus: ['pendente', 'pago'],
-    photoTypes: ['ambiente', 'detalhe', 'inspiração'],
-}
 
 // --- Helper Functions ---
 const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
@@ -216,26 +209,61 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
 };
 
 // --- Dynamic Master Data Functions ---
-export const getVisitStatusOptions = async (): Promise<string[]> => {
-    if (!supabase) return ['pendente', 'realizada', 'cancelada', 'orçamento'];
-    const { data, error } = await supabase.from('visits').select('status');
+export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('master_visit_status').select('*').order('name');
     if (error) {
         console.error("Error fetching visit status options:", error);
-        return ['pendente', 'realizada', 'cancelada', 'orçamento'];
+        return [];
     }
-    const uniqueStatus = [...new Set(data.map(item => item.status))];
-    return uniqueStatus;
+    return data as MasterDataItem[];
+}
+export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase.from('master_visit_status').insert([{ name }]).select().single();
+    if (error) {
+        console.error("Error adding visit status:", error);
+        throw new Error("Falha ao adicionar status.");
+    }
+    return data as MasterDataItem;
+}
+export const deleteVisitStatusOption = async (id: string) => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await supabase.from('master_visit_status').delete().eq('id', id);
+    if (error) {
+        console.error("Error deleting visit status:", error);
+        throw new Error("Falha ao remover status.");
+    }
+    return true;
 }
 
-export const getPaymentInstrumentsOptions = async (): Promise<string[]> => {
-     if (!supabase) return ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'];
-     const { data, error } = await supabase.from('projects').select('payment_instrument');
+
+export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
+     if (!supabase) return [];
+     const { data, error } = await supabase.from('master_payment_instruments').select('*').order('name');
      if (error) {
          console.error("Error fetching payment instruments:", error);
-         return ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'];
+         return [];
      }
-     const uniqueInstruments = [...new Set(data.map(item => item.payment_instrument))];
-     return uniqueInstruments;
+     return data as MasterDataItem[];
+}
+export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase.from('master_payment_instruments').insert([{ name }]).select().single();
+    if (error) {
+        console.error("Error adding payment instrument:", error);
+        throw new Error("Falha ao adicionar meio de pagamento.");
+    }
+    return data as MasterDataItem;
+}
+export const deletePaymentInstrumentOption = async (id: string) => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await supabase.from('master_payment_instruments').delete().eq('id', id);
+    if (error) {
+        console.error("Error deleting payment instrument:", error);
+        throw new Error("Falha ao remover meio de pagamento.");
+    }
+    return true;
 }
 
 

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, FormEvent, useRef } from "react";
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LoaderCircle, Save } from "lucide-react";
-import type { Client, Visit } from "@/lib/definitions";
+import type { Client, Visit, MasterDataItem } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -35,9 +36,9 @@ export default function EditVisitPage() {
 
     const [visit, setVisit] = useState<Visit | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
-    const [visitStatus, setVisitStatus] = useState<string[]>([]);
+    const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const formRef = useRef<HTMLFormElement>(null);
     
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
@@ -47,16 +48,21 @@ export default function EditVisitPage() {
     useEffect(() => {
         if (!id) return;
         async function fetchData() {
-            const visitData = await getVisitById(id);
+            setLoading(true);
+            const [visitData, clientsData, statusOptions] = await Promise.all([
+                getVisitById(id),
+                getClients(),
+                getVisitStatusOptions()
+            ]);
+
             if (visitData) {
                 setVisit(visitData);
             } else {
                 router.push('/visits');
             }
-            const clientsData = await getClients();
             setClients(clientsData);
-            const statusOptions = await getVisitStatusOptions();
             setVisitStatus(statusOptions);
+            setLoading(false);
         }
         fetchData();
     }, [id, router]);
@@ -130,7 +136,7 @@ export default function EditVisitPage() {
         handleValidation();
     };
 
-    if (!visit) {
+    if (loading || !visit) {
         return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
     }
     
@@ -186,7 +192,7 @@ export default function EditVisitPage() {
                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                 <SelectContent>
                                     {visitStatus.map(status => (
-                                        <SelectItem key={status} value={status} className="capitalize">{status}</SelectItem>
+                                        <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

@@ -1,15 +1,16 @@
 
+
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getMasterData } from "@/lib/data";
+import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
-import type { Project, Payment } from "@/lib/definitions";
+import type { Project, Payment, MasterDataItem } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -250,13 +251,17 @@ export default function ProjectEditPage() {
   const [conflictMessage, setConflictMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [paymentInstruments, setPaymentInstruments] = useState<string[]>([]);
+  const [paymentInstruments, setPaymentInstruments] = useState<MasterDataItem[]>([]);
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
   
   useEffect(() => {
     if (!id) return;
     const fetchProjectData = async () => {
-        const projectData = await getProjectById(id);
+        const [projectData, instrumentsData] = await Promise.all([
+          getProjectById(id),
+          getPaymentInstrumentsOptions()
+        ]);
+        
         if (projectData) {
             setProject(projectData);
             if(projectData.paymentMethod === 'parcelado' && projectData.payments.length === 2 && projectData.finalValue > 0) {
@@ -267,9 +272,7 @@ export default function ProjectEditPage() {
             toast({ variant: 'destructive', title: 'Erro', description: 'Projeto não encontrado.'});
             router.push("/projects");
         }
-        // Fetch master data dynamically
-        const masterData = getMasterData();
-        setPaymentInstruments(masterData.paymentInstruments);
+        setPaymentInstruments(instrumentsData);
     }
     fetchProjectData();
   }, [id, router, toast]);
@@ -513,7 +516,7 @@ export default function ProjectEditPage() {
                         <SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger>
                         <SelectContent>
                             {paymentInstruments.map(instrument => (
-                                <SelectItem key={instrument} value={instrument}>{instrument}</SelectItem>
+                                <SelectItem key={instrument.id} value={instrument.name}>{instrument.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, FormEvent, Suspense, useRef, useMemo } from "react";
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderCircle, Percent, Info } from "lucide-react";
-import type { Client, Visit, Payment } from "@/lib/definitions";
+import type { Client, Visit, Payment, MasterDataItem } from "@/lib/definitions";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
@@ -65,7 +66,7 @@ function NewProjectPageContent() {
   const [clients, setClients] = useState<Client[]>([]);
   const [visit, setVisit] = useState<Visit | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [paymentInstruments, setPaymentInstruments] = useState<string[]>([]);
+  const [paymentInstruments, setPaymentInstruments] = useState<MasterDataItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
@@ -85,6 +86,7 @@ function NewProjectPageContent() {
 
   useEffect(() => {
     async function fetchData() {
+        setLoading(true);
         const [clientsData, instrumentsData] = await Promise.all([
             getClients(),
             getPaymentInstrumentsOptions()
@@ -92,7 +94,7 @@ function NewProjectPageContent() {
         setClients(clientsData);
         setPaymentInstruments(instrumentsData);
         if (instrumentsData.length > 0) {
-            setPaymentInstrument(instrumentsData[0]);
+            setPaymentInstrument(instrumentsData[0].name);
         }
         
         if (visitId) {
@@ -105,6 +107,7 @@ function NewProjectPageContent() {
             }
           }
         }
+        setLoading(false);
     }
     fetchData();
   }, [visitId]);
@@ -239,6 +242,14 @@ function NewProjectPageContent() {
     handleValidation();
   }
   
+  if (loading) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <LoaderCircle className="w-8 h-8 animate-spin" />
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
@@ -325,7 +336,7 @@ function NewProjectPageContent() {
                       <SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger>
                       <SelectContent>
                           {paymentInstruments.map(instrument => (
-                              <SelectItem key={instrument} value={instrument}>{instrument}</SelectItem>
+                              <SelectItem key={instrument.id} value={instrument.name}>{instrument.name}</SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
@@ -457,7 +468,7 @@ function NewProjectPageContent() {
 
 export default function NewProjectPage() {
     return (
-        <Suspense fallback={<div>Carregando...</div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
             <NewProjectPageContent />
         </Suspense>
     )
