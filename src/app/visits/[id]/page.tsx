@@ -65,18 +65,24 @@ function VisitDetailsPageContent({ id }: { id: string }) {
     
 
     useEffect(() => {
-        setLoading(true);
-        const visitData = getVisitById(id);
-        if (visitData) {
-            setVisit(visitData);
-            setClient(getClientById(visitData.clientId) ?? null);
-            if (visitData.projectId) {
-                setProject(getProjectById(visitData.projectId) ?? null);
+        const fetchData = async () => {
+            setLoading(true);
+            const visitData = await getVisitById(id);
+
+            if (!visitData) {
+                notFound();
+                return;
             }
-        } else {
-            notFound();
+            
+            setVisit(visitData);
+            setClient(await getClientById(visitData.clientId) ?? null);
+            if (visitData.projectId) {
+                setProject(await getProjectById(visitData.projectId) ?? null);
+            }
+            
+            setLoading(false);
         }
-        setLoading(false);
+        fetchData();
     }, [id]);
 
     useEffect(() => {
@@ -160,9 +166,9 @@ function VisitDetailsPageContent({ id }: { id: string }) {
         }
 
         try {
-            addPhotoToVisit(validationResult.data);
+            await addPhotoToVisit(validationResult.data);
             toast({ title: "Sucesso!", description: "Foto adicionada com sucesso" });
-            setVisit(getVisitById(id) ?? null); // Refetch visit data to show new photo
+            setVisit(await getVisitById(id) ?? null); // Refetch visit data to show new photo
             if(photoFormRef.current) {
                 photoFormRef.current.reset();
             }
@@ -175,10 +181,10 @@ function VisitDetailsPageContent({ id }: { id: string }) {
         }
     }
 
-    const handleStatusChange = (newStatus: string) => {
+    const handleStatusChange = async (newStatus: string) => {
         if (!visit) return;
         try {
-            const updatedVisit = updateVisit({ ...visit, status: newStatus });
+            const updatedVisit = await updateVisit({ ...visit, status: newStatus });
             setVisit(updatedVisit);
             toast({
                 title: 'Status Atualizado!',
@@ -216,10 +222,10 @@ function VisitDetailsPageContent({ id }: { id: string }) {
 
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => {
+        reader.onload = async () => {
             const pdfDataUrl = reader.result as string;
             try {
-                const updatedVisit = addBudgetToVisit(visit.id, Number(amount), pdfDataUrl);
+                const updatedVisit = await addBudgetToVisit(visit.id, Number(amount), pdfDataUrl);
                 setVisit(updatedVisit);
                 toast({ title: 'Sucesso!', description: 'Orçamento adicionado com sucesso.'});
             } catch(e) {

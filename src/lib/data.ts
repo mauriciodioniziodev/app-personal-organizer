@@ -36,7 +36,7 @@ export const getClients = async (): Promise<Client[]> => {
     return data as Client[];
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
-    if (!supabase) return null;
+    if (!supabase || !id) return null;
     const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
