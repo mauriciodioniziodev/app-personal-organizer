@@ -374,7 +374,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const clients = await getClients();
     const getClient = (clientId: string) => clients.find(c => c.id === clientId);
 
-    const now = new Date();
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -402,11 +401,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const schedule: ScheduleItem[] = [];
     
-    // We get the local time from the server and format it. If the server is not in GMT-3, this needs adjustment.
-    // A robust way is to use a library or manually adjust for UTC offset.
-    // For now, let's create a date object for Brazil time specifically
-    const nowInBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const nowString = `${nowInBrazil.getFullYear()}-${String(nowInBrazil.getMonth() + 1).padStart(2, '0')}-${String(nowInBrazil.getDate()).padStart(2, '0')}T${String(nowInBrazil.getHours()).padStart(2, '0')}:${String(nowInBrazil.getMinutes()).padStart(2, '0')}`;
+    const nowInBrazilString = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).substring(0, 16).replace(' ', 'T');
 
 
     todayVisits.forEach(v_raw => {
@@ -426,7 +421,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
             clientAddress: client?.address,
             status: v.status,
             path: `/visits/${v.id}`,
-            isOverdue: v.status === 'pendente' && nowString > v.date.substring(0, 16),
+            isOverdue: v.status === 'pendente' && nowInBrazilString > v.date.substring(0, 16),
         });
     });
 
@@ -520,8 +515,13 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
 
     // 2. Insert payments associated with the new project
     const paymentsToInsert = paymentsData.map(p => {
-        const { dueDate, ...rest } = p;
-        return { ...rest, project_id: newProject.id, due_date: dueDate };
+        return { 
+            amount: p.amount,
+            status: p.status,
+            due_date: p.dueDate,
+            description: p.description,
+            project_id: newProject.id 
+        };
     });
     const { error: paymentsError } = await supabase.from('payments').insert(paymentsToInsert);
 
@@ -585,7 +585,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
         project_id: p.project_id,
         amount: p.amount,
         status: p.status,
-        due_date: p.due_date,
+        due_date: p.dueDate,
         description: p.description
     }));
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
@@ -754,5 +754,6 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
 
 
