@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getVisits, getProjects, getClients, getMasterData } from '@/lib/data';
+import { getVisits, getProjects, getClients, getVisitStatusOptions } from '@/lib/data';
 import type { Visit, Project, Client } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,25 +19,27 @@ export default function VisitsPage() {
     const [filteredVisits, setFilteredVisits] = useState<Visit[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [masterVisitStatus, setMasterVisitStatus] = useState<string[]>([]);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [loading, setLoading] = useState(true);
 
-    const { visitStatus: masterVisitStatus } = getMasterData();
-    
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [visitsData, clientsData, projectsData] = await Promise.all([
+                const [visitsData, clientsData, projectsData, statusOptions] = await Promise.all([
                     getVisits(),
                     getClients(),
-                    getProjects()
+                    getProjects(),
+                    getVisitStatusOptions()
                 ]);
                 
                 setAllVisits(visitsData);
                 setClients(clientsData);
                 setProjects(projectsData);
+                setMasterVisitStatus(statusOptions);
             } catch (error) {
                 console.error("Failed to fetch page data:", error);
             } finally {

@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent, Suspense, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getClients, getMasterData, getVisitById, addProject, checkForProjectConflict } from "@/lib/data";
+import { getClients, getPaymentInstrumentsOptions, getVisitById, addProject, checkForProjectConflict } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,11 +65,10 @@ function NewProjectPageContent() {
   const [clients, setClients] = useState<Client[]>([]);
   const [visit, setVisit] = useState<Visit | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [paymentInstruments, setPaymentInstruments] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
-  const { paymentStatus, paymentInstruments } = getMasterData();
-
   const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
@@ -79,24 +78,35 @@ function NewProjectPageContent() {
   const [value, setValue] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(5);
   const [paymentMethod, setPaymentMethod] = useState<'vista' | 'parcelado'>('vista');
-  const [paymentInstrument, setPaymentInstrument] = useState(paymentInstruments[0]);
+  const [paymentInstrument, setPaymentInstrument] = useState('');
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
-  const [singlePaymentStatus, setSinglePaymentStatus] = useState(paymentStatus[0]);
+  const [singlePaymentStatus, setSinglePaymentStatus] = useState('pendente');
 
 
   useEffect(() => {
-    setClients(getClients());
-    if (visitId) {
-      const foundVisit = getVisitById(visitId);
-      if(foundVisit) {
-        setVisit(foundVisit);
-        setSelectedClientId(foundVisit.clientId);
-        if (foundVisit.budgetAmount) {
-            setValue(foundVisit.budgetAmount);
+    async function fetchData() {
+        const [clientsData, instrumentsData] = await Promise.all([
+            getClients(),
+            getPaymentInstrumentsOptions()
+        ]);
+        setClients(clientsData);
+        setPaymentInstruments(instrumentsData);
+        if (instrumentsData.length > 0) {
+            setPaymentInstrument(instrumentsData[0]);
         }
-      }
+        
+        if (visitId) {
+          const foundVisit = await getVisitById(visitId);
+          if(foundVisit) {
+            setVisit(foundVisit);
+            setSelectedClientId(foundVisit.clientId);
+            if (foundVisit.budgetAmount) {
+                setValue(foundVisit.budgetAmount);
+            }
+          }
+        }
     }
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchData();
   }, [visitId]);
 
   const { discountAmount, finalValue, firstInstallmentValue, secondInstallmentValue } = useMemo(() => {
@@ -118,7 +128,7 @@ function NewProjectPageContent() {
   }, [value, discountPercentage, paymentMethod, firstInstallmentPercentage]);
 
 
-  const proceedToSubmit = () => {
+  const proceedToSubmit = async () => {
     if (!formRef.current) return;
     
     setLoading(true);
@@ -128,11 +138,10 @@ function NewProjectPageContent() {
     const startDate = formData.get("startDate") as string;
     const endDate = formData.get("endDate") as string;
     
-    let payments: Payment[] = [];
+    let payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] = [];
 
     if(paymentMethod === 'vista') {
         payments.push({
-            id: uuidv4(),
             amount: finalValue,
             status: singlePaymentStatus as 'pendente' | 'pago',
             dueDate: endDate,
@@ -140,14 +149,12 @@ function NewProjectPageContent() {
         });
     } else {
         payments.push({
-            id: uuidv4(),
             amount: firstInstallmentValue,
             status: 'pendente',
             dueDate: startDate,
             description: '1ª Parcela (Entrada)'
         });
         payments.push({
-            id: uuidv4(),
             amount: secondInstallmentValue,
             status: 'pendente',
             dueDate: endDate,
@@ -168,7 +175,7 @@ function NewProjectPageContent() {
         finalValue: finalValue,
         paymentMethod: paymentMethod,
         paymentInstrument: paymentInstrument,
-        payments: payments,
+        payments: payments.map(p => ({...p, id: uuidv4()})),
     };
     
     const validationResult = projectSchema.safeParse(projectData);
@@ -180,7 +187,7 @@ function NewProjectPageContent() {
     }
 
     try {
-        addProject(validationResult.data);
+        await addProject(validationResult.data);
         toast({
             title: "Projeto Criado com Sucesso!",
             description: `O projeto "${validationResult.data.name}" foi salvo.`,
@@ -196,7 +203,7 @@ function NewProjectPageContent() {
     }
   }
   
-  const handleValidation = () => {
+  const handleValidation = async () => {
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     const startDate = formData.get("startDate") as string;
@@ -208,7 +215,7 @@ function NewProjectPageContent() {
         endDate
     };
     
-    const conflict = checkForProjectConflict(projectData);
+    const conflict = await checkForProjectConflict(projectData);
     if (conflict) {
         setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${new Date(conflict.startDate).toLocaleDateString('pt-BR')} a ${new Date(conflict.endDate).toLocaleDateString('pt-BR')}.`);
         setIsConflictAlertOpen(true);
@@ -222,7 +229,7 @@ function NewProjectPageContent() {
     if (selectedDate < today) {
         setIsPastDateAlertOpen(true);
     } else {
-        proceedToSubmit();
+        await proceedToSubmit();
     }
   }
 
@@ -346,7 +353,7 @@ function NewProjectPageContent() {
                 <div className="space-y-2">
                     <Label>Status do Pagamento</Label>
                     <RadioGroup name="paymentStatus" value={singlePaymentStatus} onValueChange={setSinglePaymentStatus} className="flex items-center pt-2 gap-4">
-                        {paymentStatus.map(status => (
+                        {['pendente', 'pago'].map(status => (
                             <div key={status} className="flex items-center space-x-2">
                                 <RadioGroupItem value={status} id={status} />
                                 <Label htmlFor={status} className="capitalize">{status}</Label>

@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getMasterData, addBudgetToVisit } from '@/lib/data';
+import { getVisitById, getClientById, getProjectById, addPhotoToVisit, updateVisit, getVisitStatusOptions, addBudgetToVisit } from '@/lib/data';
 import type { Visit, Client, Project, Photo } from '@/lib/definitions';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -46,25 +46,24 @@ export default function VisitDetailsPage() {
     const [visit, setVisit] = useState<Visit | null>(null);
     const [client, setClient] = useState<Client | null>(null);
     const [project, setProject] = useState<Project | null>(null);
-    const [isCaptureOpen, setCaptureOpen] = useState(false);
     const [loading, setLoading] = useState(true);
-
+    const [masterVisitStatus, setMasterVisitStatus] = useState<string[]>([]);
+    
+    // Photo state
+    const [isCaptureOpen, setCaptureOpen] = useState(false);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-    
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
     const [photoErrors, setPhotoErrors] = useState<Record<string, string[]>>({});
 
+    // Budget state
     const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
     const [budgetErrors, setBudgetErrors] = useState<string | null>(null);
 
-
-    const { visitStatus: masterVisitStatus } = getMasterData();
-    
 
     useEffect(() => {
         if (!id) {
@@ -75,7 +74,11 @@ export default function VisitDetailsPage() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const visitData = await getVisitById(id);
+                const [visitData, statusOptions] = await Promise.all([
+                    getVisitById(id),
+                    getVisitStatusOptions()
+                ]);
+
                 if (!visitData) {
                     toast({
                         variant: 'destructive',
@@ -87,21 +90,12 @@ export default function VisitDetailsPage() {
                 }
                 
                 setVisit(visitData);
+                setMasterVisitStatus(statusOptions);
 
                 const [clientData, projectData] = await Promise.all([
                     getClientById(visitData.clientId),
                     visitData.projectId ? getProjectById(visitData.projectId) : Promise.resolve(null)
                 ]);
-
-                if (!clientData) {
-                     toast({
-                        variant: 'destructive',
-                        title: 'Cliente não encontrado',
-                        description: 'O cliente associado a esta visita não foi encontrado.'
-                    });
-                     router.push('/visits');
-                     return;
-                }
                 
                 setClient(clientData);
                 setProject(projectData);
@@ -282,7 +276,13 @@ export default function VisitDetailsPage() {
     }
     
     if (!visit || !client) {
-         return <div className="flex items-center justify-center h-full"><p>Visita não encontrada.</p></div>;
+         return (
+            <div className="flex flex-col gap-8 items-center justify-center h-full">
+                <PageHeader title="Visita não encontrada"/>
+                <p>A visita que você está procurando não existe ou não pôde ser carregada.</p>
+                <Link href="/visits"><Button variant="outline">Voltar para a Agenda</Button></Link>
+            </div>
+         );
     }
 
     const visitStatusIcons: { [key: string]: React.ReactNode } = {
@@ -316,7 +316,7 @@ export default function VisitDetailsPage() {
                                     <Select value={visit.status} onValueChange={handleStatusChange}>
                                         <SelectTrigger className="w-full sm:w-[200px] mt-1 capitalize">
                                             <div className="flex items-center gap-2">
-                                                {visitStatusIcons[visit.status]}
+                                                {visitStatusIcons[visit.status] || <Clock className="w-4 h-4" />}
                                                 <SelectValue />
                                             </div>
                                         </SelectTrigger>

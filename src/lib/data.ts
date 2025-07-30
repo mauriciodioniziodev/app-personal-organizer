@@ -5,12 +5,10 @@ import { supabase } from './supabaseClient';
 
 
 // --- Initial/Default Data ---
-
-const defaultMasterData: MasterData = {
+// This is being deprecated in favor of dynamic fetching.
+const defaultMasterData: Omit<MasterData, 'visitStatus' | 'paymentInstruments'> = {
     paymentStatus: ['pendente', 'pago'],
-    visitStatus: ['pendente', 'realizada', 'cancelada', 'orçamento'],
     photoTypes: ['ambiente', 'detalhe', 'inspiração'],
-    paymentInstruments: ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'],
 }
 
 // --- Helper Functions ---
@@ -33,7 +31,17 @@ export const getClients = async (): Promise<Client[]> => {
         console.error("Error fetching clients:", error);
         return [];
     }
-    return data as Client[];
+    return data.map(c => ({
+        id: c.id,
+        created_at: c.created_at,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        address: c.address,
+        preferences: c.preferences,
+        cpf: c.cpf,
+        birthday: c.birthday
+    })) as Client[];
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
@@ -59,19 +67,50 @@ export const getProjects = async (): Promise<Project[]> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
-        return [];
+        // Still return projects, but they will have empty payments
+        return projectsData.map(p => ({ ...p, payments: [], paymentStatus: 'pendente' } as Project));
     }
 
-    return projectsData.map(p => {
-        const payments = paymentsData.filter(payment => payment.project_id === p.id).map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
-        return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
+    return projectsData.map(p_raw => {
+        const p = p_raw as any; // Allow snake_case access
+        const payments = paymentsData
+            .filter(payment => payment.project_id === p.id)
+            .map(pay_raw => {
+                 const pay = pay_raw as any;
+                 return {
+                    id: pay.id,
+                    created_at: pay.created_at,
+                    project_id: pay.project_id,
+                    amount: pay.amount,
+                    status: pay.status,
+                    dueDate: pay.due_date.split('T')[0],
+                    description: pay.description
+                 } as Payment
+            });
+
+        return { 
+            ...p,
+            clientId: p.client_id,
+            visitId: p.visit_id,
+            startDate: p.start_date,
+            endDate: p.end_date,
+            discountPercentage: p.discount_percentage,
+            discountAmount: p.discount_amount,
+            finalValue: p.final_value,
+            paymentMethod: p.payment_method,
+            paymentInstrument: p.payment_instrument,
+            photosBefore: p.photos_before,
+            photosAfter: p.photos_after,
+            payments: payments,
+            paymentStatus: getProjectPaymentStatus(payments) 
+        } as Project;
     });
 };
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
     if (!supabase || !id) return null;
     const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
-    if (projectError) {
+    if (projectError || !projectData) {
         console.error(`Error fetching project ${id}:`, projectError);
         return null;
     }
@@ -83,33 +122,43 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
         return { ...projectData, payments: [], paymentStatus: 'pendente' } as Project;
     }
     
-    const payments = paymentsData.map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
+    const p = projectData as any;
+    const payments = paymentsData.map(pay_raw => {
+        const pay = pay_raw as any;
+        return {
+           id: pay.id,
+           created_at: pay.created_at,
+           project_id: pay.project_id,
+           amount: pay.amount,
+           status: pay.status,
+           dueDate: pay.due_date.split('T')[0],
+           description: pay.description
+        } as Payment
+   });
 
 
-    return { ...projectData, payments: payments as Payment[], paymentStatus: getProjectPaymentStatus(payments as Payment[]) } as Project;
+    return { 
+        ...p,
+        clientId: p.client_id,
+        visitId: p.visit_id,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        discountPercentage: p.discount_percentage,
+        discountAmount: p.discount_amount,
+        finalValue: p.final_value,
+        paymentMethod: p.payment_method,
+        paymentInstrument: p.payment_instrument,
+        photosBefore: p.photos_before,
+        photosAfter: p.photos_after,
+        payments: payments as Payment[], 
+        paymentStatus: getProjectPaymentStatus(payments as Payment[]) 
+    } as Project;
 };
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if (!supabase) return [];
-    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').eq('client_id', clientId);
-    if (projectsError) {
-        console.error("Error fetching projects:", projectsError);
-        return [];
-    }
-    
-    if (projectsData.length === 0) return [];
-
-    const projectIds = projectsData.map(p => p.id);
-    const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
-     if (paymentsError) {
-        console.error("Error fetching payments:", paymentsError);
-        return [];
-    }
-
-    return projectsData.map(p => {
-        const payments = paymentsData.filter(payment => payment.project_id === p.id).map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment));
-        return { ...p, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
-    });
+    const projects = await getProjects();
+    return projects.filter(p => p.clientId === clientId);
 };
 
 export const getVisits = async (): Promise<Visit[]> => {
@@ -119,16 +168,42 @@ export const getVisits = async (): Promise<Visit[]> => {
         console.error("Error fetching visits:", error);
         return [];
     }
-    return data as Visit[];
+    return data.map(v_raw => {
+        const v = v_raw as any;
+        return {
+            id: v.id,
+            created_at: v.created_at,
+            clientId: v.client_id,
+            projectId: v.project_id,
+            date: v.date,
+            status: v.status,
+            summary: v.summary,
+            photos: v.photos,
+            budgetAmount: v.budget_amount,
+            budgetPdfUrl: v.budget_pdf_url,
+        } as Visit
+    });
 };
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
     const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
-    if (error) {
+    if (error || !data) {
         console.error(`Error fetching visit ${id}:`, error);
         return null;
     }
-    return data as Visit;
+    const v = data as any;
+    return {
+        id: v.id,
+        created_at: v.created_at,
+        clientId: v.client_id,
+        projectId: v.project_id,
+        date: v.date,
+        status: v.status,
+        summary: v.summary,
+        photos: v.photos,
+        budgetAmount: v.budget_amount,
+        budgetPdfUrl: v.budget_pdf_url,
+    } as Visit
 };
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
     if (!supabase) return [];
@@ -140,11 +215,27 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
     return data as Visit[];
 };
 
-// This function now only returns static data and should be used cautiously.
-// For a fully dynamic system, this data should come from the database.
-export const getMasterData = (): MasterData => {
-    console.warn("getMasterData is returning static data. For a fully dynamic application, consider fetching this from the database.");
-    return defaultMasterData;
+// --- Dynamic Master Data Functions ---
+export const getVisitStatusOptions = async (): Promise<string[]> => {
+    if (!supabase) return ['pendente', 'realizada', 'cancelada', 'orçamento'];
+    const { data, error } = await supabase.from('visits').select('status');
+    if (error) {
+        console.error("Error fetching visit status options:", error);
+        return ['pendente', 'realizada', 'cancelada', 'orçamento'];
+    }
+    const uniqueStatus = [...new Set(data.map(item => item.status))];
+    return uniqueStatus;
+}
+
+export const getPaymentInstrumentsOptions = async (): Promise<string[]> => {
+     if (!supabase) return ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'];
+     const { data, error } = await supabase.from('projects').select('payment_instrument');
+     if (error) {
+         console.error("Error fetching payment instruments:", error);
+         return ['PIX', 'Cartão de Crédito', 'Dinheiro', 'Transferência Bancária'];
+     }
+     const uniqueInstruments = [...new Set(data.map(item => item.payment_instrument))];
+     return uniqueInstruments;
 }
 
 
@@ -239,7 +330,8 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const schedule: ScheduleItem[] = [];
 
-    todayVisits.forEach(v => {
+    todayVisits.forEach(v_raw => {
+        const v = v_raw as any;
         const client = getClient(v.client_id);
         const visitDate = new Date(v.date);
         schedule.push({
@@ -262,7 +354,8 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (projectIds.length > 0) {
         const { data: paymentsData } = await supabase.from('payments').select('*').in('project_id', projectIds);
         
-        todayProjects.forEach(p => {
+        todayProjects.forEach(p_raw => {
+            const p = p_raw as any;
             const client = getClient(p.client_id);
             const payments = paymentsData?.filter(pm => pm.project_id === p.id) || [];
             schedule.push({
@@ -493,17 +586,16 @@ export const addPhotoToProject = async (
         .select()
         .single();
         
-     if(error) {
+     if(error || !updatedProjectData) {
         console.error(`Error adding ${photoType} photo to project:`, error);
         throw new Error("Falha ao adicionar foto ao projeto.");
     }
-    if (!updatedProjectData) throw new Error("Could not retrieve updated project after photo add.");
     
     // We need to re-fetch payments to return the full Project object
-    const { data: paymentsData } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
-    const payments = paymentsData?.map(p => ({...p, due_date: p.due_date.split('T')[0]} as Payment)) || [];
+    const finalProject = await getProjectById(projectId);
+    if (!finalProject) throw new Error("Failed to refetch project after adding photo.");
 
-    return { ...updatedProjectData, payments: payments, paymentStatus: getProjectPaymentStatus(payments) } as Project;
+    return finalProject;
 }
 
 export const addBudgetToVisit = async (visitId: string, budgetAmount: number, budgetPdfUrl: string) => {
@@ -514,14 +606,6 @@ export const addBudgetToVisit = async (visitId: string, budgetAmount: number, bu
         throw new Error("Falha ao adicionar orçamento.");
     }
     return data as Visit;
-}
-
-
-export const updateMasterData = async (data: Omit<MasterData, 'paymentInstruments'>) => {
-    // This function will now have to be handled differently, as this data is static.
-    // For now, we will log a warning. In a real app, this could be a settings table in Supabase.
-    console.warn("updateMasterData is not implemented for Supabase yet. Data is static.");
-    return defaultMasterData;
 }
 
 export const checkForVisitConflict = async (newVisit: { clientId: string, date: string, visitId?: string }): Promise<Visit | null> => {
