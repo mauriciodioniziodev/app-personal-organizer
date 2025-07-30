@@ -224,15 +224,16 @@ export default function Dashboard() {
       <div className="grid gap-8 md:grid-cols-2">
         <div>
           <h2 className="text-xl font-headline mb-4">Projetos Ativos Recentes</h2>
+           <p className="text-sm text-muted-foreground -mt-4 mb-4">Os 5 projetos mais recentes com prazo futuro e pagamento pendente.</p>
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-0">
               {activeProjects.length > 0 ? (
-                <ul className="space-y-4">
+                <ul className="divide-y divide-border">
                   {activeProjects.slice(0, 5).map((project) => {
                         const client = getClient(project.clientId);
                         return (
                         <li key={project.id}>
-                            <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                            <Link href={`/projects/${project.id}`} className="block p-4 hover:bg-muted transition-colors">
                                 <p className="font-semibold">{project.name}</p>
                                 <p className="text-sm text-muted-foreground mb-2">
                                     Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
@@ -259,7 +260,7 @@ export default function Dashboard() {
                   })}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-center py-4">Nenhum projeto ativo no momento.</p>
+                <p className="text-muted-foreground text-center py-8 p-4">Nenhum projeto ativo no momento.</p>
               )}
             </CardContent>
           </Card>
@@ -268,14 +269,14 @@ export default function Dashboard() {
           <h2 className="text-xl font-headline mb-4">Próximas Visitas</h2>
           <p className="text-sm text-muted-foreground -mt-4 mb-4">As 5 próximas visitas nos próximos 7 dias.</p>
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-0">
               {upcomingVisits.length > 0 ? (
-                <ul className="space-y-4">
+                <ul className="divide-y divide-border">
                   {upcomingVisits.slice(0, 5).map((visit) => {
                     const client = getClient(visit.clientId);
                     return (
                         <li key={visit.id}>
-                            <Link href={`/visits/${visit.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                            <Link href={`/visits/${visit.id}`} className="block p-4 hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
@@ -304,7 +305,7 @@ export default function Dashboard() {
                   })}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-center py-4">Nenhuma visita agendada.</p>
+                <p className="text-muted-foreground text-center py-8 p-4">Nenhuma visita agendada.</p>
               )}
             </CardContent>
           </Card>
