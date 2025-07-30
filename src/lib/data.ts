@@ -482,12 +482,11 @@ export const addPhotoToProject = async (
     const currentPhotos = (photoType === 'before' ? project.photosBefore : project.photosAfter) || [];
     const updatedPhotos = [...currentPhotos, newPhoto];
 
-    const { data, error } = await supabase.from('projects').update({ [fieldName]: updatedPhotos }).eq('id', projectId).select().single();
+    const { data: updatedProject, error } = await supabase.from('projects').update({ [fieldName]: updatedPhotos }).eq('id', projectId).select().single();
      if(error) {
         console.error(`Error adding ${photoType} photo to project:`, error);
         throw new Error("Falha ao adicionar foto ao projeto.");
     }
-    const updatedProject = await getProjectById(projectId);
     if (!updatedProject) throw new Error("Could not retrieve updated project after photo add.");
     return updatedProject;
 }

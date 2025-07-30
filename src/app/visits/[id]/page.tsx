@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger
 } from "@/components/ui/dialog"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from '@/components/ui/textarea';
@@ -73,26 +74,35 @@ export default function VisitDetailsPage() {
 
         const fetchData = async () => {
             setLoading(true);
-            const visitData = await getVisitById(id);
+            try {
+                const visitData = await getVisitById(id);
 
-            if (visitData) {
-                setVisit(visitData);
-                const clientData = await getClientById(visitData.clientId);
-                setClient(clientData);
+                if (visitData) {
+                    setVisit(visitData);
+                    const clientData = await getClientById(visitData.clientId);
+                    setClient(clientData);
 
-                if (visitData.projectId) {
-                    const projectData = await getProjectById(visitData.projectId);
-                    setProject(projectData);
+                    if (visitData.projectId) {
+                        const projectData = await getProjectById(visitData.projectId);
+                        setProject(projectData);
+                    }
+                } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Visita não encontrada',
+                        description: 'A visita que você está tentando acessar não existe.'
+                    });
+                    router.push('/visits');
                 }
-            } else {
+            } catch (error) {
                  toast({
                     variant: 'destructive',
-                    title: 'Visita não encontrada',
-                    description: 'A visita que você está tentando acessar não existe.'
+                    title: 'Erro ao carregar dados',
+                    description: 'Não foi possível buscar os detalhes da visita.'
                 });
-                router.push('/visits');
+            } finally {
+                setLoading(false);
             }
-             setLoading(false);
         }
         fetchData();
     }, [id, router, toast]);
