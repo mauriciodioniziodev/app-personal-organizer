@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent, ArrowLeft, Activity } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, Percent, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
@@ -264,7 +264,7 @@ export default function ProjectEditPage() {
   const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
 
   const [paymentInstruments, setPaymentInstruments] = useState<MasterDataItem[]>([]);
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
@@ -272,6 +272,7 @@ export default function ProjectEditPage() {
   useEffect(() => {
     if (!id) return;
     const fetchProjectData = async () => {
+        setLoading(true);
         const [projectData, instrumentsData] = await Promise.all([
           getProjectById(id),
           getPaymentInstrumentsOptions()
@@ -288,57 +289,65 @@ export default function ProjectEditPage() {
             router.push("/projects");
         }
         setPaymentInstruments(instrumentsData);
+        setLoading(false);
     }
     fetchProjectData();
   }, [id, router, toast]);
 
-  const updateProjectState = (updatedProject: Project | null) => {
-        if (!updatedProject) return;
+  useEffect(() => {
+    if (!project) return;
+    updateProjectState(project);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
 
-        let finalProject = { ...updatedProject };
 
-        // Recalculate financial values
-        if (finalProject.paymentMethod === 'vista') {
-            finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
-        } else {
-            finalProject.discountPercentage = 0;
-            finalProject.discountAmount = 0;
-        }
-        finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
+  const updateProjectState = (updatedProject: Project) => {
+    let finalProject = { ...updatedProject };
 
-        // Recalculate payments
-        if (finalProject.paymentMethod === 'vista') {
-            finalProject.payments = [{
+    // Recalculate financial values
+    if (finalProject.paymentMethod === 'vista') {
+        finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
+    } else {
+        finalProject.discountPercentage = 0;
+        finalProject.discountAmount = 0;
+    }
+    finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
+
+    // Recalculate payments
+    if (finalProject.paymentMethod === 'vista') {
+        finalProject.payments = [{
+            id: finalProject.payments[0]?.id || uuidv4(),
+            project_id: finalProject.id,
+            amount: finalProject.finalValue,
+            status: finalProject.payments[0]?.status || 'pendente',
+            dueDate: finalProject.endDate,
+            description: "Pagamento Único"
+        }];
+    } else {
+        const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
+        const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
+         finalProject.payments = [
+            {
                 id: finalProject.payments[0]?.id || uuidv4(),
                 project_id: finalProject.id,
-                amount: finalProject.finalValue,
+                amount: firstInstallmentValue,
                 status: finalProject.payments[0]?.status || 'pendente',
+                dueDate: finalProject.startDate,
+                description: '1ª Parcela (Entrada)'
+            },
+            {
+                id: finalProject.payments[1]?.id || uuidv4(),
+                project_id: finalProject.id,
+                amount: secondInstallmentValue,
+                status: finalProject.payments[1]?.status || 'pendente',
                 dueDate: finalProject.endDate,
-                description: "Pagamento Único"
-            }];
-        } else {
-            const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
-            const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
-             finalProject.payments = [
-                {
-                    id: finalProject.payments[0]?.id || uuidv4(),
-                    project_id: finalProject.id,
-                    amount: firstInstallmentValue,
-                    status: finalProject.payments[0]?.status || 'pendente',
-                    dueDate: finalProject.startDate,
-                    description: '1ª Parcela (Entrada)'
-                },
-                {
-                    id: finalProject.payments[1]?.id || uuidv4(),
-                    project_id: finalProject.id,
-                    amount: secondInstallmentValue,
-                    status: finalProject.payments[1]?.status || 'pendente',
-                    dueDate: finalProject.endDate,
-                    description: '2ª Parcela (Conclusão)'
-                }
-            ]
-        }
-        setProject(finalProject);
+                description: '2ª Parcela (Conclusão)'
+            }
+        ]
+    }
+    
+    finalProject.paymentStatus = getPaymentStatus(finalProject.payments);
+    setProject(finalProject);
   }
 
   const getPaymentStatus = (payments: Payment[]): string => {
@@ -356,14 +365,12 @@ export default function ProjectEditPage() {
             p.id === paymentId ? { ...p, status } : p
         );
 
-        const newPaymentStatus = getPaymentStatus(updatedPayments);
-
         setProject(prev => {
             if (!prev) return null;
             return {
                 ...prev,
                 payments: updatedPayments,
-                paymentStatus: newPaymentStatus,
+                paymentStatus: getPaymentStatus(updatedPayments),
             };
         });
         
@@ -372,13 +379,11 @@ export default function ProjectEditPage() {
 
 
   const proceedToSubmit = async () => {
-    if (!project || !formRef.current) return;
+    if (!project) return;
     setLoading(true);
     setErrors({});
 
-    const projectData = { ...project }; 
-
-    const validationResult = projectSchema.safeParse(projectData);
+    const validationResult = projectSchema.safeParse(project);
 
     if (!validationResult.success) {
       setErrors(validationResult.error.flatten().fieldErrors);
@@ -392,6 +397,7 @@ export default function ProjectEditPage() {
       const updated = await updateProject(validationResult.data as Project);
       setProject(updated); 
       toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
+      router.push(`/projects/${id}`);
     } catch (error) {
         const errorMessage = (error as Error).message || "Falha ao atualizar o projeto.";
         toast({ variant: 'destructive', title: "Erro", description: errorMessage});
@@ -401,38 +407,32 @@ export default function ProjectEditPage() {
     }
   };
 
-  const handleValidation = async () => {
-    if (!formRef.current || !project) return;
-    
-    const conflict = await checkForProjectConflict({ clientId: project.clientId, startDate: project.startDate, endDate: project.endDate, projectId: project.id });
-    if (conflict) {
-        setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
-        setIsConflictAlertOpen(true);
-        return;
-    }
+  const handleProjectSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!project) return;
 
+    const action = async () => {
+        const conflict = await checkForProjectConflict({ clientId: project.clientId, startDate: project.startDate, endDate: project.endDate, projectId: project.id });
+        if (conflict) {
+            setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
+            setIsConflictAlertOpen(true);
+            setPendingSubmit(() => proceedToSubmit); // Store the submit action
+            return; // Stop execution until user confirms
+        }
+        await proceedToSubmit();
+    }
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(`${project.startDate}T00:00:00`);
 
     if (selectedDate < today) {
         setIsPastDateAlertOpen(true);
+        setPendingSubmit(() => action); // Store the action
     } else {
-        await proceedToSubmit();
+        await action();
     }
   };
-
-  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    handleValidation();
-  };
-
-  useEffect(() => {
-      if(project) {
-          updateProjectState({ ...project });
-      }
-       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
   
   if (!project) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
@@ -451,7 +451,7 @@ export default function ProjectEditPage() {
         </Link>
       </PageHeader>
       
-       <form ref={formRef} onSubmit={handleProjectSubmit}>
+       <form onSubmit={handleProjectSubmit}>
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -613,9 +613,9 @@ export default function ProjectEditPage() {
                         </div>
                       </div>
                       {payment.status === 'pendente' ? (
-                          <Button size="sm" onClick={() => handlePaymentStatusChange(payment.id, 'pago')}>Marcar como Pago</Button>
+                          <Button size="sm" type="button" onClick={() => handlePaymentStatusChange(payment.id, 'pago')}>Marcar como Pago</Button>
                       ) : (
-                          <Button size="sm" variant="outline" onClick={() => handlePaymentStatusChange(payment.id, 'pendente')}>Marcar como Pendente</Button>
+                          <Button size="sm" type="button" variant="outline" onClick={() => handlePaymentStatusChange(payment.id, 'pendente')}>Marcar como Pendente</Button>
                       )}
                   </div>
               ))}
@@ -648,7 +648,7 @@ export default function ProjectEditPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
-                    <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                    <AlertDialogAction onClick={() => pendingSubmit && pendingSubmit()}>Continuar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -662,7 +662,7 @@ export default function ProjectEditPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
-                    <AlertDialogAction onClick={proceedToSubmit}>Continuar Mesmo Assim</AlertDialogAction>
+                    <AlertDialogAction onClick={() => pendingSubmit && pendingSubmit()}>Continuar Mesmo Assim</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
