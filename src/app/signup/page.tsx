@@ -30,7 +30,7 @@ export default function SignUpPage() {
     setSuccess(null);
 
     // This simply creates the user in auth.users.
-    // A database trigger will create the corresponding profile row.
+    // A database trigger (handle_new_user) will create the corresponding profile row.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
