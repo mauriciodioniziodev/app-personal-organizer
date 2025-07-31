@@ -62,35 +62,45 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    const { data: authUsersData, error: usersError } = await supabase.auth.admin.listUsers();
-
-    if (usersError) {
-        console.error("Error fetching users:", usersError);
-        throw new Error("Não foi possível buscar a lista de usuários. Verifique as permissões de administrador.");
-    }
-    
-    const users = authUsersData.users;
-
+    // 1. Fetch all profiles from the public.profiles table
     const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`*`);
 
-     if (profilesError) {
+    if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
         return [];
     }
 
-    const profileMap = new Map(profiles.map(p => [p.id, p]));
+    if (!profiles || profiles.length === 0) {
+        return [];
+    }
 
-    return users.map(user => {
-        const profile = profileMap.get(user.id);
-        return {
-            id: user.id,
-            fullName: profile?.full_name || 'N/A', // Read from our profiles table
-            status: profile?.status || 'pending',
-            email: user.email
-        }
-    }).filter(u => u.email); // Filter out users without email if any
+    // 2. Get the user IDs from the fetched profiles
+    const userIds = profiles.map(p => p.id);
+
+    // 3. Fetch the corresponding users from auth.users to get their emails
+    // This is secure as we are only fetching users whose profiles are already public/visible.
+    const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, email')
+        .in('id', userIds);
+    
+    if (usersError) {
+        console.error("Error fetching user emails:", usersError);
+        // Continue with profiles but emails will be missing
+    }
+
+    // 4. Create a map for quick email lookup
+    const emailMap = new Map(users?.map(u => [u.id, u.email]) || []);
+
+    // 5. Combine the data
+    return profiles.map(profile => ({
+        id: profile.id,
+        fullName: profile.full_name,
+        status: profile.status,
+        email: emailMap.get(profile.id) || 'E-mail não encontrado'
+    }));
 };
 
 
@@ -817,3 +827,5 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
         throw new Error("Não foi possível remover a opção.");
     }
 }
+
+    
