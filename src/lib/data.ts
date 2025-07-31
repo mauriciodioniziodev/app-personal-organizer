@@ -98,12 +98,16 @@ export const getProjects = async (): Promise<Project[]> => {
             });
 
         return { 
-            ...p,
+            id: p.id,
+            created_at: p.created_at,
             clientId: p.client_id,
             visitId: p.visit_id,
+            name: p.name,
+            description: p.description,
             startDate: p.start_date,
             endDate: p.end_date,
             status: getProjectExecutionStatus(p),
+            value: p.value,
             discountPercentage: p.discount_percentage,
             discountAmount: p.discount_amount,
             finalValue: p.final_value,
@@ -148,12 +152,16 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 
 
     return { 
-        ...p,
+        id: p.id,
+        created_at: p.created_at,
         clientId: p.client_id,
         visitId: p.visit_id,
+        name: p.name,
+        description: p.description,
         startDate: p.start_date,
         endDate: p.end_date,
         status: getProjectExecutionStatus(p),
+        value: p.value,
         discountPercentage: p.discount_percentage,
         discountAmount: p.discount_amount,
         finalValue: p.final_value,
