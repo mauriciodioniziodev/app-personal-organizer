@@ -60,8 +60,8 @@ const emailNotificationFlow = ai.defineFlow(
     console.log(`--- SIMULATING EMAIL NOTIFICATION ---`);
     console.log(`To: ${ADMIN_EMAIL}`);
     
-    const { output } = await emailPrompt(input);
-    const emailContent = output || '';
+    const response = await emailPrompt(input);
+    const emailContent = response.text;
 
     console.log(emailContent);
     console.log(`------------------------------------`);
