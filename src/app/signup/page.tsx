@@ -13,7 +13,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
 import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
-import { createProfileForNewUser } from '@/lib/data';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -30,10 +29,16 @@ export default function SignUpPage() {
     setError(null);
     setSuccess(null);
 
-    // This simply creates the user in auth.users. 
+    // This simply creates the user in auth.users.
+    // A database trigger will create the corresponding profile row.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        }
+      }
     });
 
     if (signUpError) {
@@ -52,16 +57,6 @@ export default function SignUpPage() {
         return;
     }
     
-    try {
-        // Explicitly create the profile after auth user is created
-        await createProfileForNewUser(user.id, fullName);
-    } catch (profileError) {
-        setError("O usuário foi criado, mas houve um erro ao criar o perfil. Entre em contato com o suporte.");
-        setLoading(false);
-        return;
-    }
-
-
     // Notify admin that a new user has signed up
     try {
         await notifyAdminOfNewUser({ userName: fullName });
