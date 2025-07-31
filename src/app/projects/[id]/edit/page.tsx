@@ -259,6 +259,7 @@ export default function ProjectEditPage() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
   const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
@@ -294,61 +295,63 @@ export default function ProjectEditPage() {
     fetchProjectData();
   }, [id, router, toast]);
 
+  const updateCalculatedValues = (projectToUpdate: Project | null) => {
+    if (!projectToUpdate) return;
+  
+    let finalProject = { ...projectToUpdate };
+  
+    // Recalculate financial values
+    if (finalProject.paymentMethod === 'vista') {
+      finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
+    } else {
+      finalProject.discountPercentage = 0;
+      finalProject.discountAmount = 0;
+    }
+    finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
+  
+    // Recalculate payments
+    if (finalProject.paymentMethod === 'vista') {
+      finalProject.payments = [{
+        id: finalProject.payments[0]?.id || uuidv4(),
+        project_id: finalProject.id,
+        amount: finalProject.finalValue,
+        status: finalProject.payments[0]?.status || 'pendente',
+        dueDate: finalProject.endDate,
+        description: "Pagamento Único"
+      }];
+    } else {
+      const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
+      const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
+      finalProject.payments = [
+        {
+          id: finalProject.payments[0]?.id || uuidv4(),
+          project_id: finalProject.id,
+          amount: firstInstallmentValue,
+          status: finalProject.payments[0]?.status || 'pendente',
+          dueDate: finalProject.startDate,
+          description: '1ª Parcela (Entrada)'
+        },
+        {
+          id: finalProject.payments[1]?.id || uuidv4(),
+          project_id: finalProject.id,
+          amount: secondInstallmentValue,
+          status: finalProject.payments[1]?.status || 'pendente',
+          dueDate: finalProject.endDate,
+          description: '2ª Parcela (Conclusão)'
+        }
+      ];
+    }
+  
+    finalProject.paymentStatus = getPaymentStatus(finalProject.payments);
+    setProject(finalProject);
+  };
+  
+  // Update calculated values when dependencies change
   useEffect(() => {
-    if (!project) return;
-    updateProjectState(project);
+    updateCalculatedValues(project);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
 
-
-  const updateProjectState = (updatedProject: Project) => {
-    let finalProject = { ...updatedProject };
-
-    // Recalculate financial values
-    if (finalProject.paymentMethod === 'vista') {
-        finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
-    } else {
-        finalProject.discountPercentage = 0;
-        finalProject.discountAmount = 0;
-    }
-    finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
-
-    // Recalculate payments
-    if (finalProject.paymentMethod === 'vista') {
-        finalProject.payments = [{
-            id: finalProject.payments[0]?.id || uuidv4(),
-            project_id: finalProject.id,
-            amount: finalProject.finalValue,
-            status: finalProject.payments[0]?.status || 'pendente',
-            dueDate: finalProject.endDate,
-            description: "Pagamento Único"
-        }];
-    } else {
-        const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
-        const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
-         finalProject.payments = [
-            {
-                id: finalProject.payments[0]?.id || uuidv4(),
-                project_id: finalProject.id,
-                amount: firstInstallmentValue,
-                status: finalProject.payments[0]?.status || 'pendente',
-                dueDate: finalProject.startDate,
-                description: '1ª Parcela (Entrada)'
-            },
-            {
-                id: finalProject.payments[1]?.id || uuidv4(),
-                project_id: finalProject.id,
-                amount: secondInstallmentValue,
-                status: finalProject.payments[1]?.status || 'pendente',
-                dueDate: finalProject.endDate,
-                description: '2ª Parcela (Conclusão)'
-            }
-        ]
-    }
-    
-    finalProject.paymentStatus = getPaymentStatus(finalProject.payments);
-    setProject(finalProject);
-  }
 
   const getPaymentStatus = (payments: Payment[]): string => {
     if (!payments || payments.length === 0) return 'pendente';
@@ -367,10 +370,11 @@ export default function ProjectEditPage() {
 
         setProject(prev => {
             if (!prev) return null;
+            const newPaymentStatus = getPaymentStatus(updatedPayments);
             return {
                 ...prev,
                 payments: updatedPayments,
-                paymentStatus: getPaymentStatus(updatedPayments),
+                paymentStatus: newPaymentStatus,
             };
         });
         
@@ -380,14 +384,14 @@ export default function ProjectEditPage() {
 
   const proceedToSubmit = async () => {
     if (!project) return;
-    setLoading(true);
+    setIsSubmitting(true);
     setErrors({});
 
     const validationResult = projectSchema.safeParse(project);
 
     if (!validationResult.success) {
       setErrors(validationResult.error.flatten().fieldErrors);
-      setLoading(false);
+      setIsSubmitting(false);
       toast({ variant: 'destructive', title: "Erro de Validação", description: "Verifique os campos do formulário."});
       console.log(validationResult.error.flatten().fieldErrors);
       return;
@@ -403,7 +407,7 @@ export default function ProjectEditPage() {
         toast({ variant: 'destructive', title: "Erro", description: errorMessage});
         console.error(error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -416,7 +420,7 @@ export default function ProjectEditPage() {
         if (conflict) {
             setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${formatDate(conflict.startDate)} a ${formatDate(conflict.endDate)}.`);
             setIsConflictAlertOpen(true);
-            setPendingSubmit(() => proceedToSubmit); // Store the submit action
+            setPendingSubmit(() => () => proceedToSubmit()); // Store the submit action
             return; // Stop execution until user confirms
         }
         await proceedToSubmit();
@@ -434,13 +438,13 @@ export default function ProjectEditPage() {
     }
   };
   
-  if (!project) {
+  if (loading || !project) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
   
   const handleGenericChange = (field: keyof Project, value: any) => {
       if (!project) return;
-      setProject({ ...project, [field]: value });
+      setProject(prev => prev ? { ...prev, [field]: value } : null);
   }
 
   return (
@@ -623,8 +627,8 @@ export default function ProjectEditPage() {
       </Card>
       
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="submit" disabled={loading}>
-                 {loading ? (
+            <Button type="submit" disabled={isSubmitting}>
+                 {isSubmitting ? (
                     <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
                 ) : (
                     <><Save className="mr-2 h-4 w-4"/> Salvar Alterações</>
@@ -669,3 +673,4 @@ export default function ProjectEditPage() {
     </div>
   );
 }
+

@@ -631,7 +631,7 @@ export const updateProject = async (project: Project) => {
         description: p.description
     }));
 
-    const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
+    const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert, { onConflict: 'id' });
     
     if(paymentsError) {
         console.error("Error upserting payments:", paymentsError);
@@ -797,3 +797,4 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
