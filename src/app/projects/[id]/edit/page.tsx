@@ -258,7 +258,7 @@ export default function ProjectEditPage() {
   const { toast } = useToast();
   
   const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
@@ -342,7 +342,15 @@ export default function ProjectEditPage() {
       ];
     }
   
-    finalProject.paymentStatus = getPaymentStatus(finalProject.payments);
+    const paidCount = finalProject.payments.filter(p => p.status === 'pago').length;
+    if (paidCount === 0) {
+      finalProject.paymentStatus = 'pendente';
+    } else if (paidCount === finalProject.payments.length) {
+      finalProject.paymentStatus = 'pago';
+    } else {
+      finalProject.paymentStatus = 'parcialmente pago';
+    }
+    
     setProject(finalProject);
   };
   
@@ -351,25 +359,16 @@ export default function ProjectEditPage() {
     updateCalculatedValues(project);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
-
-
-  const getPaymentStatus = (payments: Payment[]): string => {
-    if (!payments || payments.length === 0) return 'pendente';
-    const paidCount = payments.filter(p => p.status === 'pago').length;
-    if (paidCount === 0) return 'pendente';
-    if (paidCount === payments.length) return 'pago';
-    return 'parcialmente pago';
-  };
   
   const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     
-    // Create the updated project state first to avoid race conditions
     const updatedPayments = project.payments.map(p =>
         p.id === paymentId ? { ...p, status } : p
     );
 
-    const newPaymentStatus = getPaymentStatus(updatedPayments);
+    const paidCount = updatedPayments.filter(p => p.status === 'pago').length;
+    const newPaymentStatus = paidCount === 0 ? 'pendente' : (paidCount === updatedPayments.length ? 'pago' : 'parcialmente pago');
 
     const updatedProjectState: Project = {
         ...project,
@@ -377,18 +376,16 @@ export default function ProjectEditPage() {
         paymentStatus: newPaymentStatus,
     };
     
-    // Optimistically update UI
     setProject(updatedProjectState);
 
     try {
-        // Persist the changes to the database
         await updateProject(updatedProjectState);
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);
         toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração. A página será recarregada."});
-        // Revert to original state on error
-        setProject(project); 
+        const originalProject = await getProjectById(project.id);
+        if(originalProject) setProject(originalProject);
     }
   };
 

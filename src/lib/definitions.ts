@@ -26,15 +26,15 @@ export type Project = {
   id: string;
   created_at: string;
   clientId: string;
-  visitId: string; // Projeto pode ser originado de uma visita
+  visitId: string | null;
   name: string;
-  description: string;
+  description: string | null;
   status: string; // 'A iniciar', 'Em andamento', 'Pausado', 'Atrasado', 'Concluído', 'Cancelado'
   startDate: string;
   endDate: string;
   value: number; // Valor original
-  discountPercentage: number;
-  discountAmount: number;
+  discountPercentage: number | null;
+  discountAmount: number | null;
   finalValue: number; // Valor com desconto
   paymentMethod: 'vista' | 'parcelado';
   paymentInstrument: string;

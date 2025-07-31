@@ -594,7 +594,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
     return newProject;
 };
 
-export const updateProject = async (project: Project) => {
+export const updateProject = async (project: Project): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
 
     const dbProjectData = {
