@@ -10,7 +10,7 @@ import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit } from 'lucide-react';
+import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit, ArrowLeft } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -296,8 +296,14 @@ export default function VisitDetailsPage() {
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title={!client ? "Carregando Visita..." : `Visita: ${client.name}`}>
-                 <Link href={`/visits/${visit.id}/edit`}>
+                 <Link href="/visits">
                     <Button variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Voltar
+                    </Button>
+                </Link>
+                 <Link href={`/visits/${visit.id}/edit`}>
+                    <Button>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar Visita
                     </Button>

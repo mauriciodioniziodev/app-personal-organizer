@@ -6,7 +6,7 @@ import { notFound, useParams } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -26,11 +26,13 @@ export default function ProjectDetailsPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [visit, setVisit] = useState<Visit | null>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     if (!id) return;
     
     const fetchProjectData = async () => {
+        setLoading(true);
         const projectData = await getProjectById(id);
         if (projectData) {
           setProject(projectData);
@@ -41,12 +43,13 @@ export default function ProjectDetailsPage() {
         } else {
           notFound();
         }
+        setLoading(false);
     };
     
     fetchProjectData();
   }, [id]);
 
-  if (!project || !client) {
+  if (loading || !project || !client) {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
 
@@ -103,8 +106,11 @@ export default function ProjectDetailsPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={project.name}>
+          <Link href="/projects">
+            <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+          </Link>
           <Link href={`/projects/${project.id}/edit`}>
-            <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
+            <Button><Edit className="mr-2 h-4 w-4" /> Editar Projeto</Button>
           </Link>
       </PageHeader>
       
@@ -224,4 +230,3 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
-

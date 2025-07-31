@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 
 const paymentSchema = z.object({
   id: z.string(),
+  project_id: z.string(),
   amount: z.coerce.number().min(0, "O valor da parcela deve ser positivo."),
   status: z.enum(['pendente', 'pago']),
   dueDate: z.string().min(1, "Data de vencimento é obrigatória."),
@@ -295,6 +296,7 @@ export default function ProjectEditPage() {
         if (finalProject.paymentMethod === 'vista') {
             finalProject.payments = [{
                 id: finalProject.payments[0]?.id || uuidv4(),
+                project_id: finalProject.id,
                 amount: finalProject.finalValue,
                 status: finalProject.payments[0]?.status || 'pendente',
                 dueDate: finalProject.endDate,
@@ -306,6 +308,7 @@ export default function ProjectEditPage() {
              finalProject.payments = [
                 {
                     id: finalProject.payments[0]?.id || uuidv4(),
+                    project_id: finalProject.id,
                     amount: firstInstallmentValue,
                     status: finalProject.payments[0]?.status || 'pendente',
                     dueDate: finalProject.startDate,
@@ -313,6 +316,7 @@ export default function ProjectEditPage() {
                 },
                 {
                     id: finalProject.payments[1]?.id || uuidv4(),
+                    project_id: finalProject.id,
                     amount: secondInstallmentValue,
                     status: finalProject.payments[1]?.status || 'pendente',
                     dueDate: finalProject.endDate,
@@ -408,7 +412,11 @@ export default function ProjectEditPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader title={`Editar: ${project.name}`} />
+      <PageHeader title={`Editar: ${project.name}`} >
+        <Link href={`/projects/${id}`}>
+            <Button type="button" variant="outline"><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button>
+        </Link>
+      </PageHeader>
       
        <form ref={formRef} onSubmit={handleProjectSubmit}>
         <Card>
@@ -441,9 +449,6 @@ export default function ProjectEditPage() {
                 </div>
                 
                  <div className="flex justify-end gap-2 pt-4">
-                    <Link href={`/projects/${id}`}>
-                        <Button type="button" variant="outline">Voltar</Button>
-                    </Link>
                     <Button type="submit" disabled={loading}>
                          {loading ? (
                             <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
@@ -617,4 +622,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
