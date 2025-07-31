@@ -25,50 +25,31 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+    // A lógica de autenticação é simplificada.
+    // O onAuthStateChange no RootLayout será o único responsável por
+    // verificar o status do perfil e redirecionar o usuário.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (signInError) {
-      setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-      setLoading(false);
-      return;
-    }
-    
-    if (!user) {
-      setError('Ocorreu um erro desconhecido. Tente novamente.');
-      setLoading(false);
-      return;
-    }
-    
-    // Check user status from profiles table
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('status')
-        .eq('id', user.id)
-        .single();
-    
-    if (profileError || !profile) {
-        setError('Não foi possível verificar seu perfil. Entre em contato com o suporte.');
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-    }
-
-    if (profile.status !== 'authorized') {
-        let statusMessage = 'Sua conta está aguardando aprovação do administrador.';
-        if (profile.status === 'revoked') {
-            statusMessage = 'Seu acesso foi revogado. Entre em contato com o administrador.';
+        // A maioria dos erros de login se enquadra em 'Invalid login credentials'.
+        // Personalizamos a mensagem para ser mais clara ao usuário.
+        if (signInError.message.includes('Invalid login credentials')) {
+            setError('Credenciais inválidas. Verifique seu e-mail e senha.');
+        } else if (signInError.message.includes('Email not confirmed')) {
+             setError('Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.');
+        } else {
+            setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
         }
-        setError(statusMessage);
-        await supabase.auth.signOut();
         setLoading(false);
         return;
     }
-
-    // The onAuthStateChange listener in RootLayout will handle the redirect.
-    // We can optimistically push, but the listener is the source of truth.
+    
+    // Se o login for bem-sucedido, o listener no RootLayout cuidará do resto.
+    // Apenas redirecionamos para o dashboard. Se o usuário não for autorizado,
+    // o RootLayout o redirecionará de volta para o login.
     router.push('/');
   };
 
