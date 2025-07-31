@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity } from "lucide-react";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -263,9 +263,30 @@ export default function Dashboard() {
                             <Link href={`/projects/${project.id}`} className="block p-4 hover:bg-muted transition-colors">
                                 <p className="font-semibold text-lg">{project.name}</p>
                                 {client && (
-                                     <div className='flex items-center gap-2 text-sm text-muted-foreground mb-3'>
-                                        <User className="w-3 h-3"/>
-                                        <span>{client.name}</span>
+                                     <div className='flex items-center justify-between text-sm text-muted-foreground mb-3'>
+                                        <div className='flex items-center gap-2'>
+                                            <User className="w-3 h-3"/>
+                                            <span>{client.name}</span>
+                                        </div>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger onClick={(e) => e.preventDefault()}>
+                                                    <Contact className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <Phone className="w-3 h-3" />
+                                                            <span>{client.phone}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin className="w-3 h-3" />
+                                                            <span>{client.address}</span>
+                                                        </div>
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 )}
 
@@ -286,7 +307,7 @@ export default function Dashboard() {
                                 
                                 <div className="text-sm mt-3 pt-3 border-t">
                                      <p className="text-muted-foreground">
-                                        Prazo: <span className='font-medium text-foreground'>{new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}</span>
+                                        Prazo: <span className='font-medium text-foreground'>{formatDate(project.startDate)} - {formatDate(project.endDate)}</span>
                                     </p>
                                 </div>
                             </Link>
@@ -360,3 +381,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+    
