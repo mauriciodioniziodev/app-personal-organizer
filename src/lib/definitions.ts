@@ -29,7 +29,7 @@ export type Project = {
   visitId: string | null;
   name: string;
   description: string | null;
-  status: string; // 'A iniciar', 'Em andamento', 'Pausado', 'Atrasado', 'Concluído', 'Cancelado'
+  status: string;
   startDate: string;
   endDate: string;
   value: number; // Valor original
@@ -92,4 +92,9 @@ export type MasterDataItem = {
     created_at: string;
 }
 
-
+export type UserProfile = {
+    id: string;
+    fullName: string;
+    status: 'pending' | 'authorized' | 'revoked';
+    email?: string; // transient property, not stored in 'profiles' table but joined from 'auth.users'
+}
