@@ -142,7 +142,7 @@ function NewProjectPageContent() {
     const startDate = formData.get("startDate") as string;
     const endDate = formData.get("endDate") as string;
     
-    let payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] = [];
+    let payments: Omit<Payment, 'id' | 'createdAt' | 'project_id'>[] = [];
 
     if(paymentMethod === 'vista') {
         payments.push({

@@ -437,7 +437,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'paymentStatu
       description: projectCoreData.description,
       start_date: projectCoreData.startDate,
       end_date: projectCoreData.endDate,
-      // status field is not sent
+      status: projectCoreData.status,
       value: projectCoreData.value,
       discount_percentage: projectCoreData.discountPercentage,
       discount_amount: projectCoreData.discountAmount,
@@ -500,7 +500,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
         visit_id: project.visitId,
         name: project.name,
         description: project.description,
-        // status is not updated as it likely doesn't exist in the DB
+        status: project.status,
         start_date: project.startDate,
         end_date: project.endDate,
         value: project.value,
@@ -696,4 +696,5 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? toCamelCase(data[0]) as Project : null;
 }
+
 
