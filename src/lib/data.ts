@@ -537,7 +537,6 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
       final_value: projectCoreData.finalValue,
       payment_method: projectCoreData.paymentMethod,
       payment_instrument: projectCoreData.paymentInstrument,
-      payment_status: getProjectPaymentStatus(projectData.payments as Payment[]),
       photos_before: [],
       photos_after: [],
     };
@@ -604,7 +603,6 @@ export const updateProject = async (project: Project) => {
         final_value: project.finalValue,
         payment_method: project.paymentMethod,
         payment_instrument: project.paymentInstrument,
-        payment_status: project.paymentStatus,
         photos_before: project.photosBefore || [],
         photos_after: project.photosAfter || [],
     };
@@ -628,7 +626,7 @@ export const updateProject = async (project: Project) => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate, // Correctly map from camelCase to snake_case
+        due_date: p.dueDate,
         description: p.description
     }));
     
