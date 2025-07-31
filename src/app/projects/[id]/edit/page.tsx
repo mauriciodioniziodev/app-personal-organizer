@@ -59,6 +59,7 @@ const projectSchema = z.object({
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
 }).refine(data => {
+    if (!data.payments) return true;
     const totalPayments = data.payments.reduce((sum, p) => sum + p.amount, 0);
     // Allow for small floating point discrepancies
     return Math.abs(totalPayments - data.finalValue) < 0.01;
@@ -350,9 +351,11 @@ export default function ProjectEditPage() {
   
   const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
         if (!project) return;
+        
         const updatedPayments = project.payments.map(p =>
             p.id === paymentId ? { ...p, status } : p
         );
+
         const newPaymentStatus = getPaymentStatus(updatedPayments);
 
         setProject(prev => {
@@ -363,6 +366,7 @@ export default function ProjectEditPage() {
                 paymentStatus: newPaymentStatus,
             };
         });
+        
         toast({ title: "Status do Pagamento Alterado!", description: "Clique em 'Salvar Alterações' para confirmar." });
     };
 
@@ -595,7 +599,7 @@ export default function ProjectEditPage() {
               <CardDescription>Marque as parcelas como pagas assim que o pagamento for confirmado.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-              {project.payments.map((payment, index) => (
+              {project.payments && project.payments.map((payment, index) => (
                   <div key={payment.id} className={cn("p-4 rounded-lg border flex items-center justify-between", payment.status === 'pago' ? 'bg-green-50 border-green-200' : '')}>
                       <div className="flex items-center gap-4">
                         <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", payment.status === 'pago' ? 'bg-green-100 text-green-700' : 'bg-muted')}>

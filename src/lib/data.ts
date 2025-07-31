@@ -624,7 +624,7 @@ export const updateProject = async (project: Project) => {
     // 2. Upsert payments (update existing, insert new)
     const paymentsToUpsert = project.payments.map(p => ({
         id: p.id,
-        project_id: project.id, // Ensure project_id is included
+        project_id: project.id,
         amount: p.amount,
         status: p.status,
         due_date: p.dueDate,
