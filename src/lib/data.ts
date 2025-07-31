@@ -65,7 +65,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     // 1. Fetch all profiles from the public.profiles table
     const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`*`);
+        .select(`id, full_name, status, email`);
 
     if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
@@ -76,30 +76,11 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         return [];
     }
 
-    // 2. Get the user IDs from the fetched profiles
-    const userIds = profiles.map(p => p.id);
-
-    // 3. Fetch the corresponding users from auth.users to get their emails
-    // This is secure as we are only fetching users whose profiles are already public/visible.
-    const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id, email')
-        .in('id', userIds);
-    
-    if (usersError) {
-        console.error("Error fetching user emails:", usersError);
-        // Continue with profiles but emails will be missing
-    }
-
-    // 4. Create a map for quick email lookup
-    const emailMap = new Map(users?.map(u => [u.id, u.email]) || []);
-
-    // 5. Combine the data
     return profiles.map(profile => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: emailMap.get(profile.id) || 'E-mail não encontrado'
+        email: profile.email || 'E-mail não disponível' // Fallback for email
     }));
 };
 

@@ -34,7 +34,13 @@ export function UserNav() {
             .select('*')
             .eq('id', user.id)
             .single();
-        setProfile(userProfile as UserProfile);
+        if (userProfile) {
+            setProfile({
+                ...userProfile,
+                fullName: userProfile.full_name,
+                email: user.email || userProfile.email // Prioritize auth email
+            } as UserProfile);
+        }
       }
     };
     fetchUserData();
@@ -59,6 +65,7 @@ export function UserNav() {
   }
   
   const fullName = profile.fullName;
+  const email = profile.email;
 
   return (
     <DropdownMenu>
@@ -75,7 +82,7 @@ export function UserNav() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{fullName || 'Usuário'}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {email}
             </p>
           </div>
         </DropdownMenuLabel>

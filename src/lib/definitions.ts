@@ -96,5 +96,5 @@ export type UserProfile = {
     id: string;
     status: 'pending' | 'authorized' | 'revoked';
     fullName: string;
-    email?: string; // transient property, not stored in 'profiles' table but joined from 'auth.users'
+    email: string; // Now included from the profiles table
 }
