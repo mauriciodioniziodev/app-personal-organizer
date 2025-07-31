@@ -589,25 +589,24 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
 
 export const updateProject = async (project: Project) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
-    const { payments, photosBefore, photosAfter, ...coreProjectData } = project;
     
     const dbProjectData = {
-        client_id: coreProjectData.clientId,
-        visit_id: coreProjectData.visitId,
-        name: coreProjectData.name,
-        description: coreProjectData.description,
-        start_date: coreProjectData.startDate,
-        end_date: coreProjectData.endDate,
-        status: coreProjectData.status,
-        value: coreProjectData.value,
-        discount_percentage: coreProjectData.discountPercentage,
-        discount_amount: coreProjectData.discountAmount,
-        final_value: coreProjectData.finalValue,
-        payment_method: coreProjectData.paymentMethod,
-        payment_instrument: coreProjectData.paymentInstrument,
+        client_id: project.clientId,
+        visit_id: project.visitId,
+        name: project.name,
+        description: project.description,
+        start_date: project.startDate,
+        end_date: project.endDate,
+        status: project.status,
+        value: project.value,
+        discount_percentage: project.discountPercentage,
+        discount_amount: project.discountAmount,
+        final_value: project.finalValue,
+        payment_method: project.paymentMethod,
+        payment_instrument: project.paymentInstrument,
         payment_status: project.paymentStatus,
-        photos_before: photosBefore,
-        photos_after: photosAfter,
+        photos_before: project.photosBefore,
+        photos_after: project.photosAfter,
     };
     
     // 1. Update the core project data
@@ -623,9 +622,9 @@ export const updateProject = async (project: Project) => {
     }
 
     // 2. Upsert payments (update existing, insert new)
-    const paymentsToUpsert = payments.map(p => ({
+    const paymentsToUpsert = project.payments.map(p => ({
         id: p.id,
-        project_id: project.id,
+        project_id: p.project_id,
         amount: p.amount,
         status: p.status,
         due_date: p.dueDate,
@@ -798,12 +797,3 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
-
-
-
-
-
-
-
-
-    
