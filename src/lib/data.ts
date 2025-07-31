@@ -443,7 +443,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'paymentStatus'>) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'paymentStatus' | 'createdAt'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
@@ -547,8 +547,9 @@ export const updateProject = async (project: Project): Promise<Project> => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate,
-        description: p.description
+        due_date: p.dueDate, // Correctly map from camelCase to snake_case
+        description: p.description,
+        created_at: p.createdAt,
     }));
     
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert, { onConflict: 'id' });
