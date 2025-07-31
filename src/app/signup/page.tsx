@@ -29,7 +29,8 @@ export default function SignUpPage() {
     setError(null);
     setSuccess(null);
 
-    // This simply creates the user in auth.users. The Supabase trigger will create the profile.
+    // This simply creates the user in auth.users. 
+    // The Supabase trigger (handle_new_user) will create the corresponding profile.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -41,7 +42,11 @@ export default function SignUpPage() {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      if (signUpError.message.includes("User already registered")) {
+        setError("Este e-mail já está cadastrado. Tente fazer login.");
+      } else {
+        setError(signUpError.message);
+      }
       setLoading(false);
       return;
     }
@@ -56,7 +61,8 @@ export default function SignUpPage() {
     try {
         await notifyAdminOfNewUser({ userName: fullName });
         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
-        await supabase.auth.signOut(); // Log out user until they are approved
+        // Don't sign out here, let the user see the success message.
+        // The layout guard will prevent them from navigating away.
     } catch (notificationError) {
         console.error("Failed to send admin notification email, but user was created:", notificationError);
         // Don't block user creation if email fails, show a slightly different message

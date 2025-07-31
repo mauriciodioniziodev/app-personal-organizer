@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { LoaderCircle } from "lucide-react";
 import LoginPage from "./login/page";
 import Header from "@/components/header";
+import type { Session } from "@supabase/supabase-js";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -25,61 +26,65 @@ const alegreya = Alegreya({
   variable: "--font-alegreya",
 });
 
-const metadata: Metadata = {
-  title: "Amanda Martins",
-  description: "Organização personalizada",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const getSession = async () => {
+    const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-         setLoading(false);
-         if (pathname !== '/signup') {
-            router.push('/login');
-         }
-         return;
-      }
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('status')
-        .eq('id', session.user.id)
-        .single();
-      
-      if (profile?.status === 'authorized') {
-        setSession(session);
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('status')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile?.status === 'authorized') {
+          setSession(session);
+        } else {
+          // If user is logged in but not authorized, log them out and clear session state
+          await supabase.auth.signOut();
+          setSession(null);
+        }
       } else {
-         await supabase.auth.signOut();
-         if (pathname !== '/signup') {
-            router.push('/login');
-         }
+        setSession(null);
       }
       setLoading(false);
-    }
-    
-    getSession();
+    };
+
+    checkUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (session) {
-            getSession();
+        setLoading(true); // Set loading while we re-check the new auth state
+         if (session) {
+            const checkProfile = async () => {
+                 const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('status')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                 if (profile?.status === 'authorized') {
+                    setSession(session);
+                } else {
+                    await supabase.auth.signOut();
+                    setSession(null);
+                }
+                setLoading(false);
+            }
+            checkProfile();
         } else {
-          setSession(null);
-          if (pathname !== '/login' && pathname !== '/signup') {
-            router.push('/login');
-          }
+            setSession(null);
+            setLoading(false);
         }
       }
     );
@@ -87,7 +92,20 @@ export default function RootLayout({
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [pathname, router]);
+  }, []);
+
+  useEffect(() => {
+    if (loading) return; // Wait until the auth check is complete
+
+    const isAuthPage = pathname === '/login' || pathname === '/signup';
+
+    if (!session && !isAuthPage) {
+      router.push('/login');
+    } else if (session && isAuthPage) {
+      router.push('/');
+    }
+  }, [session, pathname, loading, router]);
+
 
   if (loading) {
      return (
@@ -102,14 +120,24 @@ export default function RootLayout({
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   if (!session && !isAuthPage) {
-     // This case should be handled by the useEffect redirect, but as a fallback
-     return (
+      // Show loading or a blank page while redirecting
+      return (
         <html lang="en" suppressHydrationWarning>
-            <body className="bg-background">
-                <LoginPage />
+            <body className="flex items-center justify-center h-screen bg-background">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
             </body>
         </html>
      )
+  }
+  
+  if (!session && isAuthPage) {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className="bg-background">
+                {children}
+            </body>
+        </html>
+    )
   }
 
 
@@ -130,11 +158,11 @@ export default function RootLayout({
           alegreya.variable
         )}
       >
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-screen bg-background"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
             <div className="flex min-h-screen">
-                {!isAuthPage && <Sidebar />}
+                <Sidebar />
                 <div className="flex flex-col flex-1">
-                  {!isAuthPage && <Header />}
+                  <Header />
                   <main className="w-full flex-1 flex-col p-4 sm:p-6 md:p-8">
                       {children}
                   </main>

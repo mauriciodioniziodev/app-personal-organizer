@@ -25,7 +25,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -36,8 +36,39 @@ export default function LoginPage() {
       return;
     }
     
+    if (!user) {
+      setError('Ocorreu um erro desconhecido. Tente novamente.');
+      setLoading(false);
+      return;
+    }
+    
+    // Check user status from profiles table
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', user.id)
+        .single();
+    
+    if (profileError || !profile) {
+        setError('Não foi possível verificar seu perfil. Entre em contato com o suporte.');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+    }
+
+    if (profile.status !== 'authorized') {
+        let statusMessage = 'Sua conta está aguardando aprovação do administrador.';
+        if (profile.status === 'revoked') {
+            statusMessage = 'Seu acesso foi revogado. Entre em contato com o administrador.';
+        }
+        setError(statusMessage);
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+    }
+
     // The onAuthStateChange listener in RootLayout will handle the redirect.
-    // However, we can push optimistically.
+    // We can optimistically push, but the listener is the source of truth.
     router.push('/');
   };
 
@@ -84,7 +115,7 @@ export default function LoginPage() {
               </div>
               {error && (
                 <Alert variant="destructive">
-                  <AlertTitle>Erro no Login</AlertTitle>
+                  <AlertTitle>Acesso Negado</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
