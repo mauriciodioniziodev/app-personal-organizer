@@ -139,9 +139,12 @@ export const updateProfileStatus = async (userId: string, status: 'authorized' |
 
 export const createProfileForNewUser = async (userId: string, fullName: string) => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-     const { data, error } = await supabase.from('profiles').insert([
+    // Insert the new profile. We don't use .select() here because RLS might prevent
+    // the new user from reading the row immediately after creation, causing an error.
+    // The function will throw if the insert fails, which is what we want.
+    const { error } = await supabase.from('profiles').insert([
         { id: userId, full_name: fullName, status: 'pending' },
-    ]).select().single();
+    ]);
 
     if (error) {
         console.error('Error creating profile:', error);
@@ -156,7 +159,9 @@ export const createProfileForNewUser = async (userId: string, fullName: string) 
         // Don't block user creation if email fails
     }
 
-    return data;
+    // Since we can't return the created data, we return nothing on success.
+    // The calling function should handle this.
+    return;
 }
 
 
