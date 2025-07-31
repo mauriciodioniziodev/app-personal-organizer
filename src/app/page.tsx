@@ -261,38 +261,34 @@ export default function Dashboard() {
                         return (
                         <li key={project.id}>
                             <Link href={`/projects/${project.id}`} className="block p-4 hover:bg-muted transition-colors">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <p className="font-semibold">{project.name}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
-                                        </p>
+                                <p className="font-semibold text-lg">{project.name}</p>
+                                {client && (
+                                     <div className='flex items-center gap-2 text-sm text-muted-foreground mb-3'>
+                                        <User className="w-3 h-3"/>
+                                        <span>{client.name}</span>
                                     </div>
-                                    <div className='flex flex-col gap-1 items-end'>
-                                        <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p className="font-medium text-muted-foreground">Status do Projeto</p>
+                                        <Badge variant={'outline'} className={cn("capitalize mt-1", executionStatusColors[project.status] ?? 'border-border')}>
                                             {project.status}
                                         </Badge>
-                                        <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-muted-foreground">Status Financeiro</p>
+                                        <Badge variant={'outline'} className={cn("capitalize mt-1", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                                             {project.paymentStatus}
                                         </Badge>
                                     </div>
                                 </div>
-                                {client && (
-                                     <div className='space-y-1 text-sm text-muted-foreground border-t pt-2'>
-                                        <div className='flex items-center gap-2 font-medium text-foreground'>
-                                            <User className="w-3 h-3"/>
-                                            <span>{client.name}</span>
-                                        </div>
-                                        <div className='flex items-center gap-2'>
-                                            <Phone className="w-3 h-3"/>
-                                            <span>{client.phone}</span>
-                                        </div>
-                                        <div className='flex items-center gap-2'>
-                                            <MapPin className="w-3 h-3"/>
-                                            <span className='truncate'>{client.address}</span>
-                                        </div>
-                                    </div>
-                                )}
+                                
+                                <div className="text-sm mt-3 pt-3 border-t">
+                                     <p className="text-muted-foreground">
+                                        Prazo: <span className='font-medium text-foreground'>{new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}</span>
+                                    </p>
+                                </div>
                             </Link>
                         </li>
                      )
