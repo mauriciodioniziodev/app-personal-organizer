@@ -1,5 +1,7 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import * as XLSX from 'xlsx';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -38,4 +40,11 @@ export function formatDateTimeForInput(isoDate: string | null | undefined): stri
         console.error("Error formatting date for input:", e);
         return '';
     }
+}
+
+export function exportToExcel(data: any[], fileName: string) {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
+    XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
