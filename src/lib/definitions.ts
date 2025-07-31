@@ -96,5 +96,5 @@ export type UserProfile = {
     id: string;
     status: 'pending' | 'authorized' | 'revoked';
     fullName: string;
-    email: string; // Now included from the profiles table
+    email: string;
 }

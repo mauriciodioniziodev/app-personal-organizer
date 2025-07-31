@@ -172,6 +172,9 @@ function UserManagementCard() {
                             </div>
                         </li>
                     ))}
+                     {profiles.length === 0 && (
+                        <p className="text-muted-foreground text-center py-4">Nenhum usuário pendente ou cadastrado.</p>
+                    )}
                 </ul>
             </CardContent>
         </Card>
