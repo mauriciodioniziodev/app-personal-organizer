@@ -16,22 +16,17 @@ import { supabase } from "@/lib/supabaseClient";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
 export function UserNav() {
-  const [user, setUser] = useState<{ email: string; fullName: string | null } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single();
-        
-        setUser({ email: user.email || '', fullName: profile?.full_name || null });
+        setUser(user);
       }
     };
     fetchUser();
@@ -42,7 +37,7 @@ export function UserNav() {
     router.push('/login');
   };
   
-  const getInitials = (name: string | null) => {
+  const getInitials = (name: string | undefined) => {
     if (!name) return 'U';
     const names = name.split(' ');
     if (names.length > 1) {
@@ -54,21 +49,23 @@ export function UserNav() {
   if (!user) {
     return null;
   }
+  
+  const fullName = user.user_metadata?.full_name;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src="/avatars/01.png" alt="@shadcn" />
-            <AvatarFallback>{getInitials(user.fullName)}</AvatarFallback>
+            <AvatarImage src="/avatars/01.png" alt={fullName || ''} />
+            <AvatarFallback>{getInitials(fullName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.fullName || 'Usuário'}</p>
+            <p className="text-sm font-medium leading-none">{fullName || 'Usuário'}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>

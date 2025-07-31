@@ -2,7 +2,6 @@
 
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile } from './definitions';
 import { supabase } from './supabaseClient';
-import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
 
 // --- Helper Functions ---
 
@@ -60,41 +59,17 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 
 // --- User Authentication and Management ---
 
-export const getUser = async () => {
-    if (!supabase) return null;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data: profile, error } = await supabase
-        .from('profiles')
-        .select(`*`)
-        .eq('id', user.id)
-        .single();
-    
-    if (error) {
-        console.error("Error fetching user profile:", error);
-        return null;
-    }
-
-    return {
-        ...user,
-        ...profile,
-        email: user.email, // Ensure email from auth is present
-    } as UserProfile & { email: string };
-};
-
-
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    const { data: authUsers, error: usersError } = await supabase.auth.admin.listUsers();
+    const { data: authUsersData, error: usersError } = await supabase.auth.admin.listUsers();
 
     if (usersError) {
         console.error("Error fetching users:", usersError);
         throw new Error("Não foi possível buscar a lista de usuários. Verifique as permissões de administrador.");
     }
     
-    const users = authUsers.users;
+    const users = authUsersData.users;
 
     const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -111,7 +86,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         const profile = profileMap.get(user.id);
         return {
             id: user.id,
-            fullName: profile?.full_name || 'N/A',
+            fullName: user.user_metadata?.full_name || 'N/A',
             status: profile?.status || 'pending',
             email: user.email
         }
