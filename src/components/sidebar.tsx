@@ -9,19 +9,50 @@ import { cn } from "@/lib/utils";
 import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "./ui/button";
+import type { UserProfile } from "@/lib/definitions";
+import { useEffect, useState } from "react";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/clients", label: "Clientes", icon: Users },
-  { href: "/visits", label: "Visitas", icon: CalendarClock },
-  { href: "/projects", label: "Projetos", icon: FolderKanban },
-  { href: "/financeiro", label: "Financeiro", icon: Wallet },
-  { href: "/reports", label: "Relatórios", icon: FilePieChart },
-  { href: "/admin", label: "Administração", icon: Settings },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, role: ['administrador', 'usuario'] },
+  { href: "/clients", label: "Clientes", icon: Users, role: ['administrador', 'usuario'] },
+  { href: "/visits", label: "Visitas", icon: CalendarClock, role: ['administrador', 'usuario'] },
+  { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
+  { href: "/financeiro", label: "Financeiro", icon: Wallet, role: ['administrador', 'usuario'] },
+  { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
+  { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+     const fetchProfile = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data: userProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+            setProfile(toCamelCase(userProfile));
+        }
+     }
+     fetchProfile();
+  }, []);
+  
+  const toCamelCase = (obj: any): any => {
+    if (!obj) return null;
+    return Object.keys(obj).reduce(
+        (result, key) => {
+            const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
+            result[camelKey] = obj[key];
+            return result;
+        },
+        {} as any
+    );
+  };
+
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-card border-r">
@@ -44,7 +75,9 @@ export default function Sidebar() {
       <nav className="flex-1 px-4">
         <ul className="space-y-2">
           {navItems.map((item) => (
-            <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} />
+            (profile && item.role.includes(profile.role)) && (
+               <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} />
+            )
           ))}
         </ul>
       </nav>

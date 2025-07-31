@@ -78,24 +78,25 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: profile.email || 'E-mail não disponível'
+        email: profile.email || 'E-mail não disponível',
+        role: profile.role || 'usuario'
     }));
 };
 
 
-export const updateProfileStatus = async (userId: string, status: 'authorized' | 'revoked'): Promise<UserProfile> => {
+export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
     const { data, error } = await supabase
         .from('profiles')
-        .update({ status: status })
+        .update(updates)
         .eq('id', userId)
         .select()
         .single();
 
     if (error) {
-        console.error("Error updating profile status:", error);
-        throw new Error("Não foi possível atualizar o status do usuário.");
+        console.error("Error updating profile:", error);
+        throw new Error("Não foi possível atualizar o perfil do usuário.");
     }
 
     return toCamelCase(data);

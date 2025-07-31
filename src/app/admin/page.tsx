@@ -12,12 +12,14 @@ import {
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    getProfiles, updateProfileStatus
+    getProfiles, updateProfile
 } from "@/lib/data";
 import type { MasterDataItem, UserProfile } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function MasterDataCard<T extends MasterDataItem>({
     title,
@@ -100,10 +102,13 @@ function UserManagementCard() {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     const fetchProfiles = async () => {
         setLoading(true);
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            setCurrentUserId(user?.id || null);
             const profilesData = await getProfiles();
             setProfiles(profilesData);
         } catch (error) {
@@ -119,8 +124,18 @@ function UserManagementCard() {
 
     const handleStatusChange = async (userId: string, newStatus: 'authorized' | 'revoked') => {
         try {
-            await updateProfileStatus(userId, newStatus);
+            await updateProfile(userId, { status: newStatus });
             toast({ title: 'Sucesso!', description: 'Status do usuário atualizado.' });
+            fetchProfiles(); // Refresh the list
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        }
+    };
+    
+    const handleRoleChange = async (userId: string, newRole: 'administrador' | 'usuario') => {
+         try {
+            await updateProfile(userId, { role: newRole });
+            toast({ title: 'Sucesso!', description: 'Perfil do usuário atualizado.' });
             fetchProfiles(); // Refresh the list
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
@@ -132,13 +147,19 @@ function UserManagementCard() {
         authorized: 'bg-green-100 text-green-800',
         revoked: 'bg-red-100 text-red-800',
     };
+    
+    const roleBadge: Record<string, string> = {
+        administrador: 'bg-purple-100 text-purple-800',
+        usuario: 'bg-blue-100 text-blue-800',
+    };
+
 
     if (loading) {
         return (
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline flex items-center gap-2"><Users /> Gerenciamento de Usuários</CardTitle>
-                    <CardDescription>Autorize ou revogue o acesso dos usuários ao sistema.</CardDescription>
+                    <CardDescription>Autorize ou revogue o acesso e defina os perfis dos usuários ao sistema.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-24">
                     <LoaderCircle className="w-6 h-6 animate-spin" />
@@ -151,27 +172,47 @@ function UserManagementCard() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2"><Users /> Gerenciamento de Usuários</CardTitle>
-                <CardDescription>Autorize ou revogue o acesso dos usuários ao sistema.</CardDescription>
+                <CardDescription>Autorize ou revogue o acesso e defina os perfis dos usuários ao sistema.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-3">
-                    {profiles.map(profile => (
+                    {profiles.map(profile => {
+                        const isCurrentUser = profile.id === currentUserId;
+                        return (
                         <li key={profile.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
                             <div className="flex-grow">
                                 <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
                                 <p className="text-sm text-muted-foreground">{profile.email}</p>
-                                <Badge className={cn("capitalize mt-1", statusBadge[profile.status] || '')}>{profile.status}</Badge>
+                                <div className="flex gap-2 mt-2">
+                                    <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
+                                    <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>
+                                </div>
                             </div>
-                            <div className="flex gap-2 shrink-0">
-                                <Button size="sm" variant="outline" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized'}>
-                                    <Check className="mr-2 h-4 w-4"/> Autorizar
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleStatusChange(profile.id, 'revoked')} disabled={profile.status === 'revoked'}>
-                                    <X className="mr-2 h-4 w-4"/> Revogar
-                                </Button>
+                            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                <Select 
+                                    value={profile.role} 
+                                    onValueChange={(v) => handleRoleChange(profile.id, v as any)}
+                                    disabled={isCurrentUser}
+                                >
+                                    <SelectTrigger className="w-full sm:w-[150px]">
+                                        <SelectValue placeholder="Alterar Perfil" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="administrador">Administrador</SelectItem>
+                                        <SelectItem value="usuario">Usuário</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="flex gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized' || isCurrentUser}>
+                                        <Check className="mr-2 h-4 w-4"/> Autorizar
+                                    </Button>
+                                    <Button size="sm" variant="destructive" onClick={() => handleStatusChange(profile.id, 'revoked')} disabled={profile.status === 'revoked' || isCurrentUser}>
+                                        <X className="mr-2 h-4 w-4"/> Revogar
+                                    </Button>
+                                </div>
                             </div>
                         </li>
-                    ))}
+                    )})}
                      {profiles.length === 0 && (
                         <p className="text-muted-foreground text-center py-4">Nenhum usuário pendente ou cadastrado.</p>
                     )}

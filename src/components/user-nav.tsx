@@ -36,9 +36,11 @@ export function UserNav() {
             .single();
         if (userProfile) {
             setProfile({
-                ...userProfile,
+                id: userProfile.id,
                 fullName: userProfile.full_name,
-                email: user.email || userProfile.email // Prioritize auth email
+                email: user.email || '',
+                status: userProfile.status,
+                role: userProfile.role,
             } as UserProfile);
         }
       }

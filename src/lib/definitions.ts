@@ -95,6 +95,7 @@ export type MasterDataItem = {
 export type UserProfile = {
     id: string;
     status: 'pending' | 'authorized' | 'revoked';
+    role: 'administrador' | 'usuario';
     fullName: string;
     email: string;
 }
