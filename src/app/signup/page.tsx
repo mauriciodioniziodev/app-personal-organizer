@@ -13,6 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
 import { createProfileForNewUser } from '@/lib/data';
+import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -48,8 +49,17 @@ export default function SignUpPage() {
     }
 
     try {
-        // Create profile in public.profiles and send notification
+        // Create profile in public.profiles
         await createProfileForNewUser(user.id, fullName);
+
+        // Notify admin that a new user has signed up
+        try {
+            await notifyAdminOfNewUser({ userName: fullName });
+        } catch (notificationError) {
+            console.error("Failed to send admin notification email, but user was created:", notificationError);
+            // Don't block user creation if email fails
+        }
+        
         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
         await supabase.auth.signOut(); // Log out user until they are approved
     } catch (profileError) {
