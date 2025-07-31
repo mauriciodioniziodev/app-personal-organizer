@@ -39,7 +39,7 @@ const paymentSchema = z.object({
 const projectSchema = z.object({
     id: z.string(),
     clientId: z.string(),
-    visitId: z.string().optional(),
+    visitId: z.string().optional().nullable(),
     name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
     description: z.string().optional(),
     status: z.string(),
@@ -53,6 +53,8 @@ const projectSchema = z.object({
     paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
     payments: z.array(paymentSchema),
     paymentStatus: z.string(),
+    photosBefore: z.array(z.any()).optional(),
+    photosAfter: z.array(z.any()).optional(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
@@ -346,25 +348,20 @@ export default function ProjectEditPage() {
     return 'parcialmente pago';
   };
   
-  const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
+  const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     const updatedPayments = project.payments.map(p => p.id === paymentId ? {...p, status} : p);
-    
     const newPaymentStatus = getPaymentStatus(updatedPayments);
 
-    const updatedProjectData: Project = {
-        ...project, 
-        payments: updatedPayments,
-        paymentStatus: newPaymentStatus
-    };
-    
-    try {
-        const updated = await updateProject(updatedProjectData);
-        setProject(updated);
-        toast({ title: "Status do Pagamento Atualizado!"});
-    } catch(e) {
-        toast({variant: 'destructive', title: "Erro", description: "Não foi possível atualizar o pagamento."})
-    }
+    setProject(prev => {
+        if (!prev) return null;
+        return {
+            ...prev,
+            payments: updatedPayments,
+            paymentStatus: newPaymentStatus
+        }
+    });
+    toast({ title: "Status do Pagamento Alterado!", description: "Clique em 'Salvar Alterações' para confirmar." });
   }
 
 
@@ -380,6 +377,8 @@ export default function ProjectEditPage() {
     if (!validationResult.success) {
       setErrors(validationResult.error.flatten().fieldErrors);
       setLoading(false);
+      toast({ variant: 'destructive', title: "Erro de Validação", description: "Verifique os campos do formulário."});
+      console.log(validationResult.error.flatten().fieldErrors);
       return;
     }
 
@@ -388,7 +387,9 @@ export default function ProjectEditPage() {
       setProject(updated); 
       toast({ title: "Projeto Atualizado!", description: "As alterações no projeto foram salvas." });
     } catch (error) {
-      toast({ variant: 'destructive', title: "Erro", description: "Falha ao atualizar o projeto."});
+        const errorMessage = (error as Error).message || "Falha ao atualizar o projeto.";
+        toast({ variant: 'destructive', title: "Erro", description: errorMessage});
+        console.error(error);
     } finally {
       setLoading(false);
     }
@@ -487,19 +488,8 @@ export default function ProjectEditPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                
-                 <div className="flex justify-end gap-2 pt-4">
-                    <Button type="submit" disabled={loading}>
-                         {loading ? (
-                            <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
-                        ) : (
-                            <><Save className="mr-2 h-4 w-4"/> Salvar Alterações</>
-                        )}
-                    </Button>
-                </div>
             </CardContent>
         </Card>
-      </form>
       
        <Card>
         <CardHeader>
@@ -625,6 +615,17 @@ export default function ProjectEditPage() {
               ))}
           </CardContent>
       </Card>
+      
+        <div className="flex justify-end gap-2 pt-4">
+            <Button type="submit" disabled={loading}>
+                 {loading ? (
+                    <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                ) : (
+                    <><Save className="mr-2 h-4 w-4"/> Salvar Alterações</>
+                )}
+            </Button>
+        </div>
+    </form>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <PhotoUploader project={project} photoType="before" onPhotoAdded={setProject} />
@@ -662,5 +663,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
-    
