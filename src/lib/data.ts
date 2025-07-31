@@ -589,7 +589,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
 
 export const updateProject = async (project: Project) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
-    
+
     const dbProjectData = {
         client_id: project.clientId,
         visit_id: project.visitId,
@@ -610,7 +610,8 @@ export const updateProject = async (project: Project) => {
     };
     
     // 1. Update the core project data
-    const { data: updatedProject, error: projectError } = await supabase.from('projects')
+    const { data: updatedProjectData, error: projectError } = await supabase
+        .from('projects')
         .update(dbProjectData)
         .eq('id', project.id)
         .select()
@@ -627,10 +628,10 @@ export const updateProject = async (project: Project) => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate,
+        due_date: p.dueDate, // Correctly map from camelCase to snake_case
         description: p.description
     }));
-
+    
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert, { onConflict: 'id' });
     
     if(paymentsError) {
@@ -797,4 +798,3 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
-
