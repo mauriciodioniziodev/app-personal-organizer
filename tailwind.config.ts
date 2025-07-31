@@ -14,6 +14,9 @@ export default {
     'text-green-800', 'bg-green-100',
     'text-red-800', 'bg-red-100',
     'text-blue-800', 'bg-blue-100',
+    'text-cyan-800', 'bg-cyan-100',
+    'text-orange-800', 'bg-orange-100',
+    'text-gray-800', 'bg-gray-100',
   ],
   theme: {
     extend: {
@@ -104,3 +107,5 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+
+    

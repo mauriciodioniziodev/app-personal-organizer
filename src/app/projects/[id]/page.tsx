@@ -6,7 +6,7 @@ import { notFound, useParams } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard, ArrowLeft } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard, ArrowLeft, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -102,6 +102,15 @@ export default function ProjectDetailsPage() {
       pendente: 'text-yellow-800 bg-yellow-100',
       'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
+  
+    const executionStatusColors: { [key: string]: string } = {
+      'A iniciar': 'text-cyan-800 bg-cyan-100',
+      'Em andamento': 'text-blue-800 bg-blue-100',
+      'Pausado': 'text-orange-800 bg-orange-100',
+      'Atrasado': 'text-red-800 bg-red-100',
+      'Concluído': 'text-green-800 bg-green-100',
+      'Cancelado': 'text-gray-800 bg-gray-100',
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -124,6 +133,15 @@ export default function ProjectDetailsPage() {
                     <p className="text-muted-foreground">{project.description || "Nenhuma descrição para este projeto."}</p>
                     <Separator/>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="flex items-center gap-3">
+                            <Activity className="w-6 h-6 text-accent" />
+                            <div>
+                                <p className="text-sm font-semibold">Status do Projeto</p>
+                                <Badge variant={'outline'} className={cn("capitalize mt-1", executionStatusColors[project.status] ?? 'border-border')}>
+                                    {project.status}
+                                </Badge>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-3">
                             <User className="w-6 h-6 text-accent" />
                             <div>
@@ -184,7 +202,7 @@ export default function ProjectDetailsPage() {
                   <CardContent className="space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-md border">
                           <div>
-                              <p className="text-sm text-muted-foreground">Status Geral</p>
+                              <p className="text-sm text-muted-foreground">Status do Pagamento</p>
                               <Badge variant={'outline'} className={cn("capitalize mt-1", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                                   {project.paymentStatus}
                               </Badge>
@@ -230,3 +248,5 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
+
+    

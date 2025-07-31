@@ -15,6 +15,22 @@ const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     return 'parcialmente pago';
 }
 
+const getProjectExecutionStatus = (p: { start_date: string, end_date: string, status: string }): string => {
+    // If status was manually set, respect it.
+    if (p.status && !['A iniciar', 'Em andamento', 'Concluído'].includes(p.status)) {
+        return p.status;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(p.start_date);
+    const endDate = new Date(p.end_date);
+
+    if (endDate < today) return 'Concluído';
+    if (startDate > today) return 'A iniciar';
+    return 'Em andamento';
+}
+
 // --- Data Access Functions ---
 
 export const getClients = async (): Promise<Client[]> => {
@@ -87,6 +103,7 @@ export const getProjects = async (): Promise<Project[]> => {
             visitId: p.visit_id,
             startDate: p.start_date,
             endDate: p.end_date,
+            status: getProjectExecutionStatus(p),
             discountPercentage: p.discount_percentage,
             discountAmount: p.discount_amount,
             finalValue: p.final_value,
@@ -136,6 +153,7 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
         visitId: p.visit_id,
         startDate: p.start_date,
         endDate: p.end_date,
+        status: getProjectExecutionStatus(p),
         discountPercentage: p.discount_percentage,
         discountAmount: p.discount_amount,
         finalValue: p.final_value,
@@ -512,6 +530,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
       description: projectCoreData.description,
       start_date: projectCoreData.startDate,
       end_date: projectCoreData.endDate,
+      status: projectCoreData.status,
       value: projectCoreData.value,
       discount_percentage: projectCoreData.discountPercentage,
       discount_amount: projectCoreData.discountAmount,
@@ -578,6 +597,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
         description: coreProjectData.description,
         start_date: coreProjectData.startDate,
         end_date: coreProjectData.endDate,
+        status: coreProjectData.status,
         value: coreProjectData.value,
         discount_percentage: coreProjectData.discountPercentage,
         discount_amount: coreProjectData.discountAmount,
@@ -603,7 +623,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
     // 2. Upsert payments (update existing, insert new)
     const paymentsToUpsert = payments.map(p => ({
         id: p.id,
-        project_id: project.id, // Explicitly add project_id
+        project_id: project.id,
         amount: p.amount,
         status: p.status,
         due_date: p.dueDate,
@@ -782,3 +802,6 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
 
 
+
+
+    

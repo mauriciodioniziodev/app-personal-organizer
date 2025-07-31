@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent, ArrowLeft } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, AlertCircle, Percent, ArrowLeft, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
@@ -42,6 +42,7 @@ const projectSchema = z.object({
     visitId: z.string().optional(),
     name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
     description: z.string().optional(),
+    status: z.string(),
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
@@ -235,6 +236,15 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
       </Card>
     );
 }
+
+const projectStatusOptions = [
+    "A iniciar",
+    "Em andamento",
+    "Pausado",
+    "Atrasado",
+    "Concluído",
+    "Cancelado"
+];
 
 
 export default function ProjectEditPage() {
@@ -447,6 +457,20 @@ export default function ProjectEditPage() {
                         {errors?.endDate && <p className="text-sm text-destructive">{errors.endDate[0]}</p>}
                     </div>
                 </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="status">Status do Projeto</Label>
+                     <Select name="status" value={project.status} onValueChange={(v) => handleGenericChange('status', v)}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status do projeto"/>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {projectStatusOptions.map(status => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 
                  <div className="flex justify-end gap-2 pt-4">
                     <Button type="submit" disabled={loading}>
@@ -622,3 +646,5 @@ export default function ProjectEditPage() {
     </div>
   );
 }
+
+    

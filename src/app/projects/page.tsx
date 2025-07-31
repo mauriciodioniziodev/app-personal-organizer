@@ -72,6 +72,15 @@ export default function ProjectsPage() {
       pendente: 'text-yellow-800 bg-yellow-100',
       'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
+
+  const executionStatusColors: { [key: string]: string } = {
+      'A iniciar': 'text-cyan-800 bg-cyan-100',
+      'Em andamento': 'text-blue-800 bg-blue-100',
+      'Pausado': 'text-orange-800 bg-orange-100',
+      'Atrasado': 'text-red-800 bg-red-100',
+      'Concluído': 'text-green-800 bg-green-100',
+      'Cancelado': 'text-gray-800 bg-gray-100',
+  }
   
    if (loading) {
      return (
@@ -164,11 +173,14 @@ export default function ProjectsPage() {
                     </div>
                     
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Valor:</span>
-                        <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</span>
+                        <span className="text-muted-foreground">Status do Projeto:</span>
+                         <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                            {project.status}
+                        </Badge>
                     </div>
+
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Status:</span>
+                        <span className="text-muted-foreground">Status do Pagamento:</span>
                          <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                             {project.paymentStatus}
                         </Badge>
@@ -204,3 +216,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+    

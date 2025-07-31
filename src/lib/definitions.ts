@@ -18,7 +18,7 @@ export type Payment = {
   project_id: string;
   amount: number;
   status: 'pendente' | 'pago';
-  due_date: string;
+  dueDate: string;
   description: string;
 }
 
@@ -29,6 +29,7 @@ export type Project = {
   visitId: string; // Projeto pode ser originado de uma visita
   name: string;
   description: string;
+  status: string; // 'A iniciar', 'Em andamento', 'Pausado', 'Atrasado', 'Concluído', 'Cancelado'
   startDate: string;
   endDate: string;
   value: number; // Valor original
@@ -90,3 +91,5 @@ export type MasterDataItem = {
     name: string;
     created_at: string;
 }
+
+    

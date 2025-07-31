@@ -35,6 +35,7 @@ const projectSchema = z.object({
     visitId: z.string().optional(),
     name: z.string().min(3, "O nome do projeto deve ter pelo menos 3 caracteres."),
     description: z.string().optional(),
+    status: z.string(),
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor bruto deve ser positivo."),
@@ -172,6 +173,7 @@ function NewProjectPageContent() {
         description: formData.get("description") as string,
         startDate: startDate,
         endDate: endDate,
+        status: 'A iniciar', // Default status
         value: value,
         discountPercentage: paymentMethod === 'vista' ? discountPercentage : 0,
         discountAmount: discountAmount,
@@ -474,3 +476,4 @@ export default function NewProjectPage() {
     )
 }
 
+    
