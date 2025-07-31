@@ -137,21 +137,6 @@ export const updateProfileStatus = async (userId: string, status: 'authorized' |
     return toCamelCase(data);
 };
 
-export const createProfileForNewUser = async (userId: string, fullName: string) => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
-    const { error } = await supabase.from('profiles').insert({
-        id: userId,
-        full_name: fullName,
-        status: 'pending'
-    });
-
-    if (error) {
-        console.error('Error creating profile:', error);
-        throw error;
-    }
-};
-
 
 // --- Data Access Functions ---
 
