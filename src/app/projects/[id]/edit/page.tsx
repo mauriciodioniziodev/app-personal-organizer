@@ -361,26 +361,35 @@ export default function ProjectEditPage() {
     return 'parcialmente pago';
   };
   
-  const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
+  const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     
-    setProject(prevProject => {
-        if (!prevProject) return null;
+    // Create the updated project state first to avoid race conditions
+    const updatedPayments = project.payments.map(p =>
+        p.id === paymentId ? { ...p, status } : p
+    );
 
-        const updatedPayments = prevProject.payments.map(p =>
-            p.id === paymentId ? { ...p, status } : p
-        );
+    const newPaymentStatus = getPaymentStatus(updatedPayments);
 
-        const newPaymentStatus = getPaymentStatus(updatedPayments);
-
-        return {
-            ...prevProject,
-            payments: updatedPayments,
-            paymentStatus: newPaymentStatus,
-        };
-    });
+    const updatedProjectState: Project = {
+        ...project,
+        payments: updatedPayments,
+        paymentStatus: newPaymentStatus,
+    };
     
-    toast({ title: "Status do Pagamento Alterado!", description: "Clique em 'Salvar Alterações' para confirmar." });
+    // Optimistically update UI
+    setProject(updatedProjectState);
+
+    try {
+        // Persist the changes to the database
+        await updateProject(updatedProjectState);
+        toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
+    } catch (error) {
+        console.error("Failed to update payment status:", error);
+        toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração. A página será recarregada."});
+        // Revert to original state on error
+        setProject(project); 
+    }
   };
 
 
