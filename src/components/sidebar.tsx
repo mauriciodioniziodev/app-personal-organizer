@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FileChart } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -13,7 +13,7 @@ const navItems = [
   { href: "/visits", label: "Visitas", icon: CalendarClock },
   { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/financeiro", label: "Financeiro", icon: Wallet },
-  { href: "/reports", label: "Relatórios", icon: FileChart },
+  { href: "/reports", label: "Relatórios", icon: FilePieChart },
   { href: "/admin", label: "Administração", icon: Settings },
 ];
 
