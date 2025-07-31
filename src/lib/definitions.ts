@@ -95,6 +95,6 @@ export type MasterDataItem = {
 export type UserProfile = {
     id: string;
     status: 'pending' | 'authorized' | 'revoked';
-    fullName?: string; // This is now read from auth metadata
+    fullName: string;
     email?: string; // transient property, not stored in 'profiles' table but joined from 'auth.users'
 }

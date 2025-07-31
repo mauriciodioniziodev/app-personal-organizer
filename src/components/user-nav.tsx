@@ -17,19 +17,27 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import type { UserProfile } from "@/lib/definitions";
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
+        const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+        setProfile(userProfile as UserProfile);
       }
     };
-    fetchUser();
+    fetchUserData();
   }, []);
 
   const handleLogout = async () => {
@@ -46,11 +54,11 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return null;
   }
   
-  const fullName = user.user_metadata?.full_name;
+  const fullName = profile.fullName;
 
   return (
     <DropdownMenu>

@@ -57,9 +57,8 @@ export default function SignUpPage() {
         return;
     }
     
+    // Since the database trigger now handles profile creation, we just need to notify the admin.
     try {
-        // The database trigger will handle profile creation.
-        // We just need to notify the admin.
         await notifyAdminOfNewUser({ userName: fullName });
         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
     } catch (notificationError: any) {

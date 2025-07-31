@@ -86,7 +86,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         const profile = profileMap.get(user.id);
         return {
             id: user.id,
-            fullName: user.user_metadata?.full_name || 'N/A',
+            fullName: profile?.full_name || 'N/A', // Read from our profiles table
             status: profile?.status || 'pending',
             email: user.email
         }
