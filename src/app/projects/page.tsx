@@ -180,7 +180,7 @@ export default function ProjectsPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Status do Pagamento:</span>
+                        <span className="text-muted-foreground">Status Financeiro:</span>
                          <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                             {project.paymentStatus}
                         </Badge>

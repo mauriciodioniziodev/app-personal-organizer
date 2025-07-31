@@ -38,8 +38,8 @@ export type Project = {
   finalValue: number; // Valor com desconto
   paymentMethod: 'vista' | 'parcelado';
   paymentInstrument: string;
-  payments: Payment[]; // Fetched separately
   paymentStatus: string; // 'pendente' | 'pago' | 'parcialmente pago' - Derivado dos pagamentos
+  payments: Payment[]; // Fetched separately
   photosBefore: Photo[];
   photosAfter: Photo[];
 };

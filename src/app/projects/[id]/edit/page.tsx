@@ -51,8 +51,8 @@ const projectSchema = z.object({
     finalValue: z.coerce.number().min(0),
     paymentMethod: z.enum(['vista', 'parcelado']),
     paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
-    payments: z.array(paymentSchema),
     paymentStatus: z.string(),
+    payments: z.array(paymentSchema),
     photosBefore: z.array(z.any()).optional(),
     photosAfter: z.array(z.any()).optional(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {

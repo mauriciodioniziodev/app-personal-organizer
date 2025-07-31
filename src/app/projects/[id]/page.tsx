@@ -202,7 +202,7 @@ export default function ProjectDetailsPage() {
                   <CardContent className="space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-md border">
                           <div>
-                              <p className="text-sm text-muted-foreground">Status do Pagamento</p>
+                              <p className="text-sm text-muted-foreground">Status Financeiro</p>
                               <Badge variant={'outline'} className={cn("capitalize mt-1", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
                                   {project.paymentStatus}
                               </Badge>

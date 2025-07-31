@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info } from "lucide-react";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -74,9 +74,18 @@ export default function Dashboard() {
       'parcialmente pago': 'text-blue-800 bg-blue-100',
   }
 
+  const executionStatusColors: { [key: string]: string } = {
+      'A iniciar': 'text-cyan-800 bg-cyan-100',
+      'Em andamento': 'text-blue-800 bg-blue-100',
+      'Pausado': 'text-orange-800 bg-orange-100',
+      'Atrasado': 'text-red-800 bg-red-100',
+      'Concluído': 'text-green-800 bg-green-100',
+      'Cancelado': 'text-gray-800 bg-gray-100',
+  }
+
   const scheduleIcons: { [key: string]: React.ReactNode } = {
       visit: <CalendarClock className="w-5 h-5 text-accent-foreground" />,
-      project: <FolderKanban className="w-5 h-5 text-accent-foreground" />,
+      project: <Activity className="w-5 h-5 text-accent-foreground" />,
   }
   
   if (loading) {
@@ -259,9 +268,14 @@ export default function Dashboard() {
                                             Prazo: {new Date(project.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC'})}
                                         </p>
                                     </div>
-                                    <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
-                                        {project.paymentStatus}
-                                    </Badge>
+                                    <div className='flex flex-col gap-1 items-end'>
+                                        <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                                            {project.status}
+                                        </Badge>
+                                        <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                            {project.paymentStatus}
+                                        </Badge>
+                                    </div>
                                 </div>
                                 {client && (
                                      <div className='space-y-1 text-sm text-muted-foreground border-t pt-2'>
@@ -350,4 +364,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
