@@ -363,8 +363,10 @@ export default function ProjectEditPage() {
   const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
 
+    let updatedProject: Project | null = null;
+    
     // Create a deep copy to avoid direct mutation
-    const updatedProjectState = JSON.parse(JSON.stringify(project));
+    const updatedProjectState = JSON.parse(JSON.stringify(project)) as Project;
 
     const payment = updatedProjectState.payments.find((p: Payment) => p.id === paymentId);
     if(payment) {
@@ -384,7 +386,8 @@ export default function ProjectEditPage() {
     setProject(updatedProjectState); // Optimistic UI update
 
     try {
-        await updateProject(updatedProjectState);
+        updatedProject = await updateProject(updatedProjectState);
+        setProject(updatedProject);
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);

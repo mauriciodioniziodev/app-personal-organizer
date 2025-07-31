@@ -574,7 +574,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate,
+        due_date: p.dueDate, // This key was causing the error
         description: p.description
     }));
     
