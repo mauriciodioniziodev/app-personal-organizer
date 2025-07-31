@@ -41,7 +41,7 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
         visitId: p_raw.visit_id,
         name: p_raw.name,
         description: p_raw.description,
-        status: p_raw.status,
+        status: p_raw.status ?? 'A iniciar', // Fallback for when column doesnt exist
         startDate: p_raw.start_date,
         endDate: p_raw.end_date,
         value: p_raw.value,
@@ -437,7 +437,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'paymentStatu
       description: projectCoreData.description,
       start_date: projectCoreData.startDate,
       end_date: projectCoreData.endDate,
-      status: 'A iniciar', // Default status on creation
+      // status field is not sent
       value: projectCoreData.value,
       discount_percentage: projectCoreData.discountPercentage,
       discount_amount: projectCoreData.discountAmount,
@@ -500,7 +500,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
         visit_id: project.visitId,
         name: project.name,
         description: project.description,
-        status: project.status,
+        // status is not updated as it likely doesn't exist in the DB
         start_date: project.startDate,
         end_date: project.endDate,
         value: project.value,
@@ -530,7 +530,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate, // Correctly map from camelCase to snake_case
+        due_date: p.dueDate,
         description: p.description,
         created_at: p.createdAt,
     }));
@@ -696,3 +696,4 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? toCamelCase(data[0]) as Project : null;
 }
+

@@ -91,3 +91,4 @@ export type MasterDataItem = {
     name: string;
     created_at: string;
 }
+
