@@ -62,46 +62,23 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    // 1. Fetch all profiles from the public.profiles table
-    const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`id, full_name, status`);
+    // Chama a função do banco de dados que busca perfis e e-mails de forma segura
+    const { data: profiles, error } = await supabase.rpc('get_all_user_profiles');
 
-    if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
+    if (error) {
+        console.error("Error fetching profiles with RPC:", error);
         return [];
     }
 
-    if (!profiles || profiles.length === 0) {
+    if (!profiles) {
         return [];
     }
-
-    // 2. Extract user IDs to fetch corresponding auth users
-    const userIds = profiles.map(p => p.id);
-
-    // 3. Fetch users from auth.users to get their emails
-    // THIS IS AN ADMIN ACTION AND REQUIRES SERVICE_ROLE KEY ON THE SERVER
-    // On the client-side, this will fail if RLS is not set up for auth.users
-    // A better approach for client-side is to fetch profiles and then if needed,
-    // have a secure way to get emails, but for an admin panel, this is common.
-    // Let's assume for now the RLS is what we fixed (authenticated users can read profiles)
-    // and that we can't read auth.users. Let's add the email to the profiles table.
-    // The user has already done this in a previous step by running the script.
-    // The previous error was that the `select` was wrong. It should be `id, full_name, status, email`
-    // Wait, the user removed the email column. Let's go back to joining.
-
-    // Let's rewrite this to be safe and fetch from a dedicated RPC or by joining.
-    // A simple join is not possible between `auth.users` and `public.profiles` with client API.
-    // Let's just fetch emails from the profiles table.
-    // The user has already run a script to create the table with the email column.
-    // Let's check the `definitions.ts` to see if `email` is in `UserProfile`.
-    // It is not. Let's add it. And query it.
     
     return profiles.map(profile => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: 'E-mail não disponível' // Placeholder, as we can't securely get emails client-side for all users
+        email: profile.email || 'E-mail não disponível'
     }));
 };
 
@@ -829,5 +806,7 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
         throw new Error("Não foi possível remover a opção.");
     }
 }
+
+    
 
     
