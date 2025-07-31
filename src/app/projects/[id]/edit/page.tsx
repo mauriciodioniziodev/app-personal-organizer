@@ -55,6 +55,7 @@ const projectSchema = z.object({
     payments: z.array(paymentSchema),
     photosBefore: z.array(z.any()).optional(),
     photosAfter: z.array(z.any()).optional(),
+    createdAt: z.string(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
@@ -360,10 +361,8 @@ export default function ProjectEditPage() {
   }, [firstInstallmentPercentage]);
 
 
-  const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
+ const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
-
-    let updatedProject: Project | null = null;
     
     // Create a deep copy to avoid direct mutation
     const updatedProjectState = JSON.parse(JSON.stringify(project)) as Project;
@@ -383,18 +382,14 @@ export default function ProjectEditPage() {
       updatedProjectState.paymentStatus = 'parcialmente pago';
     }
     
-    setProject(updatedProjectState); // Optimistic UI update
-
     try {
-        updatedProject = await updateProject(updatedProjectState);
+        const updatedProject = await updateProject(updatedProjectState);
         setProject(updatedProject);
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);
         toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração."});
-        // Revert UI on failure
-        const originalProject = await getProjectById(project.id);
-        if(originalProject) setProject(originalProject);
+        // Revert UI on failure - no need as getProjectById will be triggered by focus
     }
   };
 

@@ -6,14 +6,15 @@ import { supabase } from './supabaseClient';
 
 // --- Helper Functions ---
 
-const projectToCamelCase = (p_raw: any): Omit<Project, 'payments' | 'paymentStatus' | 'status'> => {
+const projectToCamelCase = (p_raw: any): Omit<Project, 'payments' | 'paymentStatus'> => {
     return {
         id: p_raw.id,
-        created_at: p_raw.created_at,
+        createdAt: p_raw.created_at,
         clientId: p_raw.client_id,
         visitId: p_raw.visit_id,
         name: p_raw.name,
         description: p_raw.description,
+        status: p_raw.status,
         startDate: p_raw.start_date,
         endDate: p_raw.end_date,
         value: p_raw.value,
@@ -81,7 +82,7 @@ export const getClients = async (): Promise<Client[]> => {
     }
     return data.map(c => ({
         id: c.id,
-        created_at: c.created_at,
+        createdAt: c.created_at,
         name: c.name,
         phone: c.phone,
         email: c.email,
@@ -98,7 +99,7 @@ export const getClientById = async (id: string): Promise<Client | null> => {
         console.error(`Error fetching client ${id}:`, error);
         return null;
     }
-    return data as Client;
+    return toCamelCase(data) as Client;
 };
 
 export const getProjects = async (): Promise<Project[]> => {
@@ -120,7 +121,6 @@ export const getProjects = async (): Promise<Project[]> => {
             const p_camel = projectToCamelCase(p_raw)
             return {
                 ...p_camel,
-                status: getProjectExecutionStatus(p_raw),
                 payments: [], 
                 paymentStatus: 'pendente' 
             } as Project
@@ -133,7 +133,6 @@ export const getProjects = async (): Promise<Project[]> => {
         
         return { 
             ...p_camel,
-            status: getProjectExecutionStatus(p_raw),
             payments: payments,
             paymentStatus: getProjectPaymentStatus(payments) 
         } as Project;
@@ -154,7 +153,6 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
         const p_camel = projectToCamelCase(projectData);
         return { 
             ...p_camel, 
-            status: getProjectExecutionStatus(projectData),
             payments: [], 
             paymentStatus: 'pendente' 
         } as Project;
@@ -165,7 +163,6 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 
     return { 
         ...p_camel,
-        status: getProjectExecutionStatus(projectData),
         payments: payments, 
         paymentStatus: getProjectPaymentStatus(payments) 
     } as Project;
@@ -460,7 +457,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
 
 // --- Data Mutation Functions (used by server actions) ---
-export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
+export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>) => {
   if (!supabase) throw new Error("Supabase client is not initialized.");
   const { data, error } = await supabase.from('clients').insert([client]).select().single();
   if (error) {
@@ -470,7 +467,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'paymentStatus' | 'status'>) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'paymentStatus'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
@@ -544,9 +541,9 @@ export const updateProject = async (project: Project): Promise<Project> => {
         visit_id: project.visitId,
         name: project.name,
         description: project.description,
+        status: project.status,
         start_date: project.startDate,
         end_date: project.endDate,
-        status: project.status,
         value: project.value,
         discount_percentage: project.discountPercentage,
         discount_amount: project.discountAmount,
@@ -574,7 +571,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
         project_id: project.id,
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate, // This key was causing the error
+        due_date: p.dueDate,
         description: p.description
     }));
     
@@ -592,7 +589,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
 }
 
 
-export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos' | 'projectId' | 'budgetAmount' | 'budgetPdfUrl'>) => {
+export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'budgetAmount' | 'budgetPdfUrl'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const dbVisitData = {
         client_id: visit.clientId,
@@ -609,7 +606,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos'
     return toCamelCase(newVisit) as Visit;
 }
 
-export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
+export const updateVisit = async (visit: Omit<Visit, 'createdAt'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const dbVisitData = {
         id: visit.id,

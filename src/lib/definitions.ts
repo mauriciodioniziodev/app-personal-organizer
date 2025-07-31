@@ -2,7 +2,7 @@
 
 export type Client = {
   id: string;
-  created_at: string;
+  createdAt: string;
   name: string;
   phone: string;
   email:string;
@@ -14,7 +14,7 @@ export type Client = {
 
 export type Payment = {
   id: string;
-  created_at?: string; // made optional
+  createdAt?: string; // made optional
   projectId: string;
   amount: number;
   status: 'pendente' | 'pago';
@@ -24,7 +24,7 @@ export type Payment = {
 
 export type Project = {
   id: string;
-  created_at: string;
+  createdAt: string;
   clientId: string;
   visitId: string | null;
   name: string;
@@ -46,7 +46,7 @@ export type Project = {
 
 export type Visit = {
   id: string;
-  created_at: string;
+  createdAt: string;
   clientId: string; // Visita pertence a um cliente
   projectId: string; // Projeto associado (pode ser vazio inicialmente)
   date: string;
