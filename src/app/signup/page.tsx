@@ -13,6 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
 import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
+import { createProfileForNewUser } from '@/lib/data';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -30,7 +31,6 @@ export default function SignUpPage() {
     setSuccess(null);
 
     // This simply creates the user in auth.users.
-    // A database trigger (handle_new_user) will create the corresponding profile row.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -57,16 +57,16 @@ export default function SignUpPage() {
         return;
     }
     
-    // Notify admin that a new user has signed up
     try {
+        // Explicitly create the profile after the user is created
+        await createProfileForNewUser(user.id, fullName);
+        
+        // Notify admin that a new user has signed up
         await notifyAdminOfNewUser({ userName: fullName });
         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
-        // Don't sign out here, let the user see the success message.
-        // The layout guard will prevent them from navigating away.
-    } catch (notificationError) {
-        console.error("Failed to send admin notification email, but user was created:", notificationError);
-        // Don't block user creation if email fails, show a slightly different message
-        setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação. Ocorreu um erro ao notificar o administrador, por favor entre em contato diretamente.');
+    } catch (profileError: any) {
+        console.error("Failed to create profile or send notification:", profileError);
+        setError("Ocorreu um erro ao finalizar seu cadastro. Por favor, entre em contato com o suporte.");
     } finally {
         setLoading(false);
     }
