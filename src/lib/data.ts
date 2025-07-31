@@ -67,7 +67,7 @@ export const getUser = async () => {
 
     const { data: profile, error } = await supabase
         .from('profiles')
-        .select(`*, user:auth.users(email)`)
+        .select(`*`)
         .eq('id', user.id)
         .single();
     
@@ -87,22 +87,38 @@ export const getUser = async () => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    const { data, error } = await supabase
-        .from('profiles')
-        .select(`*, user:auth.users(email)`);
+    // This requires service_role key to bypass RLS to fetch all users.
+    // For client-side fetching where service_role is not available,
+    // you would typically create a database function (RPC) with `security definer`
+    // and specific logic to allow admins to fetch user lists.
+    // For this app, we assume the admin context allows this call.
+    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
 
-    if (error) {
-        console.error("Error fetching profiles:", error);
+    if (usersError) {
+        console.error("Error fetching users:", usersError);
+        throw new Error("Não foi possível buscar a lista de usuários. Verifique as permissões de administrador.");
+    }
+
+    const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`*`);
+
+     if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
         return [];
     }
 
-    // Since the join is implicit, we need to map the result
-    return data.map((d: any) => ({
-        id: d.id,
-        fullName: d.full_name,
-        status: d.status,
-        email: d.user?.email || 'N/A' // Handle case where user might not be found in auth.users
-    }));
+    const profileMap = new Map(profiles.map(p => [p.id, p]));
+
+    return users.users.map(user => {
+        const profile = profileMap.get(user.id);
+        return {
+            id: user.id,
+            fullName: profile?.full_name || 'N/A',
+            status: profile?.status || 'pending',
+            email: user.email
+        }
+    });
 };
 
 export const updateProfileStatus = async (userId: string, status: 'authorized' | 'revoked'): Promise<UserProfile> => {
