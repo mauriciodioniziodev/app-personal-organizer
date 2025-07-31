@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects } from "@/lib/data";
-import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle } from "lucide-react";
+import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import type { Project, Client } from '@/lib/definitions';
@@ -95,6 +95,15 @@ export default function FinanceiroPage() {
       pago: 'text-green-800 bg-green-100',
       pendente: 'text-yellow-800 bg-yellow-100',
       'parcialmente pago': 'text-blue-800 bg-blue-100',
+  }
+
+  const executionStatusColors: { [key: string]: string } = {
+      'A iniciar': 'text-cyan-800 bg-cyan-100',
+      'Em andamento': 'text-blue-800 bg-blue-100',
+      'Pausado': 'text-orange-800 bg-orange-100',
+      'Atrasado': 'text-red-800 bg-red-100',
+      'Concluído': 'text-green-800 bg-green-100',
+      'Cancelado': 'text-gray-800 bg-gray-100',
   }
   
     if (loading) {
@@ -194,19 +203,31 @@ export default function FinanceiroPage() {
                         <li key={project.id}>
                             <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                    <div className="flex-grow">
+                                    <div className="flex-grow space-y-2">
                                         <p className="font-semibold">{project.name}</p>
                                         {client && (
-                                            <div className='flex items-center gap-2 mt-1 text-sm text-muted-foreground'>
-                                                <User className="w-3 h-3"/>
-                                                <span>{client.name}</span>
+                                            <div className='text-sm text-muted-foreground space-y-1'>
+                                                <div className='flex items-center gap-2'>
+                                                    <User className="w-3 h-3"/>
+                                                    <span className='font-medium text-foreground'>{client.name}</span>
+                                                </div>
+                                                 <div className='flex items-center gap-2'>
+                                                    <Phone className="w-3 h-3"/>
+                                                    <span>{client.phone}</span>
+                                                </div>
                                             </div>
                                         )}
-                                        <div className='flex items-center gap-2 mt-1 text-sm text-muted-foreground'>
+                                        <div className='flex items-center gap-2 text-sm text-muted-foreground'>
                                             <Calendar className="w-3 h-3"/>
-                                            <span>
-                                                Prazo: {formatDate(project.endDate)}
+                                            <span className='font-medium'>
+                                                {formatDate(project.startDate)} - {formatDate(project.endDate)}
                                             </span>
+                                        </div>
+                                         <div className='flex items-center gap-2 text-sm'>
+                                            <Activity className="w-3 h-3 text-muted-foreground"/>
+                                            <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                                                {project.status}
+                                            </Badge>
                                         </div>
                                     </div>
                                     <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
