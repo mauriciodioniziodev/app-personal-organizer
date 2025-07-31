@@ -537,6 +537,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
       final_value: projectCoreData.finalValue,
       payment_method: projectCoreData.paymentMethod,
       payment_instrument: projectCoreData.paymentInstrument,
+      payment_status: getProjectPaymentStatus(projectData.payments as Payment[]),
       photos_before: [],
       photos_after: [],
     };
@@ -586,7 +587,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
     return newProject;
 };
 
-export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => {
+export const updateProject = async (project: Project) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments, photosBefore, photosAfter, ...coreProjectData } = project;
     
@@ -604,6 +605,7 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
         final_value: coreProjectData.finalValue,
         payment_method: coreProjectData.paymentMethod,
         payment_instrument: coreProjectData.paymentInstrument,
+        payment_status: project.paymentStatus,
         photos_before: photosBefore,
         photos_after: photosAfter,
     };

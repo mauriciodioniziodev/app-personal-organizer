@@ -52,6 +52,7 @@ const projectSchema = z.object({
     paymentMethod: z.enum(['vista', 'parcelado']),
     paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
     payments: z.array(paymentSchema),
+    paymentStatus: z.string(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
@@ -336,11 +337,26 @@ export default function ProjectEditPage() {
         }
         setProject(finalProject);
   }
+
+  const getPaymentStatus = (payments: Payment[]): string => {
+    if (!payments || payments.length === 0) return 'pendente';
+    const paidCount = payments.filter(p => p.status === 'pago').length;
+    if (paidCount === 0) return 'pendente';
+    if (paidCount === payments.length) return 'pago';
+    return 'parcialmente pago';
+  };
   
   const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     const updatedPayments = project.payments.map(p => p.id === paymentId ? {...p, status} : p);
-    const updatedProjectData = {...project, payments: updatedPayments};
+    
+    const newPaymentStatus = getPaymentStatus(updatedPayments);
+
+    const updatedProjectData: Project = {
+        ...project, 
+        payments: updatedPayments,
+        paymentStatus: newPaymentStatus
+    };
     
     try {
         const updated = await updateProject(updatedProjectData);
