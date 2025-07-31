@@ -46,8 +46,8 @@ const projectSchema = z.object({
     startDate: z.string().min(1, "Data de início é obrigatória."),
     endDate: z.string().min(1, "Data de conclusão é obrigatória."),
     value: z.coerce.number().min(0, "O valor deve ser positivo."),
-    discountPercentage: z.coerce.number().min(0).optional(),
-    discountAmount: z.coerce.number().min(0).optional(),
+    discountPercentage: z.coerce.number().min(0).optional().nullable(),
+    discountAmount: z.coerce.number().min(0).optional().nullable(),
     finalValue: z.coerce.number().min(0),
     paymentMethod: z.enum(['vista', 'parcelado']),
     paymentInstrument: z.string().min(1, "O meio de pagamento é obrigatório."),
@@ -362,7 +362,7 @@ export default function ProjectEditPage() {
   
   const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
-    
+
     const updatedPayments = project.payments.map(p =>
         p.id === paymentId ? { ...p, status } : p
     );
@@ -370,20 +370,21 @@ export default function ProjectEditPage() {
     const paidCount = updatedPayments.filter(p => p.status === 'pago').length;
     const newPaymentStatus = paidCount === 0 ? 'pendente' : (paidCount === updatedPayments.length ? 'pago' : 'parcialmente pago');
 
-    const updatedProjectState: Project = {
+    const updatedProjectState = {
         ...project,
         payments: updatedPayments,
         paymentStatus: newPaymentStatus,
     };
     
-    setProject(updatedProjectState);
+    setProject(updatedProjectState); // Optimistic UI update
 
     try {
-        await updateProject(updatedProjectState);
+        await updateProject(updatedProjectState); // Persist changes immediately
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);
-        toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração. A página será recarregada."});
+        toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração."});
+        // Revert UI on failure
         const originalProject = await getProjectById(project.id);
         if(originalProject) setProject(originalProject);
     }

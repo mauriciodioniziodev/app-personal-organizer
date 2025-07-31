@@ -15,7 +15,7 @@ export type Client = {
 export type Payment = {
   id: string;
   created_at: string;
-  project_id: string;
+  projectId: string;
   amount: number;
   status: 'pendente' | 'pago';
   dueDate: string;
@@ -38,8 +38,8 @@ export type Project = {
   finalValue: number; // Valor com desconto
   paymentMethod: 'vista' | 'parcelado';
   paymentInstrument: string;
-  paymentStatus: string; // 'pendente' | 'pago' | 'parcialmente pago' - Derivado dos pagamentos
-  payments: Payment[]; // Fetched separately
+  paymentStatus: string; // Derivado dos pagamentos: 'pendente' | 'pago' | 'parcialmente pago'
+  payments: Payment[];
   photosBefore: Photo[];
   photosAfter: Photo[];
 };

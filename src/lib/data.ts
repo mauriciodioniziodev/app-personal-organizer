@@ -31,6 +31,22 @@ const getProjectExecutionStatus = (p: { start_date: string, end_date: string, st
     return 'Em andamento';
 }
 
+const toCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce(
+            (result, key) => {
+                const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
+                result[camelKey] = toCamelCase(obj[key]);
+                return result;
+            },
+            {} as any
+        );
+    }
+    return obj;
+};
+
 // --- Data Access Functions ---
 
 export const getClients = async (): Promise<Client[]> => {
@@ -77,44 +93,16 @@ export const getProjects = async (): Promise<Project[]> => {
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
         // Still return projects, but they will have empty payments
-        return projectsData.map(p => ({ ...p, payments: [], paymentStatus: 'pendente' } as Project));
+        return projectsData.map(p => ({ ...toCamelCase(p), payments: [], paymentStatus: 'pendente' } as Project));
     }
 
     return projectsData.map(p_raw => {
-        const p = p_raw as any; // Allow snake_case access
-        const payments = paymentsData
-            .filter(payment => payment.project_id === p.id)
-            .map(pay_raw => {
-                 const pay = pay_raw as any;
-                 return {
-                    id: pay.id,
-                    created_at: pay.created_at,
-                    project_id: pay.project_id,
-                    amount: pay.amount,
-                    status: pay.status,
-                    dueDate: pay.due_date,
-                    description: pay.description
-                 } as Payment
-            });
-
+        const p = toCamelCase(p_raw) as any; 
+        const payments = toCamelCase(paymentsData?.filter(payment => payment.project_id === p.id) || []) as Payment[];
+        
         return { 
-            id: p.id,
-            created_at: p.created_at,
-            clientId: p.client_id,
-            visitId: p.visit_id,
-            name: p.name,
-            description: p.description,
-            startDate: p.start_date,
-            endDate: p.end_date,
-            status: getProjectExecutionStatus(p),
-            value: p.value,
-            discountPercentage: p.discount_percentage,
-            discountAmount: p.discount_amount,
-            finalValue: p.final_value,
-            paymentMethod: p.payment_method,
-            paymentInstrument: p.payment_instrument,
-            photosBefore: p.photos_before,
-            photosAfter: p.photos_after,
+            ...p,
+            status: getProjectExecutionStatus(p_raw),
             payments: payments,
             paymentStatus: getProjectPaymentStatus(payments) 
         } as Project;
@@ -132,45 +120,17 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('project_id', id);
     if (paymentsError) {
         console.error(`Error fetching payments for project ${id}:`, paymentsError);
-        // Return project data even if payments fail
-        return { ...projectData, payments: [], paymentStatus: 'pendente' } as Project;
+        return { ...toCamelCase(projectData), payments: [], paymentStatus: 'pendente' } as Project;
     }
     
-    const p = projectData as any;
-    const payments = paymentsData.map(pay_raw => {
-        const pay = pay_raw as any;
-        return {
-           id: pay.id,
-           created_at: pay.created_at,
-           project_id: pay.project_id,
-           amount: pay.amount,
-           status: pay.status,
-           dueDate: pay.due_date,
-           description: pay.description
-        } as Payment
-   });
-
+    const p = toCamelCase(projectData) as any;
+    const payments = toCamelCase(paymentsData || []) as Payment[];
 
     return { 
-        id: p.id,
-        created_at: p.created_at,
-        clientId: p.client_id,
-        visitId: p.visit_id,
-        name: p.name,
-        description: p.description,
-        startDate: p.start_date,
-        endDate: p.end_date,
-        status: getProjectExecutionStatus(p),
-        value: p.value,
-        discountPercentage: p.discount_percentage,
-        discountAmount: p.discount_amount,
-        finalValue: p.final_value,
-        paymentMethod: p.payment_method,
-        paymentInstrument: p.payment_instrument,
-        photosBefore: p.photos_before,
-        photosAfter: p.photos_after,
-        payments: payments as Payment[], 
-        paymentStatus: getProjectPaymentStatus(payments as Payment[]) 
+        ...p,
+        status: getProjectExecutionStatus(projectData),
+        payments: payments, 
+        paymentStatus: getProjectPaymentStatus(payments) 
     } as Project;
 };
 
@@ -187,21 +147,7 @@ export const getVisits = async (): Promise<Visit[]> => {
         console.error("Error fetching visits:", error);
         return [];
     }
-    return data.map(v_raw => {
-        const v = v_raw as any;
-        return {
-            id: v.id,
-            created_at: v.created_at,
-            clientId: v.client_id,
-            projectId: v.project_id,
-            date: v.date,
-            status: v.status,
-            summary: v.summary,
-            photos: v.photos,
-            budgetAmount: v.budget_amount,
-            budgetPdfUrl: v.budget_pdf_url,
-        } as Visit
-    });
+    return data.map(v_raw => toCamelCase(v_raw) as Visit);
 };
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
@@ -210,19 +156,7 @@ export const getVisitById = async (id: string): Promise<Visit | null> => {
         console.error(`Error fetching visit ${id}:`, error);
         return null;
     }
-    const v = data as any;
-    return {
-        id: v.id,
-        created_at: v.created_at,
-        clientId: v.client_id,
-        projectId: v.project_id,
-        date: v.date,
-        status: v.status,
-        summary: v.summary,
-        photos: v.photos,
-        budgetAmount: v.budget_amount,
-        budgetPdfUrl: v.budget_pdf_url,
-    } as Visit
+    return toCamelCase(data) as Visit;
 };
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
     if (!supabase) return [];
@@ -231,21 +165,7 @@ export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> =>
         console.error(`Error fetching visits for client ${clientId}:`, error);
         return [];
     }
-    return data.map(v_raw => {
-        const v = v_raw as any;
-        return {
-            id: v.id,
-            created_at: v.created_at,
-            clientId: v.client_id,
-            projectId: v.project_id,
-            date: v.date,
-            status: v.status,
-            summary: v.summary,
-            photos: v.photos,
-            budgetAmount: v.budget_amount,
-            budgetPdfUrl: v.budget_pdf_url,
-        } as Visit
-    });
+    return data.map(v_raw => toCamelCase(v_raw) as Visit);
 };
 
 // --- Dynamic Master Data Functions ---
@@ -387,21 +307,7 @@ export const getUpcomingVisits = async () => {
         console.error("Error fetching upcoming visits:", error);
         return [];
     }
-    return data.map(v_raw => {
-        const v = v_raw as any;
-        return {
-            id: v.id,
-            created_at: v.created_at,
-            clientId: v.client_id,
-            projectId: v.project_id,
-            date: v.date,
-            status: v.status,
-            summary: v.summary,
-            photos: v.photos,
-            budgetAmount: v.budget_amount,
-            budgetPdfUrl: v.budget_pdf_url,
-        } as Visit
-    });
+    return data.map(v_raw => toCamelCase(v_raw) as Visit);
 }
 export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     if (!supabase) return {};
@@ -479,7 +385,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         todayProjects.forEach(p_raw => {
             const p = p_raw as any;
             const client = getClient(p.client_id);
-            const payments = paymentsData?.filter(pm => pm.project_id === p.id) || [];
+            const payments = toCamelCase(paymentsData?.filter(pm => pm.project_id === p.id) || []) as Payment[];
             schedule.push({
                 id: p.id,
                 type: 'project',
@@ -491,7 +397,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 clientAddress: client?.address,
                 projectStartDate: p.start_date,
                 projectEndDate: p.end_date,
-                status: getProjectPaymentStatus(payments as Payment[]),
+                status: getProjectPaymentStatus(payments),
                 path: `/projects/${p.id}`
             });
         });
@@ -527,7 +433,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'payments' | 'photosBefore' | 'photosAfter' | 'paymentStatus'> & { payments: Omit<Payment, 'id' | 'created_at' | 'project_id'>[] }) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'paymentStatus'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
@@ -545,10 +451,9 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
       final_value: projectCoreData.finalValue,
       payment_method: projectCoreData.paymentMethod,
       payment_instrument: projectCoreData.paymentInstrument,
-      photos_before: [],
-      photos_after: [],
+      photos_before: projectCoreData.photosBefore || [],
+      photos_after: projectCoreData.photosAfter || [],
     };
-
 
     // 1. Insert the project
     const { data: newProject, error: projectError } = await supabase.from('projects')
@@ -666,8 +571,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'created_at' | 'photos'
         console.error("Error creating visit:", error);
         throw new Error("Falha ao agendar visita.");
     }
-    const v = newVisit as any;
-    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
+    return toCamelCase(newVisit) as Visit;
 }
 
 export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
@@ -688,8 +592,7 @@ export const updateVisit = async (visit: Omit<Visit, 'created_at'>) => {
         console.error("Error updating visit:", error);
         throw new Error("Falha ao atualizar a visita.");
     }
-    const v = data as any;
-    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit;
+    return toCamelCase(data) as Visit;
 };
 
 export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: string }) => {
@@ -705,8 +608,7 @@ export const addPhotoToVisit = async (photoData: Omit<Photo, 'id'> & { visitId: 
         console.error("Error adding photo to visit:", error);
         throw new Error("Falha ao adicionar foto.");
     }
-    const v = data as any;
-    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
+    return toCamelCase(data) as Visit;
 }
 
 export const addPhotoToProject = async (
@@ -734,7 +636,6 @@ export const addPhotoToProject = async (
         throw new Error("Falha ao adicionar foto ao projeto.");
     }
     
-    // We need to re-fetch payments to return the full Project object
     const finalProject = await getProjectById(projectId);
     if (!finalProject) throw new Error("Failed to refetch project after adding photo.");
 
@@ -748,8 +649,7 @@ export const addBudgetToVisit = async (visitId: string, budgetAmount: number, bu
         console.error("Error adding budget to visit:", error);
         throw new Error("Falha ao adicionar orçamento.");
     }
-    const v = data as any;
-    return { ...v, clientId: v.client_id, projectId: v.project_id } as Visit
+    return toCamelCase(data) as Visit;
 }
 
 export const checkForVisitConflict = async (newVisit: { clientId: string, date: string, visitId?: string }): Promise<Visit | null> => {
@@ -780,7 +680,7 @@ export const checkForVisitConflict = async (newVisit: { clientId: string, date: 
         return null;
     }
     
-    return data && data.length > 0 ? data[0] as Visit : null;
+    return data && data.length > 0 ? toCamelCase(data[0]) as Visit : null;
 }
 
 export const checkForProjectConflict = async (newProject: { clientId: string, startDate: string, endDate: string, projectId?: string }): Promise<Project | null> => {
@@ -802,5 +702,5 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
         return null;
     }
 
-    return data && data.length > 0 ? data[0] as Project : null;
+    return data && data.length > 0 ? toCamelCase(data[0]) as Project : null;
 }
