@@ -12,31 +12,44 @@ import type { Project, Client } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn, formatDate } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function FinanceiroPage() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pendingRevenue, setPendingRevenue] = useState(0);
-  const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
+  const [allPendingProjects, setAllPendingProjects] = useState<Project[]>([]);
+  const [filteredPendingProjects, setFilteredPendingProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
+  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     const refetch = async () => {
         setLoading(true);
-        const [totalRevenueData, pendingRevenueData, clientsData, allProjectsData] = await Promise.all([
-            getTotalRevenue(),
-            getTotalPendingRevenue(),
+        const [clientsData, allProjectsData] = await Promise.all([
             getClients(),
             getProjects()
         ]);
+        
+        const pendingProjects = allProjectsData.filter(p => p.paymentStatus !== 'pago');
+        setAllPendingProjects(pendingProjects);
+        setClients(clientsData);
 
+        // Fetch initial financial data without date filters
+        const [totalRevenueData, pendingRevenueData] = await Promise.all([
+            getTotalRevenue(),
+            getTotalPendingRevenue()
+        ]);
         setTotalRevenue(totalRevenueData);
         setPendingRevenue(pendingRevenueData);
-        setClients(clientsData);
-        setPendingProjects(allProjectsData.filter(p => p.paymentStatus !== 'pago'));
+
+        setFilteredPendingProjects(pendingProjects);
         setLoading(false);
     }
     refetch();
@@ -44,6 +57,35 @@ export default function FinanceiroPage() {
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
   }, []);
+
+  useEffect(() => {
+    async function filterFinancialData() {
+        const [total, pending] = await Promise.all([
+            getTotalRevenue({ startDate, endDate }),
+            getTotalPendingRevenue({ startDate, endDate })
+        ]);
+        setTotalRevenue(total);
+        setPendingRevenue(pending);
+
+        // Filter pending projects list based on date
+         if (startDate && endDate) {
+            setFilteredPendingProjects(allPendingProjects.filter(p => {
+                const projectStart = new Date(p.startDate).getTime();
+                const projectEnd = new Date(p.endDate).getTime();
+                const filterStart = new Date(startDate).getTime();
+                const filterEnd = new Date(endDate).getTime();
+                return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
+            }));
+        } else {
+            setFilteredPendingProjects(allPendingProjects);
+        }
+    }
+    
+    if(!loading) { // only run filter if initial load is complete
+        filterFinancialData();
+    }
+  }, [startDate, endDate, allPendingProjects, loading]);
+
 
   const getClient = (clientId: string) => {
     return clients.find(c => c.id === clientId);
@@ -66,6 +108,22 @@ export default function FinanceiroPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Financeiro" />
+      
+       <Card>
+        <CardHeader>
+            <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-4">
+            <div className='w-full space-y-2'>
+                <Label htmlFor='start-date'>Data de Início</Label>
+                <Input id='start-date' type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className='w-full space-y-2'>
+                <Label htmlFor='end-date'>Data de Fim</Label>
+                <Input id='end-date' type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            </div>
+        </CardContent>
+       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -91,7 +149,7 @@ export default function FinanceiroPage() {
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Soma de todas as parcelas com status "pago".
+              Soma de parcelas pagas no período.
             </p>
           </CardContent>
         </Card>
@@ -118,7 +176,7 @@ export default function FinanceiroPage() {
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-               Soma de todas as parcelas com status "pendente".
+               Soma de parcelas pendentes com vencimento no período.
             </p>
           </CardContent>
         </Card>
@@ -128,9 +186,9 @@ export default function FinanceiroPage() {
           <h2 className="text-xl font-headline mb-4">Projetos com Pagamento Pendente</h2>
           <Card>
             <CardContent className="p-4">
-              {pendingProjects.length > 0 ? (
+              {filteredPendingProjects.length > 0 ? (
                 <ul className="space-y-4">
-                  {pendingProjects.map((project) => {
+                  {filteredPendingProjects.map((project) => {
                      const client = getClient(project.clientId);
                      return (
                         <li key={project.id}>
@@ -164,7 +222,7 @@ export default function FinanceiroPage() {
                   })}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-center py-8">Nenhum projeto com pagamento pendente.</p>
+                <p className="text-muted-foreground text-center py-8">Nenhum projeto com pagamento pendente no período selecionado.</p>
               )}
             </CardContent>
           </Card>

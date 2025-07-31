@@ -298,9 +298,19 @@ export const deletePaymentInstrumentOption = async (id: string) => {
 
 
 // --- Dashboard Functions ---
-export const getTotalRevenue = async () => {
+export const getTotalRevenue = async (dateRange?: { startDate?: string, endDate?: string }) => {
     if (!supabase) return 0;
-    const { data, error } = await supabase.from('payments').select('amount').eq('status', 'pago');
+    let query = supabase.from('payments').select('amount').eq('status', 'pago');
+
+    if (dateRange?.startDate) {
+        query = query.gte('due_date', dateRange.startDate);
+    }
+    if (dateRange?.endDate) {
+        query = query.lte('due_date', dateRange.endDate);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
         console.error("Error fetching total revenue:", error);
         return 0;
@@ -308,15 +318,26 @@ export const getTotalRevenue = async () => {
     return data.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 };
 
-export const getTotalPendingRevenue = async () => {
+export const getTotalPendingRevenue = async (dateRange?: { startDate?: string, endDate?: string }) => {
     if (!supabase) return 0;
-    const { data, error } = await supabase.from('payments').select('amount').eq('status', 'pendente');
+    let query = supabase.from('payments').select('amount').eq('status', 'pendente');
+
+    if (dateRange?.startDate) {
+        query = query.gte('due_date', dateRange.startDate);
+    }
+    if (dateRange?.endDate) {
+        query = query.lte('due_date', dateRange.endDate);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
         console.error("Error fetching pending revenue:", error);
         return 0;
     }
     return data.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 };
+
 
 export const getActiveProjects = async () => {
     if (!supabase) return [];
@@ -582,12 +603,13 @@ export const updateProject = async (project: Omit<Project, 'paymentStatus'>) => 
     // 2. Upsert payments (update existing, insert new)
     const paymentsToUpsert = payments.map(p => ({
         id: p.id,
-        project_id: p.project_id,
+        project_id: project.id, // Explicitly add project_id
         amount: p.amount,
         status: p.status,
-        due_date: p.dueDate, // Correctly map from camelCase to snake_case
+        due_date: p.dueDate,
         description: p.description
     }));
+
     const { error: paymentsError } = await supabase.from('payments').upsert(paymentsToUpsert);
     
     if(paymentsError) {
@@ -754,6 +776,7 @@ export const checkForProjectConflict = async (newProject: { clientId: string, st
 
     return data && data.length > 0 ? data[0] as Project : null;
 }
+
 
 
 

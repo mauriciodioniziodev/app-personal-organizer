@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Project, Client } from '@/lib/definitions';
 import { Input } from '@/components/ui/input';
 import { cn, formatDate } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -20,6 +21,9 @@ export default function ProjectsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
 
   useEffect(() => {
     const refetch = async () => {
@@ -40,11 +44,23 @@ export default function ProjectsPage() {
   }, []); 
 
    useEffect(() => {
-    const results = allProjects.filter(project =>
+    let results = allProjects.filter(project =>
         (getClient(project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    if (startDate && endDate) {
+        results = results.filter(project => {
+            const projectStart = new Date(project.startDate).getTime();
+            const projectEnd = new Date(project.endDate).getTime();
+            const filterStart = new Date(startDate).getTime();
+            const filterEnd = new Date(endDate).getTime();
+            // Check for overlap
+            return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
+        });
+    }
+
     setFilteredProjects(results);
-  }, [searchTerm, allProjects, clients]);
+  }, [searchTerm, allProjects, clients, startDate, endDate]);
 
 
   const getClient = (clientId: string) => {
@@ -76,18 +92,36 @@ export default function ProjectsPage() {
         </Link>
       </PageHeader>
       
-      <div className="flex justify-start">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Filtrar por nome do cliente..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      <Card>
+          <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-3 gap-4">
+            <div className="md:col-span-1 space-y-2">
+              <Label htmlFor="search-term">Cliente</Label>
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search-term"
+                  type="text"
+                  placeholder="Filtrar por nome do cliente..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="start-date">Data de Início</Label>
+                <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="end-date">Data de Fim</Label>
+                <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            </div>
+          </CardContent>
+      </Card>
+
 
       {filteredProjects.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -155,7 +189,7 @@ export default function ProjectsPage() {
             <div className="text-center py-16 border-dashed border-2 rounded-lg">
                 <h2 className="text-2xl font-headline">Nenhum projeto encontrado</h2>
                 <p className="text-muted-foreground mt-2 mb-4">
-                    {allProjects.length > 0 ? 'Tente um termo de busca diferente.' : 'Crie seu primeiro projeto para começar a organizar.'}
+                    {allProjects.length > 0 ? 'Tente um termo de busca ou filtro diferente.' : 'Crie seu primeiro projeto para começar a organizar.'}
                 </p>
                  {allProjects.length === 0 && (
                      <Link href="/projects/new">
