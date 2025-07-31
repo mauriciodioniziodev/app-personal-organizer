@@ -5,6 +5,28 @@ import { supabase } from './supabaseClient';
 
 
 // --- Helper Functions ---
+
+const projectToCamelCase = (p_raw: any): Omit<Project, 'payments' | 'paymentStatus' | 'status'> => {
+    return {
+        id: p_raw.id,
+        created_at: p_raw.created_at,
+        clientId: p_raw.client_id,
+        visitId: p_raw.visit_id,
+        name: p_raw.name,
+        description: p_raw.description,
+        startDate: p_raw.start_date,
+        endDate: p_raw.end_date,
+        value: p_raw.value,
+        discountPercentage: p_raw.discount_percentage,
+        discountAmount: p_raw.discount_amount,
+        finalValue: p_raw.final_value,
+        paymentMethod: p_raw.payment_method,
+        paymentInstrument: p_raw.payment_instrument,
+        photosBefore: p_raw.photos_before || [],
+        photosAfter: p_raw.photos_after || [],
+    }
+}
+
 const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     if (!payments || payments.length === 0) {
         return 'pendente';
@@ -16,15 +38,16 @@ const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
 }
 
 const getProjectExecutionStatus = (p: { start_date: string, end_date: string, status: string }): string => {
-    // If status was manually set, respect it.
+    // If status was manually set to a non-calculated state, respect it.
     if (p.status && !['A iniciar', 'Em andamento', 'Concluído'].includes(p.status)) {
         return p.status;
     }
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const startDate = new Date(p.start_date);
-    const endDate = new Date(p.end_date);
+    // Add T00:00:00 to treat dates as local timezone without time component
+    const startDate = new Date(`${p.start_date}T00:00:00`);
+    const endDate = new Date(`${p.end_date}T00:00:00`);
 
     if (endDate < today) return 'Concluído';
     if (startDate > today) return 'A iniciar';
@@ -93,15 +116,23 @@ export const getProjects = async (): Promise<Project[]> => {
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
         // Still return projects, but they will have empty payments
-        return projectsData.map(p => ({ ...toCamelCase(p), payments: [], paymentStatus: 'pendente' } as Project));
+        return projectsData.map(p_raw => {
+            const p_camel = projectToCamelCase(p_raw)
+            return {
+                ...p_camel,
+                status: getProjectExecutionStatus(p_raw),
+                payments: [], 
+                paymentStatus: 'pendente' 
+            } as Project
+        });
     }
 
     return projectsData.map(p_raw => {
-        const p = toCamelCase(p_raw) as any; 
-        const payments = toCamelCase(paymentsData?.filter(payment => payment.project_id === p.id) || []) as Payment[];
+        const p_camel = projectToCamelCase(p_raw);
+        const payments = toCamelCase(paymentsData?.filter(payment => payment.project_id === p_raw.id) || []) as Payment[];
         
         return { 
-            ...p,
+            ...p_camel,
             status: getProjectExecutionStatus(p_raw),
             payments: payments,
             paymentStatus: getProjectPaymentStatus(payments) 
@@ -120,14 +151,20 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('project_id', id);
     if (paymentsError) {
         console.error(`Error fetching payments for project ${id}:`, paymentsError);
-        return { ...toCamelCase(projectData), payments: [], paymentStatus: 'pendente' } as Project;
+        const p_camel = projectToCamelCase(projectData);
+        return { 
+            ...p_camel, 
+            status: getProjectExecutionStatus(projectData),
+            payments: [], 
+            paymentStatus: 'pendente' 
+        } as Project;
     }
     
-    const p = toCamelCase(projectData) as any;
+    const p_camel = projectToCamelCase(projectData);
     const payments = toCamelCase(paymentsData || []) as Payment[];
 
     return { 
-        ...p,
+        ...p_camel,
         status: getProjectExecutionStatus(projectData),
         payments: payments, 
         paymentStatus: getProjectPaymentStatus(payments) 
@@ -433,7 +470,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   return data as Client;
 };
 
-export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'paymentStatus'>) => {
+export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'paymentStatus' | 'status'>) => {
     if (!supabase) throw new Error("Supabase client is not initialized.");
     const { payments: paymentsData, ...projectCoreData } = projectData;
     
@@ -444,7 +481,7 @@ export const addProject = async (projectData: Omit<Project, 'id' | 'created_at' 
       description: projectCoreData.description,
       start_date: projectCoreData.startDate,
       end_date: projectCoreData.endDate,
-      status: projectCoreData.status,
+      status: 'A iniciar', // Default status on creation
       value: projectCoreData.value,
       discount_percentage: projectCoreData.discountPercentage,
       discount_amount: projectCoreData.discountAmount,
@@ -521,12 +558,10 @@ export const updateProject = async (project: Project): Promise<Project> => {
     };
     
     // 1. Update the core project data
-    const { data: updatedProjectData, error: projectError } = await supabase
+    const { error: projectError } = await supabase
         .from('projects')
         .update(dbProjectData)
         .eq('id', project.id)
-        .select()
-        .single();
 
     if (projectError) {
         console.error("Error updating project:", projectError);

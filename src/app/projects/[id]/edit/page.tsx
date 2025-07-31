@@ -8,7 +8,7 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, Percent, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, FormEvent, useRef } from "react";
+import { useEffect, useState, FormEvent, useRef, useMemo } from "react";
 import Link from "next/link";
 import type { Project, Payment, MasterDataItem } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 
 const paymentSchema = z.object({
   id: z.string(),
-  project_id: z.string(),
+  projectId: z.string(),
   amount: z.coerce.number().min(0, "O valor da parcela deve ser positivo."),
   status: z.enum(['pendente', 'pago']),
   dueDate: z.string().min(1, "Data de vencimento é obrigatória."),
@@ -295,91 +295,96 @@ export default function ProjectEditPage() {
     fetchProjectData();
   }, [id, router, toast]);
 
-  const updateCalculatedValues = (projectToUpdate: Project | null) => {
-    if (!projectToUpdate) return;
+  const handleGenericChange = (field: keyof Project, value: any) => {
+    if (!project) return;
   
-    let finalProject = { ...projectToUpdate };
+    // Create a temporary updated project state
+    let updatedProjectState = { ...project, [field]: value };
   
-    // Recalculate financial values
-    if (finalProject.paymentMethod === 'vista') {
-      finalProject.discountAmount = (finalProject.value * (finalProject.discountPercentage || 0)) / 100;
-    } else {
-      finalProject.discountPercentage = 0;
-      finalProject.discountAmount = 0;
-    }
-    finalProject.finalValue = finalProject.value - (finalProject.discountAmount || 0);
-  
-    // Recalculate payments
-    if (finalProject.paymentMethod === 'vista') {
-      finalProject.payments = [{
-        id: finalProject.payments[0]?.id || uuidv4(),
-        project_id: finalProject.id,
-        amount: finalProject.finalValue,
-        status: finalProject.payments[0]?.status || 'pendente',
-        dueDate: finalProject.endDate,
-        description: "Pagamento Único"
-      }];
-    } else {
-      const firstInstallmentValue = (finalProject.finalValue * firstInstallmentPercentage) / 100;
-      const secondInstallmentValue = finalProject.finalValue - firstInstallmentValue;
-      finalProject.payments = [
-        {
-          id: finalProject.payments[0]?.id || uuidv4(),
-          project_id: finalProject.id,
-          amount: firstInstallmentValue,
-          status: finalProject.payments[0]?.status || 'pendente',
-          dueDate: finalProject.startDate,
-          description: '1ª Parcela (Entrada)'
-        },
-        {
-          id: finalProject.payments[1]?.id || uuidv4(),
-          project_id: finalProject.id,
-          amount: secondInstallmentValue,
-          status: finalProject.payments[1]?.status || 'pendente',
-          dueDate: finalProject.endDate,
-          description: '2ª Parcela (Conclusão)'
-        }
-      ];
+    // If the changed field affects financial calculations, update them
+    if (['value', 'discountPercentage', 'paymentMethod'].includes(field)) {
+      const isVista = updatedProjectState.paymentMethod === 'vista';
+      const discountPerc = isVista ? (updatedProjectState.discountPercentage || 0) : 0;
+      
+      updatedProjectState.discountAmount = (updatedProjectState.value * discountPerc) / 100;
+      updatedProjectState.finalValue = updatedProjectState.value - updatedProjectState.discountAmount;
     }
   
-    const paidCount = finalProject.payments.filter(p => p.status === 'pago').length;
-    if (paidCount === 0) {
-      finalProject.paymentStatus = 'pendente';
-    } else if (paidCount === finalProject.payments.length) {
-      finalProject.paymentStatus = 'pago';
-    } else {
-      finalProject.paymentStatus = 'parcialmente pago';
+    // Now, update payments based on the potentially new finalValue or paymentMethod
+    if (updatedProjectState.paymentMethod === 'vista') {
+        updatedProjectState.payments = [{
+            ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
+            projectId: updatedProjectState.id,
+            amount: updatedProjectState.finalValue,
+            dueDate: updatedProjectState.endDate,
+            description: "Pagamento Único"
+        }];
+    } else { // parcelado
+        const firstInstallmentValue = (updatedProjectState.finalValue * firstInstallmentPercentage) / 100;
+        const secondInstallmentValue = updatedProjectState.finalValue - firstInstallmentValue;
+        updatedProjectState.payments = [
+            {
+                ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
+                projectId: updatedProjectState.id,
+                amount: firstInstallmentValue,
+                dueDate: updatedProjectState.startDate,
+                description: '1ª Parcela (Entrada)'
+            },
+            {
+                ...(updatedProjectState.payments?.[1] || { id: uuidv4(), status: 'pendente' }),
+                projectId: updatedProjectState.id,
+                amount: secondInstallmentValue,
+                dueDate: updatedProjectState.endDate,
+                description: '2ª Parcela (Conclusão)'
+            }
+        ];
     }
     
-    setProject(finalProject);
+    const paidCount = updatedProjectState.payments.filter(p => p.status === 'pago').length;
+    if (paidCount === 0) {
+      updatedProjectState.paymentStatus = 'pendente';
+    } else if (paidCount === updatedProjectState.payments.length) {
+      updatedProjectState.paymentStatus = 'pago';
+    } else {
+      updatedProjectState.paymentStatus = 'parcialmente pago';
+    }
+
+    setProject(updatedProjectState);
   };
   
-  // Update calculated values when dependencies change
+  // Effect to recalculate payments when firstInstallmentPercentage changes
   useEffect(() => {
-    updateCalculatedValues(project);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.value, project?.discountPercentage, project?.paymentMethod, firstInstallmentPercentage]);
-  
+    if (!project || project.paymentMethod !== 'parcelado') return;
+     handleGenericChange('paymentMethod', 'parcelado'); // A bit of a hack to trigger recalculation
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstInstallmentPercentage]);
+
+
   const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
 
-    const updatedPayments = project.payments.map(p =>
-        p.id === paymentId ? { ...p, status } : p
-    );
+    // Create a deep copy to avoid direct mutation
+    const updatedProjectState = JSON.parse(JSON.stringify(project));
 
-    const paidCount = updatedPayments.filter(p => p.status === 'pago').length;
-    const newPaymentStatus = paidCount === 0 ? 'pendente' : (paidCount === updatedPayments.length ? 'pago' : 'parcialmente pago');
-
-    const updatedProjectState = {
-        ...project,
-        payments: updatedPayments,
-        paymentStatus: newPaymentStatus,
-    };
+    const payment = updatedProjectState.payments.find((p: Payment) => p.id === paymentId);
+    if(payment) {
+        payment.status = status;
+    }
+    
+    // Recalculate overall payment status
+    const paidCount = updatedProjectState.payments.filter((p: Payment) => p.status === 'pago').length;
+    if (paidCount === 0) {
+      updatedProjectState.paymentStatus = 'pendente';
+    } else if (paidCount === updatedProjectState.payments.length) {
+      updatedProjectState.paymentStatus = 'pago';
+    } else {
+      updatedProjectState.paymentStatus = 'parcialmente pago';
+    }
     
     setProject(updatedProjectState); // Optimistic UI update
 
     try {
-        await updateProject(updatedProjectState); // Persist changes immediately
+        await updateProject(updatedProjectState);
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);
@@ -451,10 +456,6 @@ export default function ProjectEditPage() {
     return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
   }
   
-  const handleGenericChange = (field: keyof Project, value: any) => {
-      if (!project) return;
-      setProject(prev => prev ? { ...prev, [field]: value } : null);
-  }
 
   return (
     <div className="flex flex-col gap-8">
