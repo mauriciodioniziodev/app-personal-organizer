@@ -2,7 +2,7 @@
 
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile } from './definitions';
 import { supabase } from './supabaseClient';
-
+import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
 
 // --- Helper Functions ---
 
@@ -87,17 +87,14 @@ export const getUser = async () => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    // This requires service_role key to bypass RLS to fetch all users.
-    // For client-side fetching where service_role is not available,
-    // you would typically create a database function (RPC) with `security definer`
-    // and specific logic to allow admins to fetch user lists.
-    // For this app, we assume the admin context allows this call.
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    const { data: authUsers, error: usersError } = await supabase.auth.admin.listUsers();
 
     if (usersError) {
         console.error("Error fetching users:", usersError);
         throw new Error("Não foi possível buscar a lista de usuários. Verifique as permissões de administrador.");
     }
+    
+    const users = authUsers.users;
 
     const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -110,7 +107,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
 
     const profileMap = new Map(profiles.map(p => [p.id, p]));
 
-    return users.users.map(user => {
+    return users.map(user => {
         const profile = profileMap.get(user.id);
         return {
             id: user.id,
@@ -118,8 +115,9 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
             status: profile?.status || 'pending',
             email: user.email
         }
-    });
+    }).filter(u => u.email); // Filter out users without email if any
 };
+
 
 export const updateProfileStatus = async (userId: string, status: 'authorized' | 'revoked'): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
@@ -138,6 +136,28 @@ export const updateProfileStatus = async (userId: string, status: 'authorized' |
 
     return toCamelCase(data);
 };
+
+export const createProfileForNewUser = async (userId: string, fullName: string) => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+     const { data, error } = await supabase.from('profiles').insert([
+        { id: userId, full_name: fullName, status: 'pending' },
+    ]).select().single();
+
+    if (error) {
+        console.error('Error creating profile:', error);
+        throw error;
+    }
+    
+    // Notify admin
+    try {
+        await notifyAdminOfNewUser({ userName: fullName });
+    } catch (e) {
+        console.error("Failed to send admin notification email:", e);
+        // Don't block user creation if email fails
+    }
+
+    return data;
+}
 
 
 // --- Data Access Functions ---

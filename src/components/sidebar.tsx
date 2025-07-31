@@ -22,12 +22,6 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-card border-r">
@@ -54,12 +48,6 @@ export default function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-4 mt-auto">
-        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4"/>
-            Sair
-        </Button>
-      </div>
     </aside>
   );
 }

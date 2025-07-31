@@ -7,9 +7,12 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import Sidebar from "@/components/sidebar";
 import { Toaster } from "@/components/ui/toaster";
-import { GlobalLoadingIndicator } from "@/components/global-loading-indicator";
 import { Suspense, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import { LoaderCircle } from "lucide-react";
+import LoginPage from "./login/page";
+import Header from "@/components/header";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -32,16 +35,82 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // This is a simplified approach to show a loading indicator on route change.
-    // It triggers on any pathname change.
-    setIsNavigating(true);
-    const timer = setTimeout(() => setIsNavigating(false), 1); // A tiny delay to allow the state to update and render
-    return () => clearTimeout(timer);
-  }, [pathname]);
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+         setLoading(false);
+         if (pathname !== '/signup') {
+            router.push('/login');
+         }
+         return;
+      }
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profile?.status === 'authorized') {
+        setSession(session);
+      } else {
+         await supabase.auth.signOut();
+         if (pathname !== '/signup') {
+            router.push('/login');
+         }
+      }
+      setLoading(false);
+    }
+    
+    getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) {
+            getSession();
+        } else {
+          setSession(null);
+          if (pathname !== '/login' && pathname !== '/signup') {
+            router.push('/login');
+          }
+        }
+      }
+    );
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [pathname, router]);
+
+  if (loading) {
+     return (
+        <html lang="en" suppressHydrationWarning>
+            <body className="flex items-center justify-center h-screen bg-background">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
+            </body>
+        </html>
+    );
+  }
+  
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+
+  if (!session && !isAuthPage) {
+     // This case should be handled by the useEffect redirect, but as a fallback
+     return (
+        <html lang="en" suppressHydrationWarning>
+            <body className="bg-background">
+                <LoginPage />
+            </body>
+        </html>
+     )
+  }
 
 
   return (
@@ -61,15 +130,17 @@ export default function RootLayout({
           alegreya.variable
         )}
       >
-        <Suspense>
-           <GlobalLoadingIndicator isNavigating={isNavigating} />
+        <Suspense fallback={<div>Loading...</div>}>
+            <div className="flex min-h-screen">
+                {!isAuthPage && <Sidebar />}
+                <div className="flex flex-col flex-1">
+                  {!isAuthPage && <Header />}
+                  <main className="w-full flex-1 flex-col p-4 sm:p-6 md:p-8">
+                      {children}
+                  </main>
+                </div>
+            </div>
         </Suspense>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="w-full flex-1 flex-col p-4 sm:p-6 md:p-8">
-            {children}
-          </main>
-        </div>
         <Toaster />
       </body>
     </html>
