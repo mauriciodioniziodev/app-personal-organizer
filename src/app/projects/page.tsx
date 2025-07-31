@@ -14,15 +14,35 @@ import type { Project, Client } from '@/lib/definitions';
 import { Input } from '@/components/ui/input';
 import { cn, formatDate } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const projectStatusOptions = [
+    "A iniciar",
+    "Em andamento",
+    "Pausado",
+    "Atrasado",
+    "Concluído",
+    "Cancelado"
+];
+const paymentStatusOptions = [
+    'pago', 
+    'pendente', 
+    'parcialmente pago'
+];
+
 
 export default function ProjectsPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
 
 
   useEffect(() => {
@@ -44,23 +64,27 @@ export default function ProjectsPage() {
   }, []); 
 
    useEffect(() => {
-    let results = allProjects.filter(project =>
-        (getClient(project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (startDate && endDate) {
-        results = results.filter(project => {
+    let results = allProjects.filter(project => {
+        const clientMatch = (getClient(project.clientId)?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+        
+        let dateMatch = true;
+        if (startDate && endDate) {
             const projectStart = new Date(project.startDate).getTime();
             const projectEnd = new Date(project.endDate).getTime();
             const filterStart = new Date(startDate).getTime();
             const filterEnd = new Date(endDate).getTime();
             // Check for overlap
-            return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
-        });
-    }
+            dateMatch = Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
+        }
+
+        const statusMatch = statusFilter === 'all' || project.status === statusFilter;
+        const paymentStatusMatch = paymentStatusFilter === 'all' || project.paymentStatus === paymentStatusFilter;
+
+        return clientMatch && dateMatch && statusMatch && paymentStatusMatch;
+    });
 
     setFilteredProjects(results);
-  }, [searchTerm, allProjects, clients, startDate, endDate]);
+  }, [searchTerm, startDate, endDate, statusFilter, paymentStatusFilter, allProjects, clients]);
 
 
   const getClient = (clientId: string) => {
@@ -105,8 +129,8 @@ export default function ProjectsPage() {
           <CardHeader>
               <CardTitle>Filtros</CardTitle>
           </CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-            <div className="md:col-span-1 space-y-2">
+          <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="search-term">Cliente</Label>
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -121,11 +145,35 @@ export default function ProjectsPage() {
               </div>
             </div>
             <div className="space-y-2">
-                <Label htmlFor="start-date">Data de Início</Label>
+                <Label htmlFor="statusFilter">Status do Projeto</Label>
+                 <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger id="statusFilter"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos os Status</SelectItem>
+                        {projectStatusOptions.map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="paymentStatusFilter">Status Financeiro</Label>
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                    <SelectTrigger id="paymentStatusFilter"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos os Status</SelectItem>
+                        {paymentStatusOptions.map(status => (
+                            <SelectItem key={status} value={status} className='capitalize'>{status}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="start-date">Período (Início)</Label>
                 <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="end-date">Data de Fim</Label>
+                <Label htmlFor="end-date">Período (Fim)</Label>
                 <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
           </CardContent>
@@ -217,4 +265,3 @@ export default function ProjectsPage() {
   );
 }
 
-    
