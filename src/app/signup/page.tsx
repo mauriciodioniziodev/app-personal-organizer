@@ -12,7 +12,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
-import { createProfileForNewUser } from '@/lib/data';
 import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
 
 export default function SignUpPage() {
@@ -30,10 +29,15 @@ export default function SignUpPage() {
     setError(null);
     setSuccess(null);
 
-    // Create user in auth.users
+    // This simply creates the user in auth.users. The Supabase trigger will create the profile.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        }
+      }
     });
 
     if (signUpError) {
@@ -48,22 +52,15 @@ export default function SignUpPage() {
         return;
     }
 
+    // Notify admin that a new user has signed up
     try {
-        // Create profile in public.profiles
-        await createProfileForNewUser(user.id, fullName);
-
-        // Notify admin that a new user has signed up
-        try {
-            await notifyAdminOfNewUser({ userName: fullName });
-        } catch (notificationError) {
-            console.error("Failed to send admin notification email, but user was created:", notificationError);
-            // Don't block user creation if email fails
-        }
-        
+        await notifyAdminOfNewUser({ userName: fullName });
         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
         await supabase.auth.signOut(); // Log out user until they are approved
-    } catch (profileError) {
-        setError((profileError as Error).message);
+    } catch (notificationError) {
+        console.error("Failed to send admin notification email, but user was created:", notificationError);
+        // Don't block user creation if email fails, show a slightly different message
+        setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação. Ocorreu um erro ao notificar o administrador, por favor entre em contato diretamente.');
     } finally {
         setLoading(false);
     }
