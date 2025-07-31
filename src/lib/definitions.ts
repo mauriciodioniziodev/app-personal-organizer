@@ -14,7 +14,7 @@ export type Client = {
 
 export type Payment = {
   id: string;
-  createdAt?: string; // made optional
+  createdAt?: string;
   projectId: string;
   amount: number;
   status: 'pendente' | 'pago';
@@ -24,7 +24,7 @@ export type Payment = {
 
 export type Project = {
   id: string;
-  createdAt: string;
+  createdAt?: string;
   clientId: string;
   visitId: string | null;
   name: string;

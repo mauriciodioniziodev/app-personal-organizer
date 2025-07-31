@@ -33,6 +33,7 @@ const paymentSchema = z.object({
   status: z.enum(['pendente', 'pago']),
   dueDate: z.string().min(1, "Data de vencimento é obrigatória."),
   description: z.string(),
+  createdAt: z.string().optional(),
 });
 
 
@@ -55,7 +56,7 @@ const projectSchema = z.object({
     payments: z.array(paymentSchema),
     photosBefore: z.array(z.any()).optional(),
     photosAfter: z.array(z.any()).optional(),
-    createdAt: z.string(),
+    createdAt: z.string().optional(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
@@ -296,6 +297,16 @@ export default function ProjectEditPage() {
     fetchProjectData();
   }, [id, router, toast]);
 
+    const getPaymentStatus = (payments: Payment[] | undefined): string => {
+        if (!payments || payments.length === 0) {
+            return 'pendente';
+        }
+        const paidCount = payments.filter(p => p.status === 'pago').length;
+        if (paidCount === 0) return 'pendente';
+        if (paidCount === payments.length) return 'pago';
+        return 'parcialmente pago';
+    }
+
   const handleGenericChange = (field: keyof Project, value: any) => {
     if (!project) return;
   
@@ -341,14 +352,7 @@ export default function ProjectEditPage() {
         ];
     }
     
-    const paidCount = updatedProjectState.payments.filter(p => p.status === 'pago').length;
-    if (paidCount === 0) {
-      updatedProjectState.paymentStatus = 'pendente';
-    } else if (paidCount === updatedProjectState.payments.length) {
-      updatedProjectState.paymentStatus = 'pago';
-    } else {
-      updatedProjectState.paymentStatus = 'parcialmente pago';
-    }
+    updatedProjectState.paymentStatus = getPaymentStatus(updatedProjectState.payments);
 
     setProject(updatedProjectState);
   };
@@ -372,15 +376,7 @@ export default function ProjectEditPage() {
         payment.status = status;
     }
     
-    // Recalculate overall payment status
-    const paidCount = updatedProjectState.payments.filter((p: Payment) => p.status === 'pago').length;
-    if (paidCount === 0) {
-      updatedProjectState.paymentStatus = 'pendente';
-    } else if (paidCount === updatedProjectState.payments.length) {
-      updatedProjectState.paymentStatus = 'pago';
-    } else {
-      updatedProjectState.paymentStatus = 'parcialmente pago';
-    }
+    updatedProjectState.paymentStatus = getPaymentStatus(updatedProjectState.payments);
     
     try {
         const updatedProject = await updateProject(updatedProjectState);

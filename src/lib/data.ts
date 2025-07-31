@@ -6,27 +6,21 @@ import { supabase } from './supabaseClient';
 
 // --- Helper Functions ---
 
-const projectToCamelCase = (p_raw: any): Omit<Project, 'payments' | 'paymentStatus'> => {
-    return {
-        id: p_raw.id,
-        createdAt: p_raw.created_at,
-        clientId: p_raw.client_id,
-        visitId: p_raw.visit_id,
-        name: p_raw.name,
-        description: p_raw.description,
-        status: p_raw.status,
-        startDate: p_raw.start_date,
-        endDate: p_raw.end_date,
-        value: p_raw.value,
-        discountPercentage: p_raw.discount_percentage,
-        discountAmount: p_raw.discount_amount,
-        finalValue: p_raw.final_value,
-        paymentMethod: p_raw.payment_method,
-        paymentInstrument: p_raw.payment_instrument,
-        photosBefore: p_raw.photos_before || [],
-        photosAfter: p_raw.photos_after || [],
+const toCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce(
+            (result, key) => {
+                const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
+                result[camelKey] = toCamelCase(obj[key]);
+                return result;
+            },
+            {} as any
+        );
     }
-}
+    return obj;
+};
 
 const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     if (!payments || payments.length === 0) {
@@ -55,21 +49,31 @@ const getProjectExecutionStatus = (p: { start_date: string, end_date: string, st
     return 'Em andamento';
 }
 
-const toCamelCase = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => toCamelCase(v));
-    } else if (obj !== null && obj.constructor === Object) {
-        return Object.keys(obj).reduce(
-            (result, key) => {
-                const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
-                result[camelKey] = toCamelCase(obj[key]);
-                return result;
-            },
-            {} as any
-        );
-    }
-    return obj;
-};
+const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
+    const payments = toCamelCase(allPayments.filter(payment => payment.project_id === p_raw.id)) as Payment[];
+    return {
+        id: p_raw.id,
+        createdAt: p_raw.created_at,
+        clientId: p_raw.client_id,
+        visitId: p_raw.visit_id,
+        name: p_raw.name,
+        description: p_raw.description,
+        status: p_raw.status,
+        startDate: p_raw.start_date,
+        endDate: p_raw.end_date,
+        value: p_raw.value,
+        discountPercentage: p_raw.discount_percentage,
+        discountAmount: p_raw.discount_amount,
+        finalValue: p_raw.final_value,
+        paymentMethod: p_raw.payment_method,
+        paymentInstrument: p_raw.payment_instrument,
+        photosBefore: p_raw.photos_before || [],
+        photosAfter: p_raw.photos_after || [],
+        payments: payments,
+        paymentStatus: getProjectPaymentStatus(payments)
+    };
+}
+
 
 // --- Data Access Functions ---
 
@@ -117,26 +121,10 @@ export const getProjects = async (): Promise<Project[]> => {
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
         // Still return projects, but they will have empty payments
-        return projectsData.map(p_raw => {
-            const p_camel = projectToCamelCase(p_raw)
-            return {
-                ...p_camel,
-                payments: [], 
-                paymentStatus: 'pendente' 
-            } as Project
-        });
+        return projectsData.map(p_raw => projectFromSupabase(p_raw, []));
     }
 
-    return projectsData.map(p_raw => {
-        const p_camel = projectToCamelCase(p_raw);
-        const payments = toCamelCase(paymentsData?.filter(payment => payment.project_id === p_raw.id) || []) as Payment[];
-        
-        return { 
-            ...p_camel,
-            payments: payments,
-            paymentStatus: getProjectPaymentStatus(payments) 
-        } as Project;
-    });
+    return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || []));
 };
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
@@ -150,22 +138,10 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('project_id', id);
     if (paymentsError) {
         console.error(`Error fetching payments for project ${id}:`, paymentsError);
-        const p_camel = projectToCamelCase(projectData);
-        return { 
-            ...p_camel, 
-            payments: [], 
-            paymentStatus: 'pendente' 
-        } as Project;
+        return projectFromSupabase(projectData, []);
     }
     
-    const p_camel = projectToCamelCase(projectData);
-    const payments = toCamelCase(paymentsData || []) as Payment[];
-
-    return { 
-        ...p_camel,
-        payments: payments, 
-        paymentStatus: getProjectPaymentStatus(payments) 
-    } as Project;
+    return projectFromSupabase(projectData, paymentsData || []);
 };
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
