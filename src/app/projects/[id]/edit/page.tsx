@@ -349,20 +349,22 @@ export default function ProjectEditPage() {
   };
   
   const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
-    if (!project) return;
-    const updatedPayments = project.payments.map(p => p.id === paymentId ? {...p, status} : p);
-    const newPaymentStatus = getPaymentStatus(updatedPayments);
+        if (!project) return;
+        const updatedPayments = project.payments.map(p =>
+            p.id === paymentId ? { ...p, status } : p
+        );
+        const newPaymentStatus = getPaymentStatus(updatedPayments);
 
-    setProject(prev => {
-        if (!prev) return null;
-        return {
-            ...prev,
-            payments: updatedPayments,
-            paymentStatus: newPaymentStatus
-        }
-    });
-    toast({ title: "Status do Pagamento Alterado!", description: "Clique em 'Salvar Alterações' para confirmar." });
-  }
+        setProject(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                payments: updatedPayments,
+                paymentStatus: newPaymentStatus,
+            };
+        });
+        toast({ title: "Status do Pagamento Alterado!", description: "Clique em 'Salvar Alterações' para confirmar." });
+    };
 
 
   const proceedToSubmit = async () => {

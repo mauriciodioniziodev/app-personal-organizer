@@ -605,8 +605,8 @@ export const updateProject = async (project: Project) => {
         payment_method: project.paymentMethod,
         payment_instrument: project.paymentInstrument,
         payment_status: project.paymentStatus,
-        photos_before: project.photosBefore,
-        photos_after: project.photosAfter,
+        photos_before: project.photosBefore || [],
+        photos_after: project.photosAfter || [],
     };
     
     // 1. Update the core project data
