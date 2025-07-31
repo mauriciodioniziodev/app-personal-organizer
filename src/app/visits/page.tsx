@@ -14,6 +14,9 @@ import { CalendarPlus, Search, Phone, MapPin, LoaderCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+
+const VISITS_PER_PAGE = 20;
 
 export default function VisitsPage() {
     const [allVisits, setAllVisits] = useState<Visit[]>([]);
@@ -25,6 +28,7 @@ export default function VisitsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -40,6 +44,7 @@ export default function VisitsPage() {
                 // Correção: Ordena por data crescente (mais antiga para mais nova)
                 const sortedVisits = visitsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                 setAllVisits(sortedVisits);
+                setFilteredVisits(sortedVisits);
                 setClients(clientsData);
                 setProjects(projectsData);
                 setMasterVisitStatus(statusOptions);
@@ -72,6 +77,7 @@ export default function VisitsPage() {
         }
         
         setFilteredVisits(results);
+        setCurrentPage(1); // Reset to first page on new filter
     }, [searchTerm, statusFilter, allVisits, clients, loading]);
 
 
@@ -87,6 +93,18 @@ export default function VisitsPage() {
       orçamento: 'text-blue-800 bg-blue-100',
     }
     
+    const totalPages = Math.ceil(filteredVisits.length / VISITS_PER_PAGE);
+    const paginatedVisits = filteredVisits.slice(
+        (currentPage - 1) * VISITS_PER_PAGE,
+        currentPage * VISITS_PER_PAGE
+    );
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    }
+
     if (loading) {
      return (
         <div className="flex items-center justify-center h-full">
@@ -132,9 +150,10 @@ export default function VisitsPage() {
                 </div>
             </div>
 
-            {filteredVisits.length > 0 ? (
+            {paginatedVisits.length > 0 ? (
+                <>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredVisits.map(visit => {
+                    {paginatedVisits.map(visit => {
                         const projectName = getProjectName(visit.projectId);
                         const client = clients.find(c => c.id === visit.clientId);
                         return (
@@ -193,6 +212,26 @@ export default function VisitsPage() {
                         </Card>
                     )})}
                 </div>
+                 {totalPages > 1 && (
+                    <Pagination>
+                        <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage - 1); }} aria-disabled={currentPage === 1}/>
+                        </PaginationItem>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <PaginationItem key={page}>
+                                    <PaginationLink href="#" onClick={(e) => {e.preventDefault(); handlePageChange(page)}} isActive={currentPage === page}>
+                                        {page}
+                                    </PaginationLink>
+                                </PaginationItem>
+                            ))}
+                        <PaginationItem>
+                            <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1); }} aria-disabled={currentPage === totalPages}/>
+                        </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                )}
+                </>
             ) : (
                  <div className="text-center py-16 border-dashed border-2 rounded-lg">
                     <h2 className="text-2xl font-headline">Nenhuma visita encontrada</h2>
