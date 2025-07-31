@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,7 +54,7 @@ export function UserNav() {
     router.push('/login');
   };
   
-  const getInitials = (name: string | undefined) => {
+  const getInitials = (name: string | undefined | null) => {
     if (!name) return 'U';
     const names = name.split(' ');
     if (names.length > 1) {

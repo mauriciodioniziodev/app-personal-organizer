@@ -39,6 +39,18 @@ export default function Sidebar() {
         }
      }
      fetchProfile();
+     
+     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if(session) {
+            fetchProfile();
+        } else {
+            setProfile(null);
+        }
+     });
+
+     return () => {
+       authListener?.subscription.unsubscribe();
+     };
   }, []);
   
   const toCamelCase = (obj: any): any => {
