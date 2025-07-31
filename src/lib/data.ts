@@ -32,23 +32,6 @@ const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     return 'parcialmente pago';
 }
 
-const getProjectExecutionStatus = (p: { start_date: string, end_date: string, status: string }): string => {
-    // If status was manually set to a non-calculated state, respect it.
-    if (p.status && !['A iniciar', 'Em andamento', 'Concluído'].includes(p.status)) {
-        return p.status;
-    }
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Add T00:00:00 to treat dates as local timezone without time component
-    const startDate = new Date(`${p.start_date}T00:00:00`);
-    const endDate = new Date(`${p.end_date}T00:00:00`);
-
-    if (endDate < today) return 'Concluído';
-    if (startDate > today) return 'A iniciar';
-    return 'Em andamento';
-}
-
 const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
     const payments = toCamelCase(allPayments.filter(payment => payment.project_id === p_raw.id)) as Payment[];
     return {

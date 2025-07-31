@@ -368,24 +368,29 @@ export default function ProjectEditPage() {
  const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     
-    // Create a deep copy to avoid direct mutation
-    const updatedProjectState = JSON.parse(JSON.stringify(project)) as Project;
-
-    const payment = updatedProjectState.payments.find((p: Payment) => p.id === paymentId);
-    if(payment) {
-        payment.status = status;
-    }
+    const updatedPayments = project.payments.map((p: Payment) => 
+        p.id === paymentId ? { ...p, status: status } : p
+    );
     
-    updatedProjectState.paymentStatus = getPaymentStatus(updatedProjectState.payments);
+    const updatedProjectState = {
+        ...project,
+        payments: updatedPayments,
+        paymentStatus: getPaymentStatus(updatedPayments),
+    };
+
+    setProject(updatedProjectState); // Update UI optimistically
     
     try {
         const updatedProject = await updateProject(updatedProjectState);
-        setProject(updatedProject);
+        setProject(updatedProject); // Sync with server response
         toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
     } catch (error) {
         console.error("Failed to update payment status:", error);
         toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração."});
-        // Revert UI on failure - no need as getProjectById will be triggered by focus
+        // Revert UI on failure - refetch from server to be safe
+        getProjectById(project.id).then(serverProject => {
+            if (serverProject) setProject(serverProject);
+        });
     }
   };
 
