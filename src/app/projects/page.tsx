@@ -6,24 +6,16 @@ import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProjects, getClients } from "@/lib/data";
+import { getProjects, getClients, getProjectStatusOptions } from "@/lib/data";
 import { PlusCircle, Search, User, Phone, MapPin, Calendar, LoaderCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import type { Project, Client } from '@/lib/definitions';
+import type { Project, Client, MasterDataItem } from '@/lib/definitions';
 import { Input } from '@/components/ui/input';
 import { cn, formatDate } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const projectStatusOptions = [
-    "A iniciar",
-    "Em andamento",
-    "Pausado",
-    "Atrasado",
-    "Concluído",
-    "Cancelado"
-];
 const paymentStatusOptions = [
     'pago', 
     'pendente', 
@@ -43,18 +35,24 @@ export default function ProjectsPage() {
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
 
 
   useEffect(() => {
     const refetch = async () => {
       setLoading(true);
-      const [projectsData, clientsData] = await Promise.all([getProjects(), getClients()]);
+      const [projectsData, clientsData, statusData] = await Promise.all([
+          getProjects(), 
+          getClients(),
+          getProjectStatusOptions()
+      ]);
       
       const sortedProjects = projectsData.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
       
       setAllProjects(sortedProjects);
       setClients(clientsData);
       setFilteredProjects(sortedProjects);
+      setProjectStatusOptions(statusData);
       setLoading(false);
     };
     refetch();
@@ -151,7 +149,7 @@ export default function ProjectsPage() {
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
                         {projectStatusOptions.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                            <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>

@@ -3,7 +3,7 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions } from "@/lib/data";
+import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions, getProjectStatusOptions } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, Percent, ArrowLeft } from "lucide-react";
@@ -243,16 +243,6 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
     );
 }
 
-const projectStatusOptions = [
-    "A iniciar",
-    "Em andamento",
-    "Pausado",
-    "Atrasado",
-    "Concluído",
-    "Cancelado"
-];
-
-
 export default function ProjectEditPage() {
   const router = useRouter();
   const params = useParams();
@@ -270,15 +260,17 @@ export default function ProjectEditPage() {
   const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
 
   const [paymentInstruments, setPaymentInstruments] = useState<MasterDataItem[]>([]);
+  const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
   const [firstInstallmentPercentage, setFirstInstallmentPercentage] = useState(50);
   
   useEffect(() => {
     if (!id) return;
     const fetchProjectData = async () => {
         setLoading(true);
-        const [projectData, instrumentsData] = await Promise.all([
+        const [projectData, instrumentsData, statusData] = await Promise.all([
           getProjectById(id),
-          getPaymentInstrumentsOptions()
+          getPaymentInstrumentsOptions(),
+          getProjectStatusOptions()
         ]);
         
         if (projectData) {
@@ -292,6 +284,7 @@ export default function ProjectEditPage() {
             router.push("/projects");
         }
         setPaymentInstruments(instrumentsData);
+        setProjectStatusOptions(statusData);
         setLoading(false);
     }
     fetchProjectData();
@@ -502,7 +495,7 @@ export default function ProjectEditPage() {
                         </SelectTrigger>
                         <SelectContent>
                             {projectStatusOptions.map(status => (
-                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

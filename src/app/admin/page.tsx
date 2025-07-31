@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, FormEvent } from "react";
 import { LoaderCircle, DatabaseZap, Trash, Plus } from "lucide-react";
 import PageHeader from "@/components/page-header";
-import { addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions } from "@/lib/data";
+import { addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption } from "@/lib/data";
 import type { MasterDataItem } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 
@@ -92,16 +92,19 @@ function MasterDataCard<T extends MasterDataItem>({
 export default function AdminPage() {
     const [visitStatusOptions, setVisitStatusOptions] = useState<MasterDataItem[]>([]);
     const [paymentInstrumentOptions, setPaymentInstrumentOptions] = useState<MasterDataItem[]>([]);
+    const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchData = async () => {
         setLoading(true);
-        const [visitStatus, paymentInstruments] = await Promise.all([
+        const [visitStatus, paymentInstruments, projectStatus] = await Promise.all([
             getVisitStatusOptions(),
-            getPaymentInstrumentsOptions()
+            getPaymentInstrumentsOptions(),
+            getProjectStatusOptions()
         ]);
         setVisitStatusOptions(visitStatus);
         setPaymentInstrumentOptions(paymentInstruments);
+        setProjectStatusOptions(projectStatus);
         setLoading(false);
     }
 
@@ -127,7 +130,7 @@ export default function AdminPage() {
         <div className="flex flex-col gap-8">
             <PageHeader title="Administração" />
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <MasterDataCard
                     title="Status de Visita"
                     description="Gerencie as opções para o status de uma visita."
@@ -141,6 +144,13 @@ export default function AdminPage() {
                     items={paymentInstrumentOptions}
                     onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
                     onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
+                />
+                 <MasterDataCard
+                    title="Status de Execução do Projeto"
+                    description="Gerencie as opções para o status de execução de um projeto."
+                    items={projectStatusOptions}
+                    onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
+                    onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
                 />
             </div>
         </div>

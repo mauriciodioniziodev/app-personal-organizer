@@ -41,7 +41,7 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
         visitId: p_raw.visit_id,
         name: p_raw.name,
         description: p_raw.description,
-        status: p_raw.status ?? 'A iniciar', // Fallback for when column doesnt exist
+        status: p_raw.status,
         startDate: p_raw.start_date,
         endDate: p_raw.end_date,
         value: p_raw.value,
@@ -177,6 +177,15 @@ const STATIC_PAYMENT_INSTRUMENTS: MasterDataItem[] = [
     { id: '4', name: 'Transferência Bancária', created_at: new Date().toISOString() },
 ];
 
+const STATIC_PROJECT_STATUS: MasterDataItem[] = [
+    {id: '1', name: 'A iniciar', created_at: new Date().toISOString()},
+    {id: '2', name: 'Em andamento', created_at: new Date().toISOString()},
+    {id: '3', name: 'Pausado', created_at: new Date().toISOString()},
+    {id: '4', name: 'Atrasado', created_at: new Date().toISOString()},
+    {id: '5', name: 'Concluído', created_at: new Date().toISOString()},
+    {id: '6', name: 'Cancelado', created_at: new Date().toISOString()},
+];
+
 
 export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return STATIC_VISIT_STATUS;
@@ -231,6 +240,34 @@ export const deletePaymentInstrumentOption = async (id: string) => {
     if (error) {
         console.error("Error deleting payment instrument:", error);
         throw new Error("Falha ao remover meio de pagamento.");
+    }
+    return true;
+}
+
+export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
+    if (!supabase) return STATIC_PROJECT_STATUS;
+    const { data, error } = await supabase.from('master_project_status').select('*').order('name');
+    if (error || !data || data.length === 0) {
+        if(error) console.log("Error fetching project status, using fallback.");
+        return STATIC_PROJECT_STATUS;
+    }
+    return data as MasterDataItem[];
+}
+export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase.from('master_project_status').insert([{ name }]).select().single();
+    if (error) {
+        console.error("Error adding project status:", error);
+        throw new Error("Falha ao adicionar status do projeto.");
+    }
+    return data as MasterDataItem;
+}
+export const deleteProjectStatusOption = async (id: string) => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await supabase.from('master_project_status').delete().eq('id', id);
+    if (error) {
+        console.error("Error deleting project status:", error);
+        throw new Error("Falha ao remover status do projeto.");
     }
     return true;
 }
