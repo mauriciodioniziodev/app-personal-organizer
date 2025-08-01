@@ -74,6 +74,10 @@ export default function RootLayout({
   if (loading) {
      return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                <title>Amanda Martins - Organização Personalizada</title>
+                <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+            </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
             </body>
@@ -87,6 +91,10 @@ export default function RootLayout({
       // Show loading or a blank page while redirecting
       return (
         <html lang="en" suppressHydrationWarning>
+             <head>
+                <title>Amanda Martins - Organização Personalizada</title>
+                <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+            </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
             </body>
@@ -97,6 +105,10 @@ export default function RootLayout({
   if (!session && isAuthPage) {
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                <title>Amanda Martins - Organização Personalizada</title>
+                <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+            </head>
             <body className="bg-background">
                 {children}
                 <Toaster />
@@ -109,6 +121,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <title>Amanda Martins - Organização Personalizada</title>
+        <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
