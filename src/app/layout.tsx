@@ -50,7 +50,6 @@ export default function RootLayout({
         if (profile?.status === 'authorized') {
           setSession(session);
         } else {
-          // If user is logged in but not authorized, log them out and clear session state
           await supabase.auth.signOut();
           setSession(null);
         }
@@ -63,29 +62,25 @@ export default function RootLayout({
     checkUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setLoading(true); // Set loading while we re-check the new auth state
+      async (_event, session) => {
+        setLoading(true);
          if (session) {
-            const checkProfile = async () => {
-                 const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('status')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                 if (profile?.status === 'authorized') {
-                    setSession(session);
-                } else {
-                    await supabase.auth.signOut();
-                    setSession(null);
-                }
-                setLoading(false);
+             const { data: profile } = await supabase
+                .from('profiles')
+                .select('status')
+                .eq('id', session.user.id)
+                .single();
+            
+             if (profile?.status === 'authorized') {
+                setSession(session);
+            } else {
+                await supabase.auth.signOut();
+                setSession(null);
             }
-            checkProfile();
         } else {
             setSession(null);
-            setLoading(false);
         }
+        setLoading(false);
       }
     );
 
@@ -95,7 +90,7 @@ export default function RootLayout({
   }, []);
 
   useEffect(() => {
-    if (loading) return; // Wait until the auth check is complete
+    if (loading) return;
 
     const isAuthPage = pathname === '/login' || pathname === '/signup';
 
