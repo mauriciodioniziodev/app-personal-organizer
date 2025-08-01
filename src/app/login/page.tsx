@@ -25,57 +25,24 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (signInError) {
+        // The onAuthStateChange in RootLayout will handle redirects and access control.
+        // We just need to show an error if the login itself fails.
         if (signInError.message.includes('Invalid login credentials')) {
             setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-        } else if (signInError.message.includes('Email not confirmed')) {
-             setError('Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.');
         } else {
-            setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
+             setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
         }
-        setLoading(false);
-        return;
     }
-
-    if (!user) {
-        setError('Usuário não encontrado. Tente novamente.');
-        setLoading(false);
-        return;
-    }
-
-    // After successful authentication, check the user's profile status
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('status')
-        .eq('id', user.id)
-        .single();
+    // If login is successful, the onAuthStateChange listener in RootLayout
+    // will handle the user session and redirect if authorized.
     
-    if(profileError) {
-        setError('Não foi possível verificar seu perfil de usuário. Contate o suporte.');
-        await supabase.auth.signOut(); // Log out user if profile can't be fetched
-        setLoading(false);
-        return;
-    }
-
-    if (profile?.status === 'authorized') {
-        // The onAuthStateChange in RootLayout will handle the redirect
-        router.push('/');
-    } else {
-        await supabase.auth.signOut(); // Log out user as they are not authorized
-        if (profile?.status === 'revoked') {
-            setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
-        } else if (profile?.status === 'pending') {
-            setError('Sua conta ainda está pendente de aprovação.');
-        } else {
-             setError('Seu acesso não está autorizado. Contate o administrador.');
-        }
-        setLoading(false);
-    }
+    setLoading(false);
   };
 
   return (
