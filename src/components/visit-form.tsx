@@ -31,6 +31,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
     const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
@@ -48,7 +49,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
 
     const proceedToSubmit = async () => {
          if (!formRef.current) return;
-        setLoading(true);
+        setIsSubmitting(true);
         setErrors({});
 
         const formData = new FormData(formRef.current);
@@ -63,7 +64,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
 
         if (!validationResult.success) {
             setErrors(validationResult.error.flatten().fieldErrors);
-            setLoading(false);
+            setIsSubmitting(false);
             return;
         }
 
@@ -78,7 +79,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             });
             console.error(error);
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
     }
     
@@ -95,7 +96,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             return;
         }
 
-        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const now = new Date();
         const selectedDate = new Date(date);
 
         if (selectedDate < now) {
@@ -138,8 +139,8 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
                  {errors.status && <p className="text-sm text-destructive mt-1">{errors.status[0]}</p>}
             </div>
             <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                    {loading ? (
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
                         <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
                     ) : (
                         <><Plus className="mr-2 h-4 w-4"/> Adicionar Visita</>

@@ -38,6 +38,7 @@ export default function EditVisitPage() {
     const [visit, setVisit] = useState<Visit | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const formRef = useRef<HTMLFormElement>(null);
@@ -70,7 +71,7 @@ export default function EditVisitPage() {
 
     const proceedToSubmit = async () => {
         if (!formRef.current || !visit) return;
-        setLoading(true);
+        setIsSubmitting(true);
         setErrors({});
 
         const formData = new FormData(formRef.current);
@@ -86,12 +87,14 @@ export default function EditVisitPage() {
 
         if (!validationResult.success) {
             setErrors(validationResult.error.flatten().fieldErrors);
-            setLoading(false);
+            setIsSubmitting(false);
             return;
         }
 
         try {
-            await updateVisit(validationResult.data as Visit);
+            // Remove 'photos' from the object to be updated if it's not part of the form
+            const { photos, ...updateData } = validationResult.data;
+            await updateVisit(updateData as Visit);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
@@ -104,7 +107,7 @@ export default function EditVisitPage() {
                 description: "Ocorreu um erro. Verifique os dados e tente novamente."
             });
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
     };
     
@@ -122,7 +125,7 @@ export default function EditVisitPage() {
             return;
         }
         
-        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const now = new Date();
         const selectedDate = new Date(date);
 
         if (selectedDate < now) {
@@ -193,8 +196,8 @@ export default function EditVisitPage() {
                              <Link href={`/visits/${id}`}>
                                 <Button type="button" variant="outline">Cancelar</Button>
                             </Link>
-                            <Button type="submit" disabled={loading}>
-                                {loading ? (
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
                                     <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
                                 ) : (
                                     <><Save className="mr-2 h-4 w-4"/>Salvar Alterações</>

@@ -31,6 +31,7 @@ export default function NewVisitPage() {
     const { toast } = useToast();
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function NewVisitPage() {
 
     const proceedToSubmit = async () => {
         if (!formRef.current) return;
-        setLoading(true);
+        setIsSubmitting(true);
         setErrors({});
         const formData = new FormData(formRef.current);
         const visitData = {
@@ -68,7 +69,7 @@ export default function NewVisitPage() {
 
         if (!validationResult.success) {
             setErrors(validationResult.error.flatten().fieldErrors);
-            setLoading(false);
+            setIsSubmitting(false);
             return;
         }
 
@@ -86,7 +87,9 @@ export default function NewVisitPage() {
                 title: "Erro ao agendar visita",
                 description: "Ocorreu um erro. Verifique os dados e tente novamente."
             });
-            setLoading(false);
+            setIsSubmitting(false);
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
@@ -96,6 +99,11 @@ export default function NewVisitPage() {
         const date = formData.get("date") as string;
         const clientId = formData.get("clientId") as string;
         
+        if (!date || !clientId) {
+            toast({ variant: 'destructive', title: "Erro", description: "Cliente e data são obrigatórios." });
+            return;
+        }
+
         const conflict = await checkForVisitConflict({ clientId, date });
         if(conflict) {
             const conflictDate = new Date(conflict.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'});
@@ -104,7 +112,7 @@ export default function NewVisitPage() {
             return;
         }
         
-        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const now = new Date();
         const selectedDate = new Date(date);
 
         if (selectedDate < now) {
@@ -179,8 +187,8 @@ export default function NewVisitPage() {
                              <Link href="/visits">
                                 <Button type="button" variant="outline">Cancelar</Button>
                             </Link>
-                            <Button type="submit" disabled={loading}>
-                                {loading ? (
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
                                     <>
                                         <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                                         Salvando...

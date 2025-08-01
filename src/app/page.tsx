@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -10,7 +11,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Project, Visit, Client, VisitsSummary, ScheduleItem } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -345,7 +346,7 @@ export default function Dashboard() {
                         <li key={visit.id}>
                             <Link href={`/visits/${visit.id}`} className="block p-4 hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start mb-2">
-                                    <p className="font-semibold">{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p className="font-semibold">{formatDateTime(visit.date)}</p>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
                                     </Badge>

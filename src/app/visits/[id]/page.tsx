@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit, ArrowLeft } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -347,7 +347,7 @@ export default function VisitDetailsPage() {
                                      <Label className="text-sm font-semibold">Data</Label>
                                      <div className="flex items-center gap-2 mt-2">
                                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                                        <p>{new Date(visit.date).toLocaleString('pt-BR', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'short' })}</p>
+                                        <p>{formatDateTime(visit.date)}</p>
                                     </div>
                                  </div>
                             </div>

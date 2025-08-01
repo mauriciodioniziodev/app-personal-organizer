@@ -484,7 +484,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
         .from('visits')
         .insert({
             client_id: visit.clientId,
-            date: new Date(visit.date).toISOString(),
+            date: visit.date,
             summary: visit.summary,
             status: visit.status,
             photos: []
@@ -507,7 +507,7 @@ export const updateVisit = async (visit: Visit): Promise<Visit> => {
         .from('visits')
         .update({
             client_id: visit.clientId,
-            date: new Date(visit.date).toISOString(),
+            date: visit.date,
             summary: visit.summary,
             status: visit.status,
             project_id: visit.projectId,
@@ -813,4 +813,3 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
     
 
     
-

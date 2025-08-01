@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarPlus, Search, Phone, MapPin, LoaderCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 const VISITS_PER_PAGE = 20;
@@ -41,7 +41,6 @@ export default function VisitsPage() {
                     getVisitStatusOptions()
                 ]);
                 
-                // Correção: Ordena por data crescente (mais antiga para mais nova)
                 const sortedVisits = visitsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                 setAllVisits(sortedVisits);
                 setFilteredVisits(sortedVisits);
@@ -156,14 +155,22 @@ export default function VisitsPage() {
                     {paginatedVisits.map(visit => {
                         const projectName = getProjectName(visit.projectId);
                         const client = clients.find(c => c.id === visit.clientId);
+                        const { date, time } = (() => {
+                             const d = new Date(visit.date);
+                             return {
+                                 date: d.toLocaleDateString('pt-BR', { timeZone: 'UTC', dateStyle: 'long' }),
+                                 time: d.toLocaleTimeString('pt-BR', { timeZone: 'UTC', timeStyle: 'short' }),
+                             }
+                        })();
+
                         return (
                         <Card key={visit.id} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="font-headline text-xl">
-                                    {new Date(visit.date).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                                    {date}
                                 </CardTitle>
                                 <CardDescription>
-                                    {new Date(visit.date).toLocaleTimeString('pt-BR', { timeZone: 'UTC', timeStyle: 'short' })}
+                                    {time}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
