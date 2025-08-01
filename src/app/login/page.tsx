@@ -76,7 +76,7 @@ export default function LoginPage() {
     // 4. If authorized, let the auth listener in layout handle the redirect.
     // The router.push is a fallback in case the listener is slow.
     router.push('/');
-    setLoading(false);
+    // No need to setLoading(false) here as the page will redirect
   };
 
   return (
