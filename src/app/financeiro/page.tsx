@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects } from "@/lib/data";
-import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity } from "lucide-react";
+import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import type { Project, Client } from '@/lib/definitions';
@@ -20,6 +20,8 @@ export default function FinanceiroPage() {
   const [pendingRevenue, setPendingRevenue] = useState(0);
   const [allPendingProjects, setAllPendingProjects] = useState<Project[]>([]);
   const [filteredPendingProjects, setFilteredPendingProjects] = useState<Project[]>([]);
+  const [allPaidProjects, setAllPaidProjects] = useState<Project[]>([]);
+  const [filteredPaidProjects, setFilteredPaidProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +40,10 @@ export default function FinanceiroPage() {
         ]);
         
         const pendingProjects = allProjectsData.filter(p => p.paymentStatus !== 'pago');
+        const paidProjects = allProjectsData.filter(p => p.paymentStatus === 'pago');
+        
         setAllPendingProjects(pendingProjects);
+        setAllPaidProjects(paidProjects);
         setClients(clientsData);
 
         // Fetch initial financial data without date filters
@@ -50,6 +55,7 @@ export default function FinanceiroPage() {
         setPendingRevenue(pendingRevenueData);
 
         setFilteredPendingProjects(pendingProjects);
+        setFilteredPaidProjects(paidProjects);
         setLoading(false);
     }
     refetch();
@@ -67,24 +73,27 @@ export default function FinanceiroPage() {
         setTotalRevenue(total);
         setPendingRevenue(pending);
 
-        // Filter pending projects list based on date
+        // Filter projects lists based on date
          if (startDate && endDate) {
-            setFilteredPendingProjects(allPendingProjects.filter(p => {
+            const filterByDate = (p: Project) => {
                 const projectStart = new Date(p.startDate).getTime();
                 const projectEnd = new Date(p.endDate).getTime();
                 const filterStart = new Date(startDate).getTime();
                 const filterEnd = new Date(endDate).getTime();
                 return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
-            }));
+            };
+            setFilteredPendingProjects(allPendingProjects.filter(filterByDate));
+            setFilteredPaidProjects(allPaidProjects.filter(filterByDate));
         } else {
             setFilteredPendingProjects(allPendingProjects);
+            setFilteredPaidProjects(allPaidProjects);
         }
     }
     
     if(!loading) { // only run filter if initial load is complete
         filterFinancialData();
     }
-  }, [startDate, endDate, allPendingProjects, loading]);
+  }, [startDate, endDate, allPendingProjects, allPaidProjects, loading]);
 
 
   const getClient = (clientId: string) => {
@@ -191,62 +200,122 @@ export default function FinanceiroPage() {
         </Card>
       </div>
 
-       <div>
-          <h2 className="text-xl font-headline mb-4">Projetos com Pagamento Pendente</h2>
-          <Card>
-            <CardContent className="p-4">
-              {filteredPendingProjects.length > 0 ? (
-                <ul className="space-y-4">
-                  {filteredPendingProjects.map((project) => {
-                     const client = getClient(project.clientId);
-                     return (
-                        <li key={project.id}>
-                            <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                    <div className="flex-grow space-y-2">
-                                        <p className="font-semibold">{project.name}</p>
-                                        {client && (
-                                            <div className='text-sm text-muted-foreground space-y-1'>
-                                                <div className='flex items-center gap-2'>
-                                                    <User className="w-3 h-3"/>
-                                                    <span className='font-medium text-foreground'>{client.name}</span>
+       <div className="space-y-8">
+          <div>
+            <h2 className="text-xl font-headline mb-4">Projetos com Pagamento Pendente</h2>
+            <Card>
+                <CardContent className="p-4">
+                {filteredPendingProjects.length > 0 ? (
+                    <ul className="space-y-4">
+                    {filteredPendingProjects.map((project) => {
+                        const client = getClient(project.clientId);
+                        return (
+                            <li key={project.id}>
+                                <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{project.name}</p>
+                                            {client && (
+                                                <div className='text-sm text-muted-foreground space-y-1'>
+                                                    <div className='flex items-center gap-2'>
+                                                        <User className="w-3 h-3"/>
+                                                        <span className='font-medium text-foreground'>{client.name}</span>
+                                                    </div>
+                                                    <div className='flex items-center gap-2'>
+                                                        <Phone className="w-3 h-3"/>
+                                                        <span>{client.phone}</span>
+                                                    </div>
                                                 </div>
-                                                 <div className='flex items-center gap-2'>
-                                                    <Phone className="w-3 h-3"/>
-                                                    <span>{client.phone}</span>
-                                                </div>
+                                            )}
+                                            <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                                                <Calendar className="w-3 h-3"/>
+                                                <span className='font-medium'>
+                                                    {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                                                </span>
                                             </div>
-                                        )}
-                                        <div className='flex items-center gap-2 text-sm text-muted-foreground'>
-                                            <Calendar className="w-3 h-3"/>
-                                            <span className='font-medium'>
-                                                {formatDate(project.startDate)} - {formatDate(project.endDate)}
-                                            </span>
+                                            <div className='flex items-center gap-2 text-sm'>
+                                                <Activity className="w-3 h-3 text-muted-foreground"/>
+                                                <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                                                    {project.status}
+                                                </Badge>
+                                            </div>
                                         </div>
-                                         <div className='flex items-center gap-2 text-sm'>
-                                            <Activity className="w-3 h-3 text-muted-foreground"/>
-                                            <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
-                                                {project.status}
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                                {project.paymentStatus}
                                             </Badge>
                                         </div>
                                     </div>
-                                    <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
-                                        <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</p>
-                                        <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
-                                            {project.paymentStatus}
-                                        </Badge>
+                                </Link>
+                            </li>
+                        )
+                    })}
+                    </ul>
+                ) : (
+                    <p className="text-muted-foreground text-center py-8">Nenhum projeto com pagamento pendente no período selecionado.</p>
+                )}
+                </CardContent>
+            </Card>
+            </div>
+            <div>
+            <h2 className="text-xl font-headline mb-4">Projetos Pagos</h2>
+            <Card>
+                <CardContent className="p-4">
+                {filteredPaidProjects.length > 0 ? (
+                    <ul className="space-y-4">
+                    {filteredPaidProjects.map((project) => {
+                        const client = getClient(project.clientId);
+                        return (
+                            <li key={project.id}>
+                                <Link href={`/projects/${project.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{project.name}</p>
+                                            {client && (
+                                                <div className='text-sm text-muted-foreground space-y-1'>
+                                                    <div className='flex items-center gap-2'>
+                                                        <User className="w-3 h-3"/>
+                                                        <span className='font-medium text-foreground'>{client.name}</span>
+                                                    </div>
+                                                    <div className='flex items-center gap-2'>
+                                                        <Phone className="w-3 h-3"/>
+                                                        <span>{client.phone}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                                                <Calendar className="w-3 h-3"/>
+                                                <span className='font-medium'>
+                                                    {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                                                </span>
+                                            </div>
+                                            <div className='flex items-center gap-2 text-sm'>
+                                                <Activity className="w-3 h-3 text-muted-foreground"/>
+                                                <Badge variant={'outline'} className={cn("capitalize", executionStatusColors[project.status] ?? 'border-border')}>
+                                                    {project.status}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.finalValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", paymentStatusColors[project.paymentStatus] ?? 'border-border')}>
+                                                <CheckCircle className="w-3 h-3 mr-1" />
+                                                {project.paymentStatus}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                </div>
-                            </Link>
-                        </li>
-                     )
-                  })}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">Nenhum projeto com pagamento pendente no período selecionado.</p>
-              )}
-            </CardContent>
-          </Card>
+                                </Link>
+                            </li>
+                        )
+                    })}
+                    </ul>
+                ) : (
+                    <p className="text-muted-foreground text-center py-8">Nenhum projeto pago no período selecionado.</p>
+                )}
+                </CardContent>
+            </Card>
+            </div>
         </div>
     </div>
   );
