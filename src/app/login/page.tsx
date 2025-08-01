@@ -25,8 +25,34 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    // 1. Attempt to sign in
-    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+    if (!supabase) {
+        setError('Ocorreu um erro de configuração. Tente novamente mais tarde.');
+        setLoading(false);
+        return;
+    }
+
+    // 1. Check user status by email before attempting to sign in.
+    const { data: status, error: rpcError } = await supabase.rpc('get_user_status_by_email', { user_email: email });
+
+    if (rpcError) {
+        console.error('Error checking user status:', rpcError);
+        // Don't block login if RPC fails, proceed to normal login attempt
+    }
+
+    if (status === 'revoked') {
+        setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
+        setLoading(false);
+        return;
+    }
+
+    if (status === 'pending') {
+        setError('Sua conta ainda está pendente de aprovação pelo administrador.');
+        setLoading(false);
+        return;
+    }
+
+    // 2. If status is ok, proceed with sign-in.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -37,46 +63,9 @@ export default function LoginPage() {
       return;
     }
 
-    if (!user) {
-       setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
-       setLoading(false);
-       return;
-    }
-    
-    // 2. If sign-in is successful, check the profile status
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('status')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      // This should rarely happen if the DB trigger is working
-      await supabase.auth.signOut();
-      setError('Não foi possível verificar seu perfil. Entre em contato com o suporte.');
-      setLoading(false);
-      return;
-    }
-
-    // 3. Handle status and provide specific feedback
-    if (profile.status === 'revoked') {
-        await supabase.auth.signOut();
-        setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
-        setLoading(false);
-        return;
-    }
-
-    if (profile.status === 'pending') {
-        await supabase.auth.signOut();
-        setError('Sua conta ainda está pendente de aprovação pelo administrador.');
-        setLoading(false);
-        return;
-    }
-
-    // 4. If authorized, let the auth listener in layout handle the redirect.
+    // 3. If sign-in is successful, let the auth listener in layout handle the redirect.
     // The router.push is a fallback in case the listener is slow.
     router.push('/');
-    // No need to setLoading(false) here as the page will redirect
   };
 
   return (
