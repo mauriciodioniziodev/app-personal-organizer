@@ -37,52 +37,21 @@ export default function RootLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('status')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile?.status === 'authorized') {
-          setSession(session);
-        } else {
-          await supabase.auth.signOut();
-          setSession(null);
-        }
-      } else {
-        setSession(null);
-      }
-      setLoading(false);
-    };
-
-    checkUser();
-
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setLoading(true);
-         if (session) {
-             const { data: profile } = await supabase
-                .from('profiles')
-                .select('status')
-                .eq('id', session.user.id)
-                .single();
-            
-             if (profile?.status === 'authorized') {
-                setSession(session);
-            } else {
-                await supabase.auth.signOut();
-                setSession(null);
-            }
-        } else {
-            setSession(null);
-        }
+      (_event, session) => {
+        setSession(session);
         setLoading(false);
       }
     );
+
+    // Also check session on initial load
+     const checkInitialSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setLoading(false);
+     }
+     checkInitialSession();
+
 
     return () => {
       authListener?.subscription.unsubscribe();
@@ -130,6 +99,7 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className="bg-background">
                 {children}
+                <Toaster />
             </body>
         </html>
     )

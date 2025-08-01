@@ -25,23 +25,57 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // 1. Attempt to sign in
+    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (signInError) {
-        // The onAuthStateChange in RootLayout will handle redirects and access control.
-        // We just need to show an error if the login itself fails.
-        if (signInError.message.includes('Invalid login credentials')) {
-            setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-        } else {
-             setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
-        }
+      setError('Credenciais inválidas. Verifique seu e-mail e senha.');
+      setLoading(false);
+      return;
     }
-    // If login is successful, the onAuthStateChange listener in RootLayout
-    // will handle the user session and redirect if authorized.
+
+    if (!user) {
+       setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
+       setLoading(false);
+       return;
+    }
     
+    // 2. If sign-in is successful, check the profile status
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      // This should rarely happen if the DB trigger is working
+      await supabase.auth.signOut();
+      setError('Não foi possível verificar seu perfil. Entre em contato com o suporte.');
+      setLoading(false);
+      return;
+    }
+
+    // 3. Handle status and provide specific feedback
+    if (profile.status === 'revoked') {
+        await supabase.auth.signOut();
+        setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
+        setLoading(false);
+        return;
+    }
+
+    if (profile.status === 'pending') {
+        await supabase.auth.signOut();
+        setError('Sua conta ainda está pendente de aprovação pelo administrador.');
+        setLoading(false);
+        return;
+    }
+
+    // 4. If authorized, let the auth listener in layout handle the redirect.
+    // The router.push is a fallback in case the listener is slow.
+    router.push('/');
     setLoading(false);
   };
 
