@@ -47,7 +47,7 @@ export default function ProjectsPage() {
           getProjectStatusOptions()
       ]);
       
-      const sortedProjects = projectsData.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      const sortedProjects = projectsData.sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
       
       setAllProjects(sortedProjects);
       setClients(clientsData);
