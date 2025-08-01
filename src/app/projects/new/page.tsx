@@ -69,11 +69,13 @@ function NewProjectPageContent() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [paymentInstruments, setPaymentInstruments] = useState<MasterDataItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, any>>({});
   
   const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
   const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
+  const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Financial State
@@ -135,7 +137,7 @@ function NewProjectPageContent() {
   const proceedToSubmit = async () => {
     if (!formRef.current) return;
     
-    setLoading(true);
+    setIsSubmitting(true);
     setErrors({});
     const formData = new FormData(formRef.current);
     
@@ -187,7 +189,7 @@ function NewProjectPageContent() {
 
     if (!validationResult.success) {
       setErrors(validationResult.error.flatten().fieldErrors);
-      setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
@@ -204,44 +206,49 @@ function NewProjectPageContent() {
             title: "Erro ao criar projeto",
             description: "Ocorreu um erro inesperado. Tente novamente.",
         });
-        setLoading(false);
+        setIsSubmitting(false);
     }
   }
-  
-  const handleValidation = async () => {
+
+  const handleProjectSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!formRef.current) return;
-    const formData = new FormData(formRef.current);
-    const startDate = formData.get("startDate") as string;
-    const endDate = formData.get("endDate") as string;
-
-    const projectData = {
-        clientId: selectedClientId,
-        startDate,
-        endDate
-    };
     
-    const conflict = await checkForProjectConflict(projectData);
-    if (conflict) {
-        setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${new Date(conflict.startDate).toLocaleDateString('pt-BR')} a ${new Date(conflict.endDate).toLocaleDateString('pt-BR')}.`);
-        setIsConflictAlertOpen(true);
-        return;
-    }
+    const action = async () => {
+        const formData = new FormData(formRef.current as HTMLFormElement);
+        const startDate = formData.get("startDate") as string;
+        const endDate = formData.get("endDate") as string;
 
+        if (!selectedClientId || !startDate || !endDate) {
+            toast({
+                variant: "destructive",
+                title: "Campos Incompletos",
+                description: "Por favor, selecione um cliente e preencha as datas de início e fim.",
+            });
+            return;
+        }
+
+        const conflict = await checkForProjectConflict({ clientId: selectedClientId, startDate: startDate, endDate: endDate });
+        if (conflict) {
+            setConflictMessage(`Este cliente já tem o projeto "${conflict.name}" agendado no período de ${new Date(conflict.startDate).toLocaleDateString('pt-BR')} a ${new Date(conflict.endDate).toLocaleDateString('pt-BR')}.`);
+            setIsConflictAlertOpen(true);
+            setPendingSubmit(() => () => proceedToSubmit()); // Store the submit action
+            return; // Stop execution until user confirms
+        }
+        await proceedToSubmit();
+    }
+    
     const today = new Date();
     today.setHours(0,0,0,0);
+    const startDate = new FormData(formRef.current).get("startDate") as string;
     const selectedDate = new Date(`${startDate}T00:00:00`);
 
     if (selectedDate < today) {
         setIsPastDateAlertOpen(true);
+        setPendingSubmit(() => action);
     } else {
-        await proceedToSubmit();
+        await action();
     }
-  }
-
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    handleValidation();
   }
   
   if (loading) {
@@ -255,7 +262,7 @@ function NewProjectPageContent() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Novo Projeto" />
-      <form ref={formRef} onSubmit={handleSubmit}>
+      <form ref={formRef} onSubmit={handleProjectSubmit}>
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -421,8 +428,8 @@ function NewProjectPageContent() {
                 <Link href="/projects">
                     <Button type="button" variant="outline">Cancelar</Button>
                 </Link>
-                 <Button type="submit" disabled={loading} aria-disabled={loading}>
-                    {loading ? (
+                 <Button type="submit" disabled={isSubmitting} aria-disabled={isSubmitting}>
+                    {isSubmitting ? (
                         <>
                         <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                         Salvando...
@@ -445,7 +452,7 @@ function NewProjectPageContent() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
-                    <AlertDialogAction onClick={proceedToSubmit}>Continuar</AlertDialogAction>
+                    <AlertDialogAction onClick={() => pendingSubmit && pendingSubmit()}>Continuar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -459,7 +466,7 @@ function NewProjectPageContent() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Alterar</AlertDialogCancel>
-                    <AlertDialogAction onClick={proceedToSubmit}>Continuar Mesmo Assim</AlertDialogAction>
+                    <AlertDialogAction onClick={() => pendingSubmit && pendingSubmit()}>Continuar Mesmo Assim</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -477,3 +484,4 @@ export default function NewProjectPage() {
 }
 
     
+

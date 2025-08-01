@@ -432,23 +432,25 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
 export const checkForProjectConflict = async ({clientId, startDate, endDate, projectId}: {clientId: string, startDate: string, endDate: string, projectId?: string}) => {
      if(!supabase || !clientId || !startDate || !endDate) return null;
      
+     // An overlap occurs if (StartA <= EndB) and (EndA >= StartB).
      let query = supabase.from('projects')
         .select('*')
         .eq('client_id', clientId)
-        .overlap('start_date', [startDate, endDate]);
+        .lte('start_date', endDate) // Their start date must be before our end date
+        .gte('end_date', startDate);  // And their end date must be after our start date
         
      if (projectId) {
         query = query.not('id', 'eq', projectId);
     }
     
-    const { data, error } = await query;
+    const { data, error } = await query.maybeSingle(); // We only care if at least one exists
     
      if (error) {
         console.error("Error checking for project conflict:", error);
         return null;
     }
     
-    return data && data.length > 0 ? toCamelCase(data[0]) : null;
+    return data ? toCamelCase(data) : null;
 }
 
 
@@ -811,3 +813,4 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
     
 
     
+
