@@ -203,7 +203,7 @@ function UserManagementCard() {
                                     </SelectContent>
                                 </Select>
                                 <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized' || isCurrentUser}>
+                                    <Button size="sm" variant="success" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized' || isCurrentUser}>
                                         <Check className="mr-2 h-4 w-4"/> Autorizar
                                     </Button>
                                     <Button size="sm" variant="destructive" onClick={() => handleStatusChange(profile.id, 'revoked')} disabled={profile.status === 'revoked' || isCurrentUser}>
