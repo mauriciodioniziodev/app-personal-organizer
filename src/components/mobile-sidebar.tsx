@@ -18,14 +18,15 @@ export function MobileSidebar() {
           <span className="sr-only">Abrir Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0 w-64">
+      <SheetContent side="left" className="p-0 w-64 flex flex-col">
         <VisuallyHidden asChild>
           <SheetTitle>Menu Principal</SheetTitle>
         </VisuallyHidden>
          <VisuallyHidden asChild>
           <SheetDescription>Navegue pelas seções do aplicativo</SheetDescription>
         </VisuallyHidden>
-        <Sidebar onLinkClick={() => setIsOpen(false)} />
+        {/* The Sidebar component is now rendered here, making the menu content appear */}
+        <Sidebar className="flex" onLinkClick={() => setIsOpen(false)} />
       </SheetContent>
     </Sheet>
   );
