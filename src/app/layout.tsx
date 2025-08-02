@@ -37,6 +37,10 @@ export default function RootLayout({
   const pathname = usePathname();
 
   useEffect(() => {
+    if (!supabase) {
+        setLoading(false);
+        return;
+    }
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);

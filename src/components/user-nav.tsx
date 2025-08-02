@@ -24,6 +24,7 @@ export function UserNav() {
 
   useEffect(() => {
     const fetchUserData = async () => {
+      if (!supabase) return;
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
@@ -86,4 +87,3 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
-
