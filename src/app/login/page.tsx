@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import Image from 'next/image';
-import { LoaderCircle } from 'lucide-react';
+
+import { LoaderCircle, Shirt } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,10 +71,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
+        <div className="flex justify-center mb-8"><Shirt className="w-20 h-20" /></div>
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Amanda Martins</CardTitle>
-            <CardDescription>Organização Personalizada</CardDescription>
+            <CardTitle className="text-2xl font-headline">Bem-vindo(a) de volta!</CardTitle>
+            <CardDescription>Acesse seu painel para gerenciar suas organizações.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
