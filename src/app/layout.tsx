@@ -81,6 +81,7 @@ export default function RootLayout({
             <head>
                 <title>Amanda Martins - Organização Personalizada</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+                 <link rel="manifest" href="/manifest.json" />
             </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
@@ -98,6 +99,7 @@ export default function RootLayout({
              <head>
                 <title>Amanda Martins - Organização Personalizada</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+                 <link rel="manifest" href="/manifest.json" />
             </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
@@ -112,6 +114,7 @@ export default function RootLayout({
             <head>
                 <title>Amanda Martins - Organização Personalizada</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+                 <link rel="manifest" href="/manifest.json" />
             </head>
             <body className="bg-background">
                 {children}
@@ -127,6 +130,7 @@ export default function RootLayout({
       <head>
         <title>Amanda Martins - Organização Personalizada</title>
         <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+        <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -143,7 +147,7 @@ export default function RootLayout({
       >
         <Suspense fallback={<div className="flex items-center justify-center h-screen bg-background"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
             <div className="flex min-h-screen">
-                <Sidebar />
+                <Sidebar className="hidden md:flex" />
                 <div className="flex flex-col flex-1">
                   <Header />
                   <main className="w-full flex-1 flex-col p-4 sm:p-6 md:p-8">
