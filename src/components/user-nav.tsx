@@ -7,14 +7,11 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabaseClient";
-import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -42,17 +39,12 @@ export function UserNav() {
                 email: user.email || '',
                 status: userProfile.status,
                 role: userProfile.role,
-            } as UserProfile);
+            });
         }
       }
     };
     fetchUserData();
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
   
   const getInitials = (name: string | undefined | null) => {
     if (!name) return 'U';
@@ -89,13 +81,7 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {/* Add more items here like Profile, Settings etc. if needed */}
-        </DropdownMenuGroup>
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sair</span>
-        </DropdownMenuItem>
+         {/* Items like Profile, Settings can be added here */}
       </DropdownMenuContent>
     </DropdownMenu>
   );
