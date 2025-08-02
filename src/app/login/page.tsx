@@ -10,8 +10,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { LoaderCircle } from 'lucide-react';
 
-import { LoaderCircle, Shirt } from 'lucide-react';
+function HangerIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M14.5 17.5a2.5 2.5 0 0 1-5 0V15H4a2 2 0 0 0-2 2v2h1.5a2.5 2.5 0 0 1 5 0h8a2.5 2.5 0 0 1 5 0H22v-2a2 2 0 0 0-2-2h-5.5v2.5Z" />
+            <path d="M12 15V6.5a4 4 0 0 0-4-4" />
+            <path d="M12 6.5a4 4 0 0 1 4-4" />
+        </svg>
+    )
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,7 +91,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8"><Shirt className="w-20 h-20" /></div>
+        <div className="flex justify-center mb-8"><HangerIcon className="w-20 h-20" /></div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline">Bem-vindo(a) de volta!</CardTitle>

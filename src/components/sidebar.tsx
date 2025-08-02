@@ -5,9 +5,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, LogOut, Shirt } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "./ui/button";
 import type { UserProfile } from "@/lib/definitions";
 import { useEffect, useState } from "react";
 
@@ -20,6 +19,28 @@ const navItems = [
   { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
   { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
 ];
+
+function HangerIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M14.5 17.5a2.5 2.5 0 0 1-5 0V15H4a2 2 0 0 0-2 2v2h1.5a2.5 2.5 0 0 1 5 0h8a2.5 2.5 0 0 1 5 0H22v-2a2 2 0 0 0-2-2h-5.5v2.5Z" />
+            <path d="M12 15V6.5a4 4 0 0 0-4-4" />
+            <path d="M12 6.5a4 4 0 0 1 4-4" />
+        </svg>
+    )
+}
+
 
 export default function Sidebar({ className, onLinkClick }: { className?: string, onLinkClick?: () => void }) {
   const pathname = usePathname();
@@ -71,7 +92,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
     <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
-          <Shirt className="w-10 h-10 rounded-lg" />
+          <HangerIcon className="w-10 h-10 rounded-lg" />
 
           <div>
             <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
