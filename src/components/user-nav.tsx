@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -16,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { UserProfile } from "@/lib/definitions";
+import { LogOut } from "lucide-react";
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
@@ -56,6 +58,12 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   }
 
+  const handleLogout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
+
   if (!user || !profile) {
     return null;
   }
@@ -82,7 +90,10 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-         {/* Items like Profile, Settings can be added here */}
+         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sair</span>
+         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

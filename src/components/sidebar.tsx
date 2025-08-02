@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -27,6 +28,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
 
   useEffect(() => {
      const fetchProfile = async () => {
+        if(!supabase) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const { data: userProfile } = await supabase
@@ -65,11 +67,6 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
     );
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  }
-
-
   return (
     <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
       <div className="p-6">
@@ -91,12 +88,6 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
           ))}
         </ul>
       </nav>
-        <div className="p-4 mt-auto">
-            <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4"/>
-                Sair
-            </Button>
-        </div>
     </aside>
   );
 }
