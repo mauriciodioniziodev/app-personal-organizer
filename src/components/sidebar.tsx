@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Link from "next/link";
@@ -72,7 +71,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
 
 
   return (
-    <aside className={cn("flex flex-col w-64 h-full bg-card border-r", className)}>
+    <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
           <Shirt className="w-10 h-10 rounded-lg" />
