@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import Image from 'next/image';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Shirt } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,16 +70,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-            <Image 
-                data-ai-hint="logo"
-                src="https://placehold.co/80x80.png"
-                width={80}
-                height={80}
-                alt="Logo Amanda Martins"
-                className="rounded-lg"
-            />
-        </div>
+        <div className="flex justify-center mb-8"><Shirt className="w-20 h-20" /></div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline">Bem-vindo(a) de volta!</CardTitle>
