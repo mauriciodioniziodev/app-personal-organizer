@@ -14,7 +14,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser();
+    const { data: { user } } = await supabaseAdmin.auth.getUser();
 
     if (userError || !user) {
         console.error("Error fetching current user for permissions check:", userError);
@@ -30,8 +30,6 @@ export async function getProfiles(): Promise<UserProfile[]> {
             return [];
         }
 
-        // The RPC returns columns in snake_case or as defined in the function.
-        // We need to map them to the camelCase UserProfile type.
         return data.map(profile => ({
             id: profile.id,
             fullName: profile.full_name,
