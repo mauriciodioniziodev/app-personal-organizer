@@ -44,7 +44,9 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
                 getSettings()
             ]);
 
-            setProfile(toCamelCase(userProfile.data));
+            if (userProfile.data) {
+                setProfile(toCamelCase(userProfile.data));
+            }
             setSettings(companySettings);
         }
      }
@@ -69,14 +71,14 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
     return Object.keys(obj).reduce(
         (result, key) => {
             const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
-            result[camelKey] = obj[key];
+            result[camelKey] = toCamelCase(obj[key]);
             return result;
         },
         {} as any
     );
   };
   
-  const companyName = settings?.companyName || 'Amanda Martins';
+  const companyName = settings?.companyName || 'OrganizerFlow';
   const logoUrl = settings?.logoUrl;
 
   return (
