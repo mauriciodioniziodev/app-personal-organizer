@@ -54,37 +54,25 @@ export async function getProfiles(): Promise<UserProfile[]> {
         console.error("Could not fetch profile for current admin user:", profileError);
         return [];
     }
-
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from('profiles')
-        .select('*, organizations(name)')
-        .eq('company_id', currentProfile.company_id);
     
-    if (profilesError) {
-        console.error("Error fetching company profiles:", profilesError);
-        return [];
-    }
+    const { data: companyProfiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('*, organizations(name)')
+      .eq('company_id', currentProfile.company_id);
 
+    if (profilesError) {
+      console.error('Error fetching profiles for company:', profilesError);
+      return [];
+    }
+      
     // Since we now have profiles, fetch all auth users to map emails
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        // Return what we have, but emails will be missing
-        return profiles.map(p => ({
-            id: p.id,
-            fullName: p.full_name,
-            status: p.status,
-            role: p.role,
-            companyId: p.company_id,
-            email: 'Erro ao buscar e-mail',
-            // @ts-ignore
-            companyName: p.organizations?.name || 'Empresa não encontrada',
-        }));
     }
+    const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
 
-    const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
-
-    return profiles.map(p => {
+    return companyProfiles.map(p => {
         // @ts-ignore
         const companyName = p.organizations?.name || 'Empresa não encontrada';
         return {

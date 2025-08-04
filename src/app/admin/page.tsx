@@ -178,49 +178,50 @@ function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <ul className="space-y-3">
-                    {profiles.map(profile => {
-                        const isCurrentUser = profile.id === currentUserId;
-                        return (
-                        <li key={profile.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
-                            <div className="flex-grow">
-                                <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
-                                <p className="text-sm text-muted-foreground">{profile.email}</p>
-                                {isSuperAdmin && <p className="text-xs font-bold text-primary mt-1">{profile.companyName}</p>}
-                                <div className="flex gap-2 mt-2">
-                                    <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
-                                    <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>
+                {profiles.length > 0 ? (
+                    <ul className="space-y-3">
+                        {profiles.map(profile => {
+                            const isCurrentUser = profile.id === currentUserId;
+                            return (
+                            <li key={profile.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
+                                <div className="flex-grow">
+                                    <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
+                                    <p className="text-sm text-muted-foreground">{profile.email}</p>
+                                    {isSuperAdmin && <p className="text-xs font-bold text-primary mt-1">{profile.companyName}</p>}
+                                    <div className="flex gap-2 mt-2">
+                                        <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
+                                        <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                                <Select 
-                                    value={profile.role} 
-                                    onValueChange={(v) => handleRoleChange(profile.id, v as any)}
-                                    disabled={isCurrentUser}
-                                >
-                                    <SelectTrigger className="w-full sm:w-[150px]">
-                                        <SelectValue placeholder="Alterar Perfil" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="administrador">Administrador</SelectItem>
-                                        <SelectItem value="usuario">Usuário</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <div className="flex gap-2">
-                                    <Button size="sm" variant="success" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized' || isCurrentUser}>
-                                        <Check className="mr-2 h-4 w-4"/> Autorizar
-                                    </Button>
-                                    <Button size="sm" variant="destructive" onClick={() => handleStatusChange(profile.id, 'revoked')} disabled={profile.status === 'revoked' || isCurrentUser}>
-                                        <X className="mr-2 h-4 w-4"/> Revogar
-                                    </Button>
+                                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                    <Select 
+                                        value={profile.role} 
+                                        onValueChange={(v) => handleRoleChange(profile.id, v as any)}
+                                        disabled={isCurrentUser}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[150px]">
+                                            <SelectValue placeholder="Alterar Perfil" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="administrador">Administrador</SelectItem>
+                                            <SelectItem value="usuario">Usuário</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="success" onClick={() => handleStatusChange(profile.id, 'authorized')} disabled={profile.status === 'authorized' || isCurrentUser}>
+                                            <Check className="mr-2 h-4 w-4"/> Autorizar
+                                        </Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleStatusChange(profile.id, 'revoked')} disabled={profile.status === 'revoked' || isCurrentUser}>
+                                            <X className="mr-2 h-4 w-4"/> Revogar
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        </li>
-                    )})}
-                     {profiles.length === 0 && (
-                        <p className="text-muted-foreground text-center py-4">Nenhum usuário pendente ou cadastrado.</p>
-                    )}
-                </ul>
+                            </li>
+                        )})}
+                    </ul>
+                ) : (
+                    <p className="text-muted-foreground text-center py-4">Nenhum usuário pendente ou cadastrado.</p>
+                )}
             </CardContent>
         </Card>
     );
