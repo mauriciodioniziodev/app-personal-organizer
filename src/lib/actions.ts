@@ -21,46 +21,70 @@ export async function getProfiles(): Promise<UserProfile[]> {
         return [];
     }
     
-    let profilesQuery;
-
+    // Super admin branch
     if (user.email === 'mauriciodionizio@gmail.com') {
-        // Super admin gets all profiles with their associated company name
-        profilesQuery = supabaseAdmin.from('profiles').select('*, organizations(name)');
-    } else {
-        // Regular admin gets profiles from their own company
-        const { data: currentProfile, error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .select('company_id')
-            .eq('id', user.id)
-            .single();
+        const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles');
 
-        if (profileError || !currentProfile) {
-             console.error("Could not fetch profile for current admin user:", profileError);
-             return [];
+        if (error) {
+            console.error("Error fetching all user profiles via RPC:", error);
+            return [];
         }
-        
-        profilesQuery = supabaseAdmin.from('profiles').select('*, organizations(name)').eq('company_id', currentProfile.company_id);
-    }
-    
-    const { data: profiles, error } = await profilesQuery;
 
-    if (error) {
-        console.error("Error fetching profiles:", error);
+        return data.map(profile => ({
+            id: profile.id,
+            fullName: profile.full_name,
+            status: profile.status,
+            role: profile.role,
+            companyId: profile.company_id,
+            email: profile.email || 'E-mail não encontrado',
+            companyName: profile.company_name || 'Empresa não encontrada',
+        }));
+    }
+
+    // Regular admin branch
+    const { data: currentProfile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+    
+    if (profileError || !currentProfile) {
+        console.error("Could not fetch profile for current admin user:", profileError);
         return [];
     }
-    if (!profiles || profiles.length === 0) return [];
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('*, organizations(name)')
+        .eq('company_id', currentProfile.company_id);
     
-    // Fetch all users from auth to map emails
+    if (profilesError) {
+        console.error("Error fetching company profiles:", profilesError);
+        return [];
+    }
+
+    // Since we now have profiles, fetch all auth users to map emails
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        return []; // Can't proceed without emails
+        // Return what we have, but emails will be missing
+        return profiles.map(p => ({
+            id: p.id,
+            fullName: p.full_name,
+            status: p.status,
+            role: p.role,
+            companyId: p.company_id,
+            email: 'Erro ao buscar e-mail',
+            // @ts-ignore
+            companyName: p.organizations?.name || 'Empresa não encontrada',
+        }));
     }
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
-    
+
     return profiles.map(p => {
-        const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+        // @ts-ignore
+        const companyName = p.organizations?.name || 'Empresa não encontrada';
         return {
             id: p.id,
             fullName: p.full_name,
@@ -68,8 +92,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
             role: p.role,
             companyId: p.company_id,
             email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: companyDetails?.name || 'Empresa não encontrada',
-        }
+            companyName: companyName,
+        };
     });
 };
 
