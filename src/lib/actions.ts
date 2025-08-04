@@ -14,49 +14,33 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    const { data: { user } , error: userError } = await supabaseAdmin.auth.getUser();
+    // Use the admin client to get the currently authenticated user from the request cookie
+    const { data: { user } } = await supabaseAdmin.auth.getUser();
 
-    if (userError || !user) {
-        console.error("Error fetching current user for permissions check:", userError);
+    if (!user) {
+        console.error("No user found.");
         return [];
     }
     
     // Super admin branch: use the RPC function that runs the validated SQL query
     if (user.email === 'mauriciodionizio@gmail.com') {
-        const sqlQuery = `
-            SELECT 
-                p.id,
-                p.full_name,
-                p.role,
-                p.status,
-                p.company_id,
-                o.name as company_name,
-                u.email
-            FROM 
-                public.profiles p
-            JOIN 
-                public.organizations o ON p.company_id = o.id
-            JOIN
-                auth.users u ON p.id = u.id;
-        `;
-        console.log("--- DEBUG SUPER ADMIN QUERY ---");
-        console.log("Executing the following SQL query via RPC 'get_all_user_profiles':");
-        console.log(sqlQuery);
-        
         const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles');
 
         if (error) {
             console.error("Error fetching all user profiles via RPC:", error);
-            console.log("--- END DEBUG ---");
             return [];
         }
         
-        console.log("Raw data received from RPC:");
-        console.log(JSON.stringify(data, null, 2));
-        console.log("--- END DEBUG ---");
-        
-        // Return the raw data for the client to handle
-        return data as any[];
+        // The RPC function returns snake_case columns. We need to map them to camelCase for the frontend.
+        return data.map((profile: any) => ({
+            id: profile.id,
+            fullName: profile.full_name,
+            role: profile.role,
+            status: profile.status,
+            companyId: profile.company_id,
+            companyName: profile.company_name,
+            email: profile.email
+        }));
     }
 
     // Regular admin branch
