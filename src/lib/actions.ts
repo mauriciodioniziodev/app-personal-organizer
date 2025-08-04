@@ -32,6 +32,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
         console.error("Error fetching profiles:", error);
         return [];
     }
+    if (!profiles) return [];
 
     const userIds = profiles.map(p => p.id);
     if (userIds.length === 0) return [];
