@@ -27,7 +27,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     // Check if the user is the super admin
     if (user.email === 'mauriciodionizio@gmail.com') {
         // Super admin sees all profiles from all companies
-        query = supabaseAdmin.from('profiles').select('*, companies:companies(name)');
+        query = supabaseAdmin.from('profiles').select('*, companies(name)');
     } else {
         // Regular admin sees profiles only from their own company.
         const { data: currentProfile, error: profileError } = await supabaseAdmin
@@ -43,7 +43,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
         
         query = supabaseAdmin
             .from('profiles')
-            .select('*, companies:companies(name)')
+            .select('*, companies(name)')
             .eq('company_id', currentProfile.company_id);
     }
 
@@ -65,14 +65,15 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
+        // Fallback to return profiles without emails if user lookup fails, but still show them.
         return profiles.map(p => ({
             id: p.id,
             fullName: p.full_name,
             status: p.status,
             role: p.role,
             companyId: p.company_id,
-            email: 'N/A',
-            companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'N/A',
+            email: 'E-mail não disponível',
+            companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'Empresa não encontrada',
         }));
     }
 
@@ -86,8 +87,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
             status: p.status,
             role: p.role,
             companyId: p.company_id,
-            email: emailMap.get(p.id) || 'N/A',
-            companyName: companyDetails?.name || 'N/A',
+            email: emailMap.get(p.id) || 'E-mail não encontrado',
+            companyName: companyDetails?.name || 'Empresa não encontrada',
         }
     });
 };
