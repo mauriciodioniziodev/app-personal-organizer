@@ -1,6 +1,9 @@
 
 "use server";
 
+import { config } from "dotenv";
+config();
+
 import { z } from "zod";
 import { addClient, addProject, addVisit, addPhotoToVisit, getCurrentProfile } from "./data";
 import { revalidatePath } from "next/cache";
