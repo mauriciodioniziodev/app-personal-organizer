@@ -66,29 +66,32 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
 
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    const { data, error } = await supabase.from('profiles').select('*, companies(name)').eq('id', session.user.id).single();
     if(error) {
         console.error("Error fetching current profile:", error);
         return null;
     }
     
-    // Use the auth user object for the email to ensure it's always correct
-    return { ...toCamelCase(data), email: session.user.email || '' };
+    // Manually structure the data to include companyName at the top level
+    const profileData = toCamelCase(data);
+    return {
+        ...profileData,
+        email: session.user.email || '',
+        companyName: profileData.companies?.name || 'Empresa não encontrada'
+    };
 }
-
 
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
 
     const currentUser = await getCurrentProfile();
     // Super admin manages companies, not individual users from this view.
-    if (currentUser?.email === 'mauriciodionizio@gmail.com') {
+    if (!currentUser || currentUser.email === 'mauriciodionizio@gmail.com') {
         return [];
     }
 
     // For regular admins, RLS on 'profiles' table will automatically filter
     // to only show users from the admin's own company.
-    // We get the email from the associated auth.users table.
     const { data: profiles, error } = await supabase
         .from('profiles')
         .select(`
@@ -97,22 +100,40 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
             status,
             role,
             company_id,
-            companies ( name ),
-            user:users ( email )
+            companies ( name )
         `);
-
+        
     if (error) {
         console.error("Error fetching profiles:", error);
         return [];
     }
     if (!profiles) return [];
     
+    // Now, fetch the auth users to get their emails
+    const userIds = profiles.map(p => p.id);
+    const { data: users, error: usersError } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+    });
+    
+    if (usersError) {
+         console.error("Error fetching auth users:", usersError);
+         // Return profiles without email if auth user fetch fails
+         return profiles.map(p => toCamelCase({
+            ...p,
+            email: 'E-mail indisponível',
+            companyName: p.companies?.name || 'Empresa não encontrada'
+         }));
+    }
+    
+    const emailMap = new Map(users.users.map(u => [u.id, u.email]));
+
     // Manually structure the data to match the UserProfile type
     return profiles.map((profile: any) => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: profile.user?.email || 'E-mail não disponível',
+        email: emailMap.get(profile.id) || 'E-mail não disponível',
         role: profile.role,
         companyId: profile.company_id,
         companyName: profile.companies?.name || 'Empresa não encontrada',
@@ -997,4 +1018,5 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
