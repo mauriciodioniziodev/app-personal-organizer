@@ -85,24 +85,21 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
 
     const currentUser = await getCurrentProfile();
-    // Super admin manages companies, not individual users from this view.
-    if (!currentUser || currentUser.email === 'mauriciodionizio@gmail.com') {
-        return [];
-    }
+    if (!currentUser) return [];
 
-    // For regular admins, RLS on 'profiles' table will automatically filter
-    // to only show users from the admin's own company.
-    const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select(`
-            id,
-            full_name,
-            status,
-            role,
-            company_id,
-            companies ( name )
-        `);
-        
+    // The RLS policy "Users can view profiles from their own company" will handle filtering.
+    // The policy is written such that super admin can see all profiles.
+    let query = supabase.from('profiles').select(`
+        id,
+        full_name,
+        status,
+        role,
+        company_id,
+        companies ( name )
+    `);
+
+    const { data: profiles, error } = await query;
+
     if (error) {
         console.error("Error fetching profiles:", error);
         return [];
@@ -110,11 +107,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!profiles) return [];
     
     // Now, fetch the auth users to get their emails
-    const userIds = profiles.map(p => p.id);
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-    });
+    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
     
     if (usersError) {
          console.error("Error fetching auth users:", usersError);
@@ -126,7 +119,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
          }));
     }
     
-    const emailMap = new Map(users.users.map(u => [u.id, u.email]));
+    const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
 
     // Manually structure the data to match the UserProfile type
     return profiles.map((profile: any) => ({
@@ -175,7 +168,6 @@ export const getCompanies = async (): Promise<Company[]> => {
 export const addCompany = async (name: string): Promise<Company> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    // This will only work for the super admin due to RLS.
     const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .insert({ name })
@@ -187,7 +179,6 @@ export const addCompany = async (name: string): Promise<Company> => {
         throw new Error("Não foi possível criar a nova empresa.");
     }
     
-    // Also create default settings for the new company
     const { error: settingsError } = await supabase
         .from('settings')
         .insert({ company_id: companyData.id, company_name: companyData.name });
@@ -206,9 +197,8 @@ export const updateCompany = async (companyId: string, updates: { isActive?: boo
     if (updates.isActive !== undefined) snakeCaseUpdates.is_active = updates.isActive;
     if (updates.name !== undefined) snakeCaseUpdates.name = updates.name;
 
-    if (Object.keys(snakeCaseUpdates).length === 0) return; // Nothing to update
+    if (Object.keys(snakeCaseUpdates).length === 0) return;
 
-    // This will only work for the super admin
     const { error } = await supabase.from('companies').update(snakeCaseUpdates).eq('id', companyId);
      if(error) {
         console.error("Error updating company:", error);
@@ -1018,5 +1008,6 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 

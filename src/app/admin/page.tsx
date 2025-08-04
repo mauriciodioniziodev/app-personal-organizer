@@ -100,7 +100,7 @@ function MasterDataCard<T extends MasterDataItem>({
     )
 }
 
-function UserManagementCard() {
+function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -155,9 +155,6 @@ function UserManagementCard() {
         usuario: 'bg-blue-100 text-blue-800',
     };
 
-    const companyName = profiles[0]?.companyName || 'Sua Empresa';
-
-
     if (loading) {
         return (
             <Card>
@@ -176,7 +173,9 @@ function UserManagementCard() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2"><Users /> Gerenciamento de Usuários</CardTitle>
-                <CardDescription>Usuários da empresa: <span className="font-bold">{companyName}</span></CardDescription>
+                <CardDescription>
+                    {isSuperAdmin ? "Visualize e gerencie todos os usuários do sistema." : "Autorize ou revogue o acesso e defina os perfis dos usuários ao sistema."}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-3">
@@ -187,6 +186,7 @@ function UserManagementCard() {
                             <div className="flex-grow">
                                 <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
                                 <p className="text-sm text-muted-foreground">{profile.email}</p>
+                                {isSuperAdmin && <p className="text-xs font-bold text-primary mt-1">{profile.companyName}</p>}
                                 <div className="flex gap-2 mt-2">
                                     <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
                                     <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>
@@ -452,31 +452,35 @@ export default function AdminPage() {
             <PageHeader title="Administração" />
 
             <div className="space-y-8">
-                 {isSuperAdmin ? <SuperAdminCompanyManagement /> : <UserManagementCard />}
+                {isSuperAdmin && <SuperAdminCompanyManagement />}
+                
+                <UserManagementCard isSuperAdmin={isSuperAdmin} />
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <MasterDataCard
-                        title="Status de Visita"
-                        description="Gerencie as opções para o status de uma visita."
-                        items={visitStatusOptions}
-                        onAdd={(name) => addVisitStatusOption(name).then(handleUpdate)}
-                        onDelete={(id) => deleteVisitStatusOption(id).then(handleUpdate)}
-                    />
-                     <MasterDataCard
-                        title="Meios de Pagamento"
-                        description="Gerencie as opções para os meios de pagamento de um projeto."
-                        items={paymentInstrumentOptions}
-                        onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
-                        onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
-                    />
-                     <MasterDataCard
-                        title="Status de Execução do Projeto"
-                        description="Gerencie as opções para o status de execução de um projeto."
-                        items={projectStatusOptions}
-                        onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
-                        onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
-                    />
-                </div>
+                {!isSuperAdmin && (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <MasterDataCard
+                            title="Status de Visita"
+                            description="Gerencie as opções para o status de uma visita."
+                            items={visitStatusOptions}
+                            onAdd={(name) => addVisitStatusOption(name).then(handleUpdate)}
+                            onDelete={(id) => deleteVisitStatusOption(id).then(handleUpdate)}
+                        />
+                        <MasterDataCard
+                            title="Meios de Pagamento"
+                            description="Gerencie as opções para os meios de pagamento de um projeto."
+                            items={paymentInstrumentOptions}
+                            onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
+                            onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
+                        />
+                        <MasterDataCard
+                            title="Status de Execução do Projeto"
+                            description="Gerencie as opções para o status de execução de um projeto."
+                            items={projectStatusOptions}
+                            onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
+                            onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
