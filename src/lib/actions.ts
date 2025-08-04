@@ -3,87 +3,10 @@
 
 import 'dotenv/config';
 import { z } from "zod";
-import { addClient, addProject, addVisit, addPhotoToVisit, getCurrentProfile } from "./data";
+import { addClient, addProject, addVisit, addPhotoToVisit } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Visit, UserProfile } from "./definitions";
-import { createSupabaseAdminClient } from "./supabaseClient";
-
-
-export async function getProfiles(): Promise<UserProfile[]> {
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) return [];
-
-    // Use the admin client to get the currently authenticated user from the request cookie
-    const { data: { user } } = await supabaseAdmin.auth.getUser();
-
-    if (!user) {
-        console.error("No user found.");
-        return [];
-    }
-    
-    // Super admin branch: use the RPC function that runs the validated SQL query
-    if (user.email === 'mauriciodionizio@gmail.com') {
-        const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles');
-
-        if (error) {
-            console.error("Error fetching all user profiles via RPC:", error);
-            return [];
-        }
-        
-        // The RPC function returns snake_case columns. We need to map them to camelCase for the frontend.
-        return data.map((profile: any) => ({
-            id: profile.id,
-            fullName: profile.full_name,
-            role: profile.role,
-            status: profile.status,
-            companyId: profile.company_id,
-            companyName: profile.company_name,
-            email: profile.email
-        }));
-    }
-
-    // Regular admin branch
-    const { data: currentProfile, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
-    
-    if (profileError || !currentProfile) {
-        console.error("Could not fetch profile for current admin user:", profileError);
-        return [];
-    }
-    
-    const { data: companyProfiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('*, organizations!inner(name)') 
-      .eq('company_id', currentProfile.company_id);
-
-    if (profilesError) {
-      console.error('Error fetching profiles for company:', profilesError);
-      return [];
-    }
-      
-    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    if (usersError) {
-        console.error("Error fetching auth users:", usersError);
-    }
-    const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
-
-    return companyProfiles.map(p => {
-        const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
-        return {
-            id: p.id,
-            fullName: p.full_name,
-            status: p.status,
-            role: p.role,
-            companyId: p.company_id,
-            email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: companyDetails?.name || 'Empresa não encontrada',
-        };
-    });
-};
+import type { Visit } from "./definitions";
 
 
 const clientSchema = z.object({

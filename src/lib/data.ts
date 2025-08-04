@@ -1,5 +1,6 @@
 
 
+
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 
@@ -65,25 +66,6 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     if (!supabase) return null;
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
-
-    // Super admin doesn't have a company link in the same way, handle separately.
-    if(session.user.email === 'mauriciodionizio@gmail.com') {
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-        if(profileError) {
-            console.error("Error fetching super admin profile data:", profileError);
-            return null;
-        }
-        return {
-            ...toCamelCase(profile),
-            email: session.user.email,
-            companyName: 'Super Administrador' // Assign a specific name
-        };
-    }
     
     // For regular users, fetch profile with company name
     const { data: profile, error: profileError } = await supabase
@@ -109,6 +91,50 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     };
 }
 
+export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
+    if (!supabase) return [];
+    
+    const currentProfile = await getCurrentProfile();
+    if (!currentProfile || !currentProfile.companyId) {
+        console.error("Could not determine current user's company.");
+        return [];
+    }
+
+    const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('company_id', currentProfile.companyId);
+
+    if (error) {
+        console.error("Error fetching company users:", error);
+        return [];
+    }
+    
+    const userIds = profiles.map(p => p.id);
+    if(userIds.length === 0) return [];
+
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+
+    if(authError) {
+        console.error("Error fetching auth users:", authError);
+        // Continue without emails if this fails
+    }
+    
+    const emailMap = new Map<string, string>();
+    if(authUsers) {
+        for(const user of authUsers.users) {
+            emailMap.set(user.id, user.email || 'N/A');
+        }
+    }
+
+    return profiles.map(p => ({
+        ...toCamelCase(p),
+        email: emailMap.get(p.id) || 'Email não encontrado',
+        companyName: currentProfile.companyName
+    }));
+}
+
+
 export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
@@ -127,59 +153,6 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
 
     return toCamelCase(data);
 };
-
-// --- Super Admin Functions ---
-export const getCompanies = async (): Promise<Company[]> => {
-    if (!supabase) return [];
-    // This will only work for the super admin, as per RLS policies
-    const { data, error } = await supabase.from('organizations').select('*');
-    if(error) {
-        console.error("Error fetching organizations:", error);
-        throw new Error("Apenas o super administrador pode ver as empresas.");
-    }
-    return toCamelCase(data);
-}
-
-export const addCompany = async (name: string): Promise<Company> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    
-    const { data: companyData, error: companyError } = await supabase
-        .from('organizations')
-        .insert({ name })
-        .select()
-        .single();
-    
-    if (companyError) {
-        console.error('Error creating company:', companyError);
-        throw new Error("Não foi possível criar a nova empresa.");
-    }
-    
-    const { error: settingsError } = await supabase
-        .from('settings')
-        .insert({ company_id: companyData.id, company_name: companyData.name });
-
-    if (settingsError) {
-        console.error(`Company ${companyData.id} created, but failed to create default settings:`, settingsError);
-    }
-    
-    return toCamelCase(companyData);
-}
-
-export const updateCompany = async (companyId: string, updates: { isActive?: boolean; name?: string }): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    
-    const snakeCaseUpdates: { is_active?: boolean; name?: string } = {};
-    if (updates.isActive !== undefined) snakeCaseUpdates.is_active = updates.isActive;
-    if (updates.name !== undefined) snakeCaseUpdates.name = updates.name;
-
-    if (Object.keys(snakeCaseUpdates).length === 0) return;
-
-    const { error } = await supabase.from('organizations').update(snakeCaseUpdates).eq('id', companyId);
-     if(error) {
-        console.error("Error updating company:", error);
-        throw new Error("Apenas o super administrador pode atualizar empresas.");
-    }
-}
 
 
 // --- Data Access Functions (RLS-secured) ---
