@@ -14,14 +14,15 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    const { data: { user } } = await supabaseAdmin.auth.getUser();
+    // Correctly get the user from the admin client's perspective
+    const { data: { user } , error: userError } = await supabaseAdmin.auth.getUser();
 
     if (userError || !user) {
         console.error("Error fetching current user for permissions check:", userError);
         return [];
     }
     
-    // Super admin branch
+    // Super admin branch: use the RPC function that runs the validated SQL query
     if (user.email === 'mauriciodionizio@gmail.com') {
         const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles');
 
@@ -30,6 +31,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
             return [];
         }
 
+        // Map the results from the RPC function to the UserProfile type
         return data.map(profile => ({
             id: profile.id,
             fullName: profile.full_name,
@@ -67,11 +69,12 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
+        // Continue without emails if this fails, better than showing nothing
     }
     const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
 
     return companyProfiles.map(p => {
-        // @ts-ignore
+        // @ts-ignore - Supabase types can be tricky with nested objects
         const companyName = p.organizations?.name || 'Empresa não encontrada';
         return {
             id: p.id,
