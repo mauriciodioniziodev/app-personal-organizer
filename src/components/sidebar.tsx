@@ -13,15 +13,18 @@ import Image from "next/image";
 import { getSettings } from "@/lib/data";
 
 
-const navItems = [
+const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, role: ['administrador', 'usuario'] },
   { href: "/clients", label: "Clientes", icon: Users, role: ['administrador', 'usuario'] },
   { href: "/visits", label: "Visitas", icon: CalendarClock, role: ['administrador', 'usuario'] },
   { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
   { href: "/financeiro", label: "Financeiro", icon: Wallet, role: ['administrador', 'usuario'] },
   { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
-  { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
+];
+
+const adminNavItems = [
   { href: "/settings", label: "Configurações", icon: Settings, role: ['administrador'] },
+  { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
 ];
 
 
@@ -92,9 +95,16 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
           </div>
         </Link>
       </div>
-      <nav className="flex-1 px-4">
+      <nav className="flex-1 px-4 flex flex-col">
         <ul className="space-y-2">
-          {navItems.map((item) => (
+          {mainNavItems.map((item) => (
+            (profile && item.role.includes(profile.role)) && (
+               <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+            )
+          ))}
+        </ul>
+        <ul className="space-y-2 mt-auto pb-4">
+           {adminNavItems.map((item) => (
             (profile && item.role.includes(profile.role)) && (
                <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
             )
