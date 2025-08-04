@@ -78,7 +78,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
             {logoUrl ? (
-                <Image src={logoUrl} alt={`Logo de ${companyName}`} width={80} height={80} className="object-contain" />
+                <Image src={logoUrl} alt={`Logo de ${companyName}`} width={160} height={160} className="object-contain" />
             ) : (
                 <Shirt className="w-20 h-20" />
             )}
