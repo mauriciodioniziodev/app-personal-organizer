@@ -21,16 +21,15 @@ export async function getProfiles(): Promise<UserProfile[]> {
         console.error("Error fetching current user for permissions check:", userError);
         return [];
     }
-
+    
     let query;
 
     // Check if the user is the super admin
     if (user.email === 'mauriciodionizio@gmail.com') {
         // Super admin sees all profiles from all companies
-        query = supabaseAdmin.from('profiles').select('*, companies(name)');
+        query = supabaseAdmin.from('profiles').select('*, companies:companies(name)');
     } else {
         // Regular admin sees profiles only from their own company.
-        // We need to get the company ID of the current admin first.
         const { data: currentProfile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('company_id')
@@ -44,7 +43,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
         
         query = supabaseAdmin
             .from('profiles')
-            .select('*, companies(name)')
+            .select('*, companies:companies(name)')
             .eq('company_id', currentProfile.company_id);
     }
 
@@ -59,7 +58,6 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const userIds = profiles.map(p => p.id);
     if (userIds.length === 0) return [];
     
-    // Fetch all users to map emails by ID. This requires admin privileges.
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
         page: 1,
         perPage: 1000, 
@@ -67,7 +65,6 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        // Fallback: return profiles without email if lookup fails
         return profiles.map(p => ({
             id: p.id,
             fullName: p.full_name,
@@ -81,16 +78,18 @@ export async function getProfiles(): Promise<UserProfile[]> {
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
 
-    return profiles.map(p => ({
-        id: p.id,
-        fullName: p.full_name,
-        status: p.status,
-        role: p.role,
-        companyId: p.company_id,
-        email: emailMap.get(p.id) || 'N/A',
-        // The join brings an array of companies, we take the first.
-        companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'N/A',
-    }));
+    return profiles.map(p => {
+         const companyDetails = Array.isArray(p.companies) ? p.companies[0] : p.companies;
+         return {
+            id: p.id,
+            fullName: p.full_name,
+            status: p.status,
+            role: p.role,
+            companyId: p.company_id,
+            email: emailMap.get(p.id) || 'N/A',
+            companyName: companyDetails?.name || 'N/A',
+        }
+    });
 };
 
 
