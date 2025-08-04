@@ -14,7 +14,6 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    // Get the current logged-in user's session from the secure client
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser();
 
     if (userError || !user) {
@@ -22,14 +21,11 @@ export async function getProfiles(): Promise<UserProfile[]> {
         return [];
     }
     
-    let query;
+    let profilesQuery;
 
-    // Check if the user is the super admin
     if (user.email === 'mauriciodionizio@gmail.com') {
-        // Super admin sees all profiles from all companies
-        query = supabaseAdmin.from('profiles').select('*, companies(name)');
+        profilesQuery = supabaseAdmin.from('profiles').select('*');
     } else {
-        // Regular admin sees profiles only from their own company.
         const { data: currentProfile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('company_id')
@@ -41,56 +37,43 @@ export async function getProfiles(): Promise<UserProfile[]> {
              return [];
         }
         
-        query = supabaseAdmin
-            .from('profiles')
-            .select('*, companies(name)')
-            .eq('company_id', currentProfile.company_id);
+        profilesQuery = supabaseAdmin.from('profiles').select('*').eq('company_id', currentProfile.company_id);
     }
-
-    const { data: profiles, error } = await query;
     
+    const { data: profiles, error } = await profilesQuery;
+
     if (error) {
         console.error("Error fetching profiles:", error);
         return [];
     }
-    if (!profiles) return [];
-
-    const userIds = profiles.map(p => p.id);
-    if (userIds.length === 0) return [];
+    if (!profiles || profiles.length === 0) return [];
     
-    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000, 
-    });
-    
+    // Fetch all users from auth to map emails
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        // Fallback to return profiles without emails if user lookup fails, but still show them.
-        return profiles.map(p => ({
-            id: p.id,
-            fullName: p.full_name,
-            status: p.status,
-            role: p.role,
-            companyId: p.company_id,
-            email: 'E-mail não disponível',
-            companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'Empresa não encontrada',
-        }));
+        return []; // Can't proceed without emails
+    }
+    
+    // Fetch all companies to map names
+    const { data: companies, error: companiesError } = await supabaseAdmin.from('companies').select('id, name');
+     if (companiesError) {
+        console.error("Error fetching companies:", companiesError);
+        return [];
     }
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
+    const companyMap = new Map(companies.map(c => [c.id, c.name]));
 
-    return profiles.map(p => {
-         const companyDetails = Array.isArray(p.companies) ? p.companies[0] : p.companies;
-         return {
-            id: p.id,
-            fullName: p.full_name,
-            status: p.status,
-            role: p.role,
-            companyId: p.company_id,
-            email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: companyDetails?.name || 'Empresa não encontrada',
-        }
-    });
+    return profiles.map(p => ({
+        id: p.id,
+        fullName: p.full_name,
+        status: p.status,
+        role: p.role,
+        companyId: p.company_id,
+        email: emailMap.get(p.id) || 'E-mail não encontrado',
+        companyName: companyMap.get(p.company_id) || 'Empresa não encontrada',
+    }));
 };
 
 
