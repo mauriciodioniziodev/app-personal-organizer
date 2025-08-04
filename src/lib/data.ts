@@ -1,6 +1,7 @@
 
 
 
+
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 
@@ -109,27 +110,30 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         console.error("Error fetching company users:", error);
         return [];
     }
+
+    // Since we cannot safely call `auth.admin.listUsers` from the client,
+    // we will rely on the email being part of the profile table or accept that we can't show it here.
+    // For now, let's assume `email` is on the profile. If not, we'd need a server-side endpoint.
+    // Based on `definitions.ts`, `email` is part of `UserProfile`. Let's ensure it's fetched and passed.
     
-    const userIds = profiles.map(p => p.id);
-    if(userIds.length === 0) return [];
-
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-
-    if(authError) {
-        console.error("Error fetching auth users:", authError);
-        // Continue without emails if this fails
-    }
+    // The user's own profile will have the email from the session. For other users,
+    // we would ideally have their email in the `profiles` table. If it is not there,
+    // we have to accept that we cannot display it without a secure server-side call.
+    // The previous implementation was insecure.
     
-    const emailMap = new Map<string, string>();
-    if(authUsers) {
-        for(const user of authUsers.users) {
-            emailMap.set(user.id, user.email || 'N/A');
-        }
-    }
-
+    // Let's create a server action if we need emails for all users. For now, let's see if the profile has it.
+    // The `signup` flow stores the email in `auth.users`, but not in `profiles`.
+    // The trigger `on_auth_user_created` also doesn't copy the email.
+    
+    // The most secure and correct way to fix "User not allowed" is to remove the admin call.
+    // We will have to live without the email for other users for now, or add it to the profile table.
+    // Let's modify the UI to expect a potentially missing email.
+    
     return profiles.map(p => ({
         ...toCamelCase(p),
-        email: emailMap.get(p.id) || 'Email não encontrado',
+        // We cannot securely get the email of other users on the client side.
+        // We'll get the current user's email, and leave others blank if not in profile.
+        email: p.id === currentProfile.id ? currentProfile.email : (p.email || 'Não disponível'),
         companyName: currentProfile.companyName
     }));
 }
