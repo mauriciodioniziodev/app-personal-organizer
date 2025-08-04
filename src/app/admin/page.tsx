@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,9 @@ import {
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    getProfiles, updateProfile, getCompanies, updateCompany, getCurrentProfile, addCompany
+    updateProfile, getCompanies, updateCompany, getCurrentProfile, addCompany
 } from "@/lib/data";
+import { getProfiles } from "@/lib/actions";
 import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -489,4 +489,3 @@ export default function AdminPage() {
         </div>
     );
 }
-

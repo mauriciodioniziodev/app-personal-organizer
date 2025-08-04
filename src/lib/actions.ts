@@ -2,16 +2,66 @@
 "use server";
 
 import { z } from "zod";
-import { addClient, addProject, addVisit, addPhotoToVisit } from "./data";
+import { addClient, addProject, addVisit, addPhotoToVisit, getCurrentProfile } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Visit } from "./definitions";
+import type { Visit, UserProfile } from "./definitions";
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "./database.types";
 
 
-// This file is largely deprecated as mutations are handled on the client-side
-// with optimistic UI updates, calling the data layer functions directly.
-// However, it's kept for potential future use with server-only forms.
-// For now, the actions defined here are not actively used.
+// This is a privileged Supabase client that should only be used in server actions.
+const supabaseAdmin = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+);
+
+
+export async function getProfiles(): Promise<UserProfile[]> {
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+    
+    let query;
+
+    // The super admin needs to see all users from all companies.
+    // A regular admin should only see users from their own company.
+    if (profile.email === 'mauriciodionizio@gmail.com') {
+         query = supabaseAdmin.from('profiles').select('*, companies(name)');
+    } else {
+        query = supabaseAdmin.from('profiles').select('*, companies(name)').eq('company_id', profile.companyId);
+    }
+
+    const { data: profiles, error } = await query;
+    
+    if (error) {
+        console.error("Error fetching profiles:", error);
+        return [];
+    }
+
+    const userIds = profiles.map(p => p.id);
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000, // Adjust as needed
+    });
+    
+    if (usersError) {
+        console.error("Error fetching auth users:", usersError);
+        return []; // Or handle differently
+    }
+
+    const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
+
+    return profiles.map(p => ({
+        id: p.id,
+        fullName: p.full_name,
+        status: p.status,
+        role: p.role,
+        companyId: p.company_id,
+        email: emailMap.get(p.id) || 'N/A',
+        companyName: (p.companies as any)?.name || 'N/A',
+    }));
+};
+
 
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),

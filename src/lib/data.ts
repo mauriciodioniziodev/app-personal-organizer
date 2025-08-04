@@ -1,5 +1,4 @@
 
-
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 
@@ -66,8 +65,6 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
 
-    // This single query now fetches the profile and the associated company name.
-    // RLS policies will ensure this is secure.
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select(`
@@ -90,52 +87,6 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         companyName: companyDetails?.name || 'Empresa não encontrada'
     };
 }
-
-
-export const getProfiles = async (): Promise<UserProfile[]> => {
-    if (!supabase) return [];
-    
-    const currentUser = await getCurrentProfile();
-    if (!currentUser) return [];
-
-    let query = supabase
-        .from('profiles')
-        .select(`
-            id,
-            full_name,
-            status,
-            role,
-            company_id,
-            user_details:users ( email ),
-            company_details:companies ( name )
-        `);
-    
-    // If the user is a regular admin, only fetch users from their company.
-    // The super admin will not have this filter applied and will see all users.
-    if (currentUser.email !== 'mauriciodionizio@gmail.com') {
-        query = query.eq('company_id', currentUser.companyId);
-    }
-
-    const { data: profiles, error } = await query;
-    
-    if (error) {
-        console.error("Error fetching profiles:", error);
-        return [];
-    }
-    
-    if (!profiles) return [];
-    
-    return profiles.map(p => ({
-        id: p.id,
-        fullName: p.full_name,
-        status: p.status,
-        email: (p.user_details as any)?.email || 'E-mail indisponível', 
-        role: p.role,
-        companyId: p.company_id,
-        companyName: (p.company_details as any)?.name || 'Empresa não encontrada'
-    }));
-};
-
 
 export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
@@ -1005,19 +956,3 @@ const toSnakeCase = (obj: any): any => {
     }
     return obj;
 };
-
-    
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
