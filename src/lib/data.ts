@@ -81,77 +81,42 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     };
 }
 
+
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
 
-    const currentUser = await getCurrentProfile();
-    if (!currentUser) return [];
+    // This single query now handles both super admin and regular admin cases,
+    // relying on the RLS policies you've already set up.
+    // The super admin will be able to see all profiles because their RLS policy allows it.
+    // A regular admin will only see profiles from their own company_id.
+    const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+            id,
+            full_name,
+            status,
+            role,
+            company_id,
+            user:users ( email ),
+            company:companies ( name )
+        `);
 
-    if (currentUser.email === 'mauriciodionizio@gmail.com') {
-        // Super admin fetches all users via a secure RPC call
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_user_profiles');
-        if (rpcError) {
-            console.error("Error fetching all profiles with RPC:", rpcError);
-            return [];
-        }
-        return toCamelCase(rpcData);
-    } else {
-        // Regular admin fetches users from their own company via RLS
-        const { data, error } = await supabase
-            .from('profiles')
-            .select(`
-                id,
-                full_name,
-                status,
-                role,
-                company_id,
-                companies ( name )
-            `)
-            .eq('company_id', currentUser.companyId);
-
-        if (error) {
-            console.error("Error fetching company profiles:", error);
-            return [];
-        }
-
-        if (!data || data.length === 0) {
-            return [];
-        }
-
-        // For regular admins, we fetch emails separately using a secure, non-admin method.
-        // This is a simplified approach; a more robust solution might use another RPC
-        // if direct user email access becomes problematic due to complex RLS policies.
-        // For now, this direct join is expected to work with the established RLS policies.
-        
-        // This query will join profiles and users and RLS on profiles will restrict the rows.
-         const { data: profilesWithEmails, error: profilesError } = await supabase
-            .from('profiles')
-            .select(`
-                id,
-                full_name,
-                status,
-                role,
-                company_id,
-                user:users ( email ),
-                company:companies ( name )
-            `)
-            .eq('company_id', currentUser.companyId);
-
-        if(profilesError) {
-            console.error('Error fetching profiles with emails:', profilesError);
-            return [];
-        }
-
-        return profilesWithEmails.map(p => ({
-            id: p.id,
-            fullName: p.full_name,
-            status: p.status,
-            email: (p.user as any)?.email || 'E-mail indisponível',
-            role: p.role,
-            companyId: p.company_id,
-            companyName: (p.company as any)?.name || 'Empresa não encontrada'
-        }));
+    if (error) {
+        console.error("Error fetching profiles:", error);
+        return [];
     }
+    
+    if (!data) return [];
+    
+    return data.map(p => ({
+        id: p.id,
+        fullName: p.full_name,
+        status: p.status,
+        email: (p.user as any)?.email || 'E-mail indisponível',
+        role: p.role,
+        companyId: p.company_id,
+        companyName: (p.company as any)?.name || 'Empresa não encontrada'
+    }));
 };
 
 
@@ -1029,6 +994,7 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 
 
