@@ -144,7 +144,6 @@ export const addCompany = async (name: string): Promise<Company> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
     // This will only work for the super admin due to RLS.
-    // The handle_new_user trigger is for sign-ups. This is for manual creation by super admin.
     const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .insert({ name })
@@ -162,8 +161,6 @@ export const addCompany = async (name: string): Promise<Company> => {
         .insert({ company_id: companyData.id, company_name: companyData.name });
 
     if (settingsError) {
-        // This is not a fatal error, but should be logged.
-        // The admin can fix this in the settings page for that company later.
         console.error(`Company ${companyData.id} created, but failed to create default settings:`, settingsError);
     }
     
@@ -983,6 +980,8 @@ const toSnakeCase = (obj: any): any => {
     }
     return obj;
 };
+
+    
 
     
 
