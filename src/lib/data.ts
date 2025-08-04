@@ -132,10 +132,47 @@ export const getCompanies = async (): Promise<Company[]> => {
     return toCamelCase(data);
 }
 
-export const updateCompany = async (companyId: string, updates: { isActive: boolean }): Promise<void> => {
+export const addCompany = async (name: string): Promise<Company> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    // This will only work for the super admin due to RLS.
+    // The handle_new_user trigger is for sign-ups. This is for manual creation by super admin.
+    const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .insert({ name })
+        .select()
+        .single();
+    
+    if (companyError) {
+        console.error('Error creating company:', companyError);
+        throw new Error("Não foi possível criar a nova empresa.");
+    }
+    
+    // Also create default settings for the new company
+    const { error: settingsError } = await supabase
+        .from('settings')
+        .insert({ company_id: companyData.id, company_name: companyData.name });
+
+    if (settingsError) {
+        // This is not a fatal error, but should be logged.
+        // The admin can fix this in the settings page for that company later.
+        console.error(`Company ${companyData.id} created, but failed to create default settings:`, settingsError);
+    }
+    
+    return toCamelCase(companyData);
+}
+
+export const updateCompany = async (companyId: string, updates: { isActive?: boolean; name?: string }): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const snakeCaseUpdates: { is_active?: boolean; name?: string } = {};
+    if (updates.isActive !== undefined) snakeCaseUpdates.is_active = updates.isActive;
+    if (updates.name !== undefined) snakeCaseUpdates.name = updates.name;
+
+    if (Object.keys(snakeCaseUpdates).length === 0) return; // Nothing to update
+
     // This will only work for the super admin
-    const { error } = await supabase.from('companies').update({ is_active: updates.isActive }).eq('id', companyId);
+    const { error } = await supabase.from('companies').update(snakeCaseUpdates).eq('id', companyId);
      if(error) {
         console.error("Error updating company:", error);
         throw new Error("Apenas o super administrador pode atualizar empresas.");

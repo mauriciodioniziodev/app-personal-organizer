@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, FormEvent, useCallback } from "react";
-import { LoaderCircle, Trash, Plus, Users, Check, X, Building, ToggleRight, ToggleLeft } from "lucide-react";
+import { LoaderCircle, Trash, Plus, Users, Check, X, Building, ToggleRight, ToggleLeft, Edit } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { 
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    getProfiles, updateProfile, getCompanies, updateCompany, getCurrentProfile
+    getProfiles, updateProfile, getCompanies, updateCompany, getCurrentProfile, addCompany
 } from "@/lib/data";
 import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 function MasterDataCard<T extends MasterDataItem>({
     title,
@@ -226,6 +228,14 @@ function SuperAdminCompanyManagement() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    
+    // State for dialogs
+    const [isCreateOpen, setCreateOpen] = useState(false);
+    const [isEditOpen, setEditOpen] = useState(false);
+    const [newCompanyName, setNewCompanyName] = useState("");
+    const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
 
     const fetchCompanies = useCallback(async () => {
         setLoading(true);
@@ -253,31 +263,105 @@ function SuperAdminCompanyManagement() {
         }
     };
     
+    const handleCreateCompany = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!newCompanyName.trim()) return;
+        setIsSubmitting(true);
+        try {
+            await addCompany(newCompanyName);
+            toast({ title: "Sucesso!", description: "Nova empresa criada."});
+            setNewCompanyName("");
+            setCreateOpen(false);
+            fetchCompanies();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+    
+    const handleEditCompany = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!editingCompany || !newCompanyName.trim()) return;
+         setIsSubmitting(true);
+        try {
+            await updateCompany(editingCompany.id, { name: newCompanyName });
+            toast({ title: "Sucesso!", description: "Nome da empresa atualizado."});
+            setEditingCompany(null);
+            setNewCompanyName("");
+            setEditOpen(false);
+            fetchCompanies();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    const openEditDialog = (company: Company) => {
+        setEditingCompany(company);
+        setNewCompanyName(company.name);
+        setEditOpen(true);
+    }
+    
     if (loading) {
          return <Card><CardHeader><CardTitle>Gerenciamento de Empresas</CardTitle></CardHeader><CardContent className="flex justify-center items-center h-24"><LoaderCircle className="w-6 h-6 animate-spin" /></CardContent></Card>
     }
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2"><Building /> Gerenciamento de Empresas</CardTitle>
-                <CardDescription>Ative ou desative o acesso das empresas ao sistema.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="font-headline flex items-center gap-2"><Building /> Gerenciamento de Empresas</CardTitle>
+                    <CardDescription>Ative, desative ou edite as empresas do sistema.</CardDescription>
+                </div>
+                 <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
+                    <DialogTrigger asChild>
+                        <Button><Plus className="mr-2"/> Adicionar Empresa</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Criar Nova Empresa</DialogTitle>
+                            <DialogDescription>
+                                Uma nova empresa e suas configurações padrão serão criadas. Nenhum usuário será criado.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleCreateCompany}>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="new-company-name" className="text-right">Nome</Label>
+                                    <Input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="col-span-3" required />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? <LoaderCircle className="animate-spin"/> : "Criar Empresa"}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-3">
                     {companies.map(company => (
-                        <li key={company.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
+                        <li key={company.id} className="flex flex-wrap items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
                             <div>
                                 <p className="font-semibold">{company.name}</p>
                                 <p className="text-sm text-muted-foreground">ID: {company.id}</p>
                             </div>
-                             <Button size="sm" variant={company.isActive ? 'destructive' : 'success'} onClick={() => handleStatusToggle(company.id, company.isActive)}>
-                                {company.isActive ? (
-                                    <><ToggleRight className="mr-2 h-4 w-4" /> Desativar</>
-                                ) : (
-                                    <><ToggleLeft className="mr-2 h-4 w-4" /> Ativar</>
-                                )}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openEditDialog(company)}>
+                                    <Edit className="mr-2 h-4 w-4"/> Editar
+                                </Button>
+                                <Button size="sm" variant={company.isActive ? 'destructive' : 'success'} onClick={() => handleStatusToggle(company.id, company.isActive)}>
+                                    {company.isActive ? (
+                                        <><ToggleRight className="mr-2 h-4 w-4" /> Desativar</>
+                                    ) : (
+                                        <><ToggleLeft className="mr-2 h-4 w-4" /> Ativar</>
+                                    )}
+                                </Button>
+                            </div>
                         </li>
                     ))}
                     {companies.length === 0 && (
@@ -285,6 +369,31 @@ function SuperAdminCompanyManagement() {
                     )}
                 </ul>
             </CardContent>
+
+             <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editar Empresa</DialogTitle>
+                        <DialogDescription>
+                            Altere o nome da empresa selecionada.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditCompany}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="edit-company-name" className="text-right">Nome</Label>
+                                <Input id="edit-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="col-span-3" required />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                             <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? <LoaderCircle className="animate-spin"/> : "Salvar Alterações"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }
