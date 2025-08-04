@@ -23,14 +23,39 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     // Super admin branch: use the RPC function that runs the validated SQL query
     if (user.email === 'mauriciodionizio@gmail.com') {
+        const sqlQuery = `
+            SELECT 
+                p.id,
+                p.full_name,
+                p.role,
+                p.status,
+                p.company_id,
+                o.name as company_name,
+                u.email
+            FROM 
+                public.profiles p
+            JOIN 
+                public.organizations o ON p.company_id = o.id
+            JOIN
+                auth.users u ON p.id = u.id;
+        `;
+        console.log("--- DEBUG SUPER ADMIN QUERY ---");
+        console.log("Executing the following SQL query via RPC 'get_all_user_profiles':");
+        console.log(sqlQuery);
+        
         const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles');
 
         if (error) {
             console.error("Error fetching all user profiles via RPC:", error);
+            console.log("--- END DEBUG ---");
             return [];
         }
         
-        // The RPC returns snake_case keys. The UI component will handle this.
+        console.log("Raw data received from RPC:");
+        console.log(JSON.stringify(data, null, 2));
+        console.log("--- END DEBUG ---");
+        
+        // Return the raw data for the client to handle
         return data as any[];
     }
 
@@ -48,7 +73,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     const { data: companyProfiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('*, organizations!inner(name)') // Using inner join to ensure company exists
+      .select('*, organizations!inner(name)') 
       .eq('company_id', currentProfile.company_id);
 
     if (profilesError) {
@@ -63,7 +88,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
 
     return companyProfiles.map(p => {
-        const companyName = Array.isArray(p.organizations) ? p.organizations[0]?.name : p.organizations?.name;
+        const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
         return {
             id: p.id,
             fullName: p.full_name,
@@ -71,7 +96,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
             role: p.role,
             companyId: p.company_id,
             email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: companyName || 'Empresa não encontrada',
+            companyName: companyDetails?.name || 'Empresa não encontrada',
         };
     });
 };

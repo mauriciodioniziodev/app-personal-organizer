@@ -107,16 +107,21 @@ function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
 
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
+        console.log("--- DEBUG CLIENT ---");
+        console.log("Fetching profiles...");
         try {
             const [profilesData, currentUserData] = await Promise.all([
                 getProfiles(),
                 getCurrentProfile()
             ]);
+            console.log("Data received on client:", profilesData);
             setProfiles(profilesData);
             setCurrentUser(currentUserData);
         } catch (error) {
+            console.error("Error on client fetching profiles:", error);
             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os usuários.' });
         } finally {
+            console.log("--- END DEBUG CLIENT ---");
             setLoading(false);
         }
     }, [toast]);
