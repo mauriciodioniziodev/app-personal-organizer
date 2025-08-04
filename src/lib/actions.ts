@@ -39,6 +39,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
     }
 
     const userIds = profiles.map(p => p.id);
+    if (userIds.length === 0) return [];
+    
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
         page: 1,
         perPage: 1000, // Adjust as needed
@@ -71,7 +73,7 @@ const clientSchema = z.object({
   preferences: z.string().optional(),
 });
 
-export async function createClient(prevState: any, formData: FormData) {
+export async function createClientAction(prevState: any, formData: FormData) {
   const validatedFields = clientSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
