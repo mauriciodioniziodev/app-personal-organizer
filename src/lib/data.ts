@@ -1,4 +1,5 @@
 
+
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 
@@ -65,6 +66,26 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
 
+    // Super admin doesn't have a company link in the same way, handle separately.
+    if(session.user.email === 'mauriciodionizio@gmail.com') {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if(profileError) {
+            console.error("Error fetching super admin profile data:", profileError);
+            return null;
+        }
+        return {
+            ...toCamelCase(profile),
+            email: session.user.email,
+            companyName: 'Super Administrador' // Assign a specific name
+        };
+    }
+    
+    // For regular users, fetch profile with company name
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select(`

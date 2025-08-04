@@ -1,6 +1,7 @@
 
 "use server";
 
+import 'dotenv/config';
 import { z } from "zod";
 import { addClient, addProject, addVisit, addPhotoToVisit, getCurrentProfile } from "./data";
 import { revalidatePath } from "next/cache";
@@ -18,6 +19,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     let query;
 
+    // The super admin sees all profiles, otherwise, scope to the company.
     if (profile.email === 'mauriciodionizio@gmail.com') {
          query = supabaseAdmin.from('profiles').select('*, companies(name)');
     } else {
@@ -34,6 +36,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const userIds = profiles.map(p => p.id);
     if (userIds.length === 0) return [];
     
+    // Fetch all users to map emails by ID. This requires admin privileges.
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
         page: 1,
         perPage: 1000, 
@@ -41,6 +44,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
+        // If this fails, we can still return profiles, they just won't have an email.
+        // Or return [], which is safer to indicate a failure.
         return [];
     }
 
@@ -53,7 +58,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
         role: p.role,
         companyId: p.company_id,
         email: emailMap.get(p.id) || 'N/A',
-        companyName: (p.companies as any)?.name || 'N/A',
+        // The join brings an array of companies, we take the first.
+        companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'N/A',
     }));
 };
 
