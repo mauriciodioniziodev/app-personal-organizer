@@ -816,7 +816,12 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         .limit(1)
         .single();
     
-    if (error && error.code !== 'PGRST116') { // Ignore 'range not found' error
+    // Gracefully handle the case where the table doesn't exist yet
+    if (error && (error.code === 'PGRST116' || error.code === '42P01')) { 
+        return null;
+    }
+    
+    if (error) {
         console.error("Error fetching settings:", error);
         return null;
     }
