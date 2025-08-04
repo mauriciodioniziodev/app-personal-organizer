@@ -71,40 +71,51 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         console.error("Error fetching current profile:", error);
         return null;
     }
-    const {data: user, error: authError } = await supabase.auth.getUser();
-    if(authError) return null;
-
-    return { ...toCamelCase(data), email: user.user?.email || '' };
+    
+    // Use the auth user object for the email to ensure it's always correct
+    return { ...toCamelCase(data), email: session.user.email || '' };
 }
 
 
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
-    
-    // First, check if the current user is a super admin.
+
     const currentUser = await getCurrentProfile();
+    // Super admin manages companies, not individual users from this view.
     if (currentUser?.email === 'mauriciodionizio@gmail.com') {
-        // Super admin manages companies, not individual users from this view. Return empty.
         return [];
     }
 
-    // For regular admins, call the RPC function to get users from their company.
-    const { data: profiles, error } = await supabase.rpc('get_all_user_profiles_from_my_company');
+    // For regular admins, RLS on 'profiles' table will automatically filter
+    // to only show users from the admin's own company.
+    // We get the email from the associated auth.users table.
+    const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select(`
+            id,
+            full_name,
+            status,
+            role,
+            company_id,
+            companies ( name ),
+            user:users ( email )
+        `);
 
     if (error) {
-        console.error("Error fetching profiles with RPC:", error);
+        console.error("Error fetching profiles:", error);
         return [];
     }
     if (!profiles) return [];
     
-    return profiles.map(profile => ({
+    // Manually structure the data to match the UserProfile type
+    return profiles.map((profile: any) => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: profile.email || 'E-mail não disponível',
-        role: profile.role || 'usuario',
+        email: profile.user?.email || 'E-mail não disponível',
+        role: profile.role,
         companyId: profile.company_id,
-        companyName: profile.company_name,
+        companyName: profile.companies?.name || 'Empresa não encontrada',
     }));
 };
 
@@ -986,3 +997,4 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
