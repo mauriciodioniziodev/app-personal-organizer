@@ -97,7 +97,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
           </div>
         </Link>
       </div>
-      <nav className="flex-1 px-4 flex flex-col">
+      <nav className="flex-1 px-4 flex flex-col justify-between">
           <ul className="space-y-2">
             {mainNavItems.map((item) => (
               (profile && item.role.includes(profile.role)) && (
@@ -105,7 +105,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
               )
             ))}
           </ul>
-          <ul className="space-y-2 mt-auto pb-4">
+          <ul className="space-y-2 pb-4">
              {adminNavItems.map((item) => (
               (profile && item.role.includes(profile.role)) && (
                  <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
