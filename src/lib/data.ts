@@ -835,6 +835,7 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     if (!supabase) throw new Error("Supabase client not initialized.");
 
     let logoUrl: string | undefined = undefined;
+    const currentSettings = await getSettings();
 
     if (logoFile) {
         const fileName = `public/logo_${Date.now()}`;
@@ -851,15 +852,15 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
         logoUrl = data.publicUrl;
     }
 
-    const currentSettings = await getSettings();
-    const updates: Partial<CompanySettings> = {
-        companyName: companyName,
-        logoUrl: logoUrl === undefined ? currentSettings?.logoUrl : logoUrl,
+    const updates = {
+        company_name: companyName,
+        logo_url: logoUrl === undefined ? currentSettings?.logoUrl : logoUrl,
     };
 
     const { error } = await supabase
         .from('settings')
-        .upsert({ id: 1, ...updates });
+        .update(updates)
+        .eq('id', 1);
 
     if (error) {
         console.error('Error saving settings:', error);
@@ -869,3 +870,4 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     // Invalidate cache
     settingsCache = null;
 }
+
