@@ -82,7 +82,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
     // RLS will automatically filter this to the user's company
-    const { data: profiles, error } = await supabase.rpc('get_all_user_profiles');
+    const { data: profiles, error } = await supabase.rpc('get_all_user_profiles_from_my_company');
 
     if (error) {
         console.error("Error fetching profiles with RPC:", error);
@@ -97,6 +97,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         email: profile.email || 'E-mail não disponível',
         role: profile.role || 'usuario',
         companyId: profile.company_id,
+        companyName: profile.company_name,
     }));
 };
 
@@ -807,7 +808,9 @@ export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
 
 export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_visit_status').insert({ name }).select().single();
+    const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('master_visit_status').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding visit status option:", error);
         throw new Error("Não foi possível adicionar a opção.");
@@ -836,7 +839,9 @@ export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> 
 
 export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_payment_instruments').insert({ name }).select().single();
+     const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('master_payment_instruments').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding payment instrument:", error);
         throw new Error("Não foi possível adicionar a opção.");
@@ -865,7 +870,9 @@ export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
 
 export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_project_status').insert({ name }).select().single();
+     const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('master_project_status').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding project status option:", error);
         throw new Error("Não foi possível adicionar a opção.");

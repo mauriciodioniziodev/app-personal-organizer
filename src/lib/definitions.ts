@@ -93,11 +93,13 @@ export type MasterDataItem = {
     id: string;
     name: string;
     created_at: string;
+    company_id?: string; // Optional because some master data is global
 }
 
 export type UserProfile = {
     id: string;
     companyId: string;
+    companyName?: string;
     fullName: string | null;
     email: string;
     status: 'pending' | 'authorized' | 'revoked';

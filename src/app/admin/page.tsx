@@ -155,6 +155,8 @@ function UserManagementCard() {
         usuario: 'bg-blue-100 text-blue-800',
     };
 
+    const companyName = profiles[0]?.companyName || 'Sua Empresa';
+
 
     if (loading) {
         return (
@@ -174,7 +176,7 @@ function UserManagementCard() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2"><Users /> Gerenciamento de Usuários</CardTitle>
-                <CardDescription>Autorize ou revogue o acesso e defina os perfis dos usuários ao sistema.</CardDescription>
+                <CardDescription>Usuários da empresa: <span className="font-bold">{companyName}</span></CardDescription>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-3">
@@ -479,5 +481,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    
