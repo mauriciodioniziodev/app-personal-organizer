@@ -80,7 +80,9 @@ export default function LoginPage() {
             {logoUrl ? (
                 <Image src={logoUrl} alt={`Logo de ${companyName}`} width={160} height={160} className="object-contain" />
             ) : (
-                <Shirt className="w-20 h-20" />
+                 <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-card border">
+                    <Shirt className="w-10 h-10 text-muted-foreground" />
+                 </div>
             )}
         </div>
         <Card>

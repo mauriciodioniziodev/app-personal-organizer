@@ -86,7 +86,9 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
           {logoUrl ? (
             <Image src={logoUrl} alt={`Logo de ${companyName}`} width={40} height={40} className="rounded-lg object-contain"/>
           ) : (
-            <Shirt className="w-10 h-10 rounded-lg" />
+             <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                <Shirt className="w-6 h-6 text-muted-foreground" />
+             </div>
           )}
 
           <div>
@@ -96,20 +98,20 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         </Link>
       </div>
       <nav className="flex-1 px-4 flex flex-col">
-        <ul className="space-y-2">
-          {mainNavItems.map((item) => (
-            (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
-            )
-          ))}
-        </ul>
-        <ul className="space-y-2 mt-auto pb-4">
-           {adminNavItems.map((item) => (
-            (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
-            )
-          ))}
-        </ul>
+          <ul className="space-y-2">
+            {mainNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
+          <ul className="space-y-2 mt-auto pb-4">
+             {adminNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
       </nav>
     </aside>
   );
