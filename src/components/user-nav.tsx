@@ -7,18 +7,17 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabaseClient";
-import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { UserProfile } from "@/lib/definitions";
+import { LogOut } from "lucide-react";
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +26,7 @@ export function UserNav() {
 
   useEffect(() => {
     const fetchUserData = async () => {
+      if (!supabase) return;
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
@@ -42,17 +42,12 @@ export function UserNav() {
                 email: user.email || '',
                 status: userProfile.status,
                 role: userProfile.role,
-            } as UserProfile);
+            });
         }
       }
     };
     fetchUserData();
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
   
   const getInitials = (name: string | undefined | null) => {
     if (!name) return 'U';
@@ -61,6 +56,12 @@ export function UserNav() {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+  }
+
+  const handleLogout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    router.push('/login');
   }
 
   if (!user || !profile) {
@@ -89,13 +90,10 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {/* Add more items here like Profile, Settings etc. if needed */}
-        </DropdownMenuGroup>
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sair</span>
-        </DropdownMenuItem>
+         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sair</span>
+         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -3,12 +3,10 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, LogOut } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "./ui/button";
 import type { UserProfile } from "@/lib/definitions";
 import { useEffect, useState } from "react";
 
@@ -22,12 +20,15 @@ const navItems = [
   { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
 ];
 
-export default function Sidebar() {
+
+export default function Sidebar({ className, onLinkClick }: { className?: string, onLinkClick?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
      const fetchProfile = async () => {
+        if(!supabase) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const { data: userProfile } = await supabase
@@ -45,13 +46,14 @@ export default function Sidebar() {
             fetchProfile();
         } else {
             setProfile(null);
+            router.push('/login');
         }
      });
 
      return () => {
        authListener?.subscription.unsubscribe();
      };
-  }, []);
+  }, [router]);
   
   const toCamelCase = (obj: any): any => {
     if (!obj) return null;
@@ -65,19 +67,12 @@ export default function Sidebar() {
     );
   };
 
-
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-card border-r">
+    <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
-            <Image 
-                data-ai-hint="logo"
-                src="https://placehold.co/40x40.png"
-                width={40}
-                height={40}
-                alt="Logo Amanda Martins"
-                className="rounded-lg"
-            />
+          <Shirt className="w-10 h-10 rounded-lg" />
+
           <div>
             <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
             <p className="text-xs text-muted-foreground">Organização personalizada</p>
@@ -88,7 +83,7 @@ export default function Sidebar() {
         <ul className="space-y-2">
           {navItems.map((item) => (
             (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} />
+               <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} onLinkClick={onLinkClick} />
             )
           ))}
         </ul>
@@ -104,9 +99,10 @@ type NavItemProps = {
     icon: LucideIcon;
   };
   isActive: boolean;
+  onLinkClick?: () => void
 };
 
-function NavItem({ item, isActive }: NavItemProps) {
+function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
   return (
     <li>
       <Link
@@ -116,6 +112,7 @@ function NavItem({ item, isActive }: NavItemProps) {
           "hover:bg-primary/20 hover:text-foreground",
           isActive && "bg-primary/80 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
         )}
+        onClick={onLinkClick}
       >
         <item.icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
