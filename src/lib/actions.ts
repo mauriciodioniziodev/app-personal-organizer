@@ -14,16 +14,38 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    const profile = await getCurrentProfile();
-    if (!profile) return [];
-    
+    // Get the current logged-in user's session from the secure client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser();
+
+    if (userError || !user) {
+        console.error("Error fetching current user for permissions check:", userError);
+        return [];
+    }
+
     let query;
 
-    // The super admin sees all profiles, otherwise, scope to the company.
-    if (profile.email === 'mauriciodionizio@gmail.com') {
-         query = supabaseAdmin.from('profiles').select('*, companies(name)');
+    // Check if the user is the super admin
+    if (user.email === 'mauriciodionizio@gmail.com') {
+        // Super admin sees all profiles from all companies
+        query = supabaseAdmin.from('profiles').select('*, companies(name)');
     } else {
-        query = supabaseAdmin.from('profiles').select('*, companies(name)').eq('company_id', profile.companyId);
+        // Regular admin sees profiles only from their own company.
+        // We need to get the company ID of the current admin first.
+        const { data: currentProfile, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !currentProfile) {
+             console.error("Could not fetch profile for current admin user:", profileError);
+             return [];
+        }
+        
+        query = supabaseAdmin
+            .from('profiles')
+            .select('*, companies(name)')
+            .eq('company_id', currentProfile.company_id);
     }
 
     const { data: profiles, error } = await query;
@@ -45,9 +67,16 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        // If this fails, we can still return profiles, they just won't have an email.
-        // Or return [], which is safer to indicate a failure.
-        return [];
+        // Fallback: return profiles without email if lookup fails
+        return profiles.map(p => ({
+            id: p.id,
+            fullName: p.full_name,
+            status: p.status,
+            role: p.role,
+            companyId: p.company_id,
+            email: 'N/A',
+            companyName: (Array.isArray(p.companies) ? p.companies[0]?.name : p.companies?.name) || 'N/A',
+        }));
     }
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
