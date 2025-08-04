@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle, Shirt } from 'lucide-react';
+import { getSettings } from '@/lib/data';
+import type { CompanySettings } from '@/lib/definitions';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,6 +21,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,12 +38,10 @@ export default function LoginPage() {
         return;
     }
 
-    // 1. Check user status by email before attempting to sign in.
     const { data: status, error: rpcError } = await supabase.rpc('get_user_status_by_email', { user_email: email });
 
     if (rpcError) {
         console.error('Error checking user status:', rpcError);
-        // Don't block login if RPC fails, proceed to normal login attempt
     }
 
     if (status === 'revoked') {
@@ -50,7 +56,6 @@ export default function LoginPage() {
         return;
     }
 
-    // 2. If status is ok, proceed with sign-in.
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -62,18 +67,25 @@ export default function LoginPage() {
       return;
     }
 
-    // 3. If sign-in is successful, let the auth listener in layout handle the redirect.
-    // The router.push is a fallback in case the listener is slow.
     router.push('/');
   };
+
+  const companyName = settings?.companyName || 'Bem-vindo(a) de volta!';
+  const logoUrl = settings?.logoUrl;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8"><Shirt className="w-20 h-20" /></div>
+        <div className="flex justify-center mb-8">
+            {logoUrl ? (
+                <Image src={logoUrl} alt={`Logo de ${companyName}`} width={80} height={80} className="object-contain" />
+            ) : (
+                <Shirt className="w-20 h-20" />
+            )}
+        </div>
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Bem-vindo(a) de volta!</CardTitle>
+            <CardTitle className="text-2xl font-headline">{companyName}</CardTitle>
             <CardDescription>Acesse seu painel para gerenciar suas organizações.</CardDescription>
           </CardHeader>
           <CardContent>

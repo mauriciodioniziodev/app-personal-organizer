@@ -1,6 +1,6 @@
 
 
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings } from './definitions';
 import { supabase } from './supabaseClient';
 
 // --- Helper Functions ---
@@ -62,7 +62,6 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    // Chama a função do banco de dados que busca perfis e e-mails de forma segura
     const { data: profiles, error } = await supabase.rpc('get_all_user_profiles');
 
     if (error) {
@@ -148,7 +147,6 @@ export const getProjects = async (): Promise<Project[]> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
-        // Still return projects, but they will have empty payments
         return projectsData.map(p_raw => projectFromSupabase(p_raw, []));
     }
 
@@ -432,18 +430,17 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
 export const checkForProjectConflict = async ({clientId, startDate, endDate, projectId}: {clientId: string, startDate: string, endDate: string, projectId?: string}) => {
      if(!supabase || !clientId || !startDate || !endDate) return null;
      
-     // An overlap occurs if (StartA <= EndB) and (EndA >= StartB).
      let query = supabase.from('projects')
         .select('*')
         .eq('client_id', clientId)
-        .lte('start_date', endDate) // Their start date must be before our end date
-        .gte('end_date', startDate);  // And their end date must be after our start date
+        .lte('start_date', endDate) 
+        .gte('end_date', startDate); 
         
      if (projectId) {
         query = query.not('id', 'eq', projectId);
     }
     
-    const { data, error } = await query.maybeSingle(); // We only care if at least one exists
+    const { data, error } = await query.maybeSingle(); 
     
      if (error) {
         console.error("Error checking for project conflict:", error);
@@ -625,7 +622,6 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>)
     const { error: paymentError } = await supabase.from('payments').insert(paymentsWithProjectId);
     if(paymentError) {
         console.error("Error adding payments:", paymentError);
-        // Rollback project creation? For now, we'll just log the error.
         throw new Error("Projeto criado, mas houve um erro ao salvar as parcelas.");
     }
 
@@ -667,9 +663,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    // This is complex. For now, we assume payments are managed separately or don't change structure often.
-    // A more robust solution would diff and update/insert/delete payments.
-    // For this app's logic, we can just update them.
     for (const payment of payments) {
         const { error: paymentError } = await supabase.from('payments').update({
             amount: payment.amount,
@@ -679,7 +672,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
 
         if (paymentError) {
             console.error("Error updating payment:", paymentError);
-            // Decide on error handling strategy, for now continue
         }
     }
     
@@ -810,6 +802,65 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
     }
 }
 
-    
+// --- Company Settings Functions ---
 
+let settingsCache: CompanySettings | null = null;
+
+export const getSettings = async (): Promise<CompanySettings | null> => {
+    if (settingsCache) return settingsCache;
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .limit(1)
+        .single();
     
+    if (error && error.code !== 'PGRST116') { // Ignore 'range not found' error
+        console.error("Error fetching settings:", error);
+        return null;
+    }
+    
+    const settings = toCamelCase(data);
+    settingsCache = settings;
+    return settings;
+}
+
+export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    let logoUrl: string | undefined = undefined;
+
+    if (logoFile) {
+        const fileName = `public/logo_${Date.now()}`;
+        const { error: uploadError } = await supabase.storage
+            .from('assets')
+            .upload(fileName, logoFile, { upsert: true });
+
+        if (uploadError) {
+            console.error('Error uploading logo:', uploadError);
+            throw new Error("Não foi possível carregar a logomarca.");
+        }
+
+        const { data } = supabase.storage.from('assets').getPublicUrl(fileName);
+        logoUrl = data.publicUrl;
+    }
+
+    const currentSettings = await getSettings();
+    const updates: Partial<CompanySettings> = {
+        companyName: companyName,
+        logoUrl: logoUrl === undefined ? currentSettings?.logoUrl : logoUrl,
+    };
+
+    const { error } = await supabase
+        .from('settings')
+        .upsert({ id: 1, ...updates });
+
+    if (error) {
+        console.error('Error saving settings:', error);
+        throw new Error("Não foi possível salvar as configurações.");
+    }
+    
+    // Invalidate cache
+    settingsCache = null;
+}

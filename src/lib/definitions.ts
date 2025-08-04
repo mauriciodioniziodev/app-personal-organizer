@@ -99,3 +99,10 @@ export type UserProfile = {
     status: 'pending' | 'authorized' | 'revoked';
     role: 'administrador' | 'usuario';
 }
+
+export type CompanySettings = {
+    id: number;
+    companyName: string;
+    logoUrl: string | null;
+    createdAt?: string;
+}
