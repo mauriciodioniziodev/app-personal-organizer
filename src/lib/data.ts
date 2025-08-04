@@ -66,10 +66,14 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
 
-    // Simplified query for the user's own profile.
+    // This single query now fetches the profile and the associated company name.
+    // RLS policies will ensure this is secure.
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+            *,
+            companies ( name )
+        `)
         .eq('id', session.user.id)
         .single();
     
@@ -78,30 +82,19 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         return null;
     }
     
-    const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .select('name')
-        .eq('id', profile.company_id)
-        .single();
-
-    if(companyError) {
-        console.error("Error fetching company for profile:", companyError);
-        // Return profile without company name if company lookup fails
-    }
+    const companyDetails = profile.companies as { name: string } | null;
 
     return {
         ...toCamelCase(profile),
         email: session.user.email || '',
-        companyName: company?.name || 'Empresa não encontrada'
+        companyName: companyDetails?.name || 'Empresa não encontrada'
     };
 }
 
 
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
-
-    // This single query now handles both super admin and regular admin cases,
-    // relying on the RLS policies you've set up.
+    
     const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -119,7 +112,6 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    // The structure returned by Supabase with embedded objects needs to be flattened.
     return data.map(p => ({
         id: p.id,
         fullName: p.full_name,
@@ -1006,6 +998,7 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 
 
