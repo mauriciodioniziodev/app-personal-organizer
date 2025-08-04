@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { UserProfile } from "@/lib/definitions";
 import { LogOut } from "lucide-react";
-import { getProfiles } from "@/lib/data";
+import { getCurrentProfile } from "@/lib/data";
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
@@ -31,8 +31,7 @@ export function UserNav() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        const profiles = await getProfiles();
-        const userProfile = profiles.find(p => p.id === user.id);
+        const userProfile = await getCurrentProfile();
         if (userProfile) {
             setProfile(userProfile);
         }
