@@ -30,6 +30,8 @@ export async function getProfiles(): Promise<UserProfile[]> {
             return [];
         }
 
+        // The RPC returns columns in snake_case or as defined in the function.
+        // We need to map them to the camelCase UserProfile type.
         return data.map(profile => ({
             id: profile.id,
             fullName: profile.full_name,
