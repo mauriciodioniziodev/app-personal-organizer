@@ -29,17 +29,9 @@ export async function getProfiles(): Promise<UserProfile[]> {
             console.error("Error fetching all user profiles via RPC:", error);
             return [];
         }
-
-        // The RPC function already returns all the needed fields correctly named.
-        return data.map(profile => ({
-            id: profile.id,
-            fullName: profile.full_name,
-            status: profile.status,
-            role: profile.role,
-            companyId: profile.company_id,
-            email: profile.email || 'E-mail não encontrado',
-            companyName: profile.company_name || 'Empresa não encontrada',
-        }));
+        
+        // The RPC returns snake_case keys. The UI component will handle this.
+        return data as any[];
     }
 
     // Regular admin branch
@@ -64,17 +56,14 @@ export async function getProfiles(): Promise<UserProfile[]> {
       return [];
     }
       
-    // Since we now have profiles, fetch all auth users to map emails
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        // Continue without emails if this fails, better than showing nothing
     }
     const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
 
     return companyProfiles.map(p => {
-        // Supabase returns the joined table as a nested object
-        const companyName = p.organizations?.name || 'Empresa não encontrada';
+        const companyName = Array.isArray(p.organizations) ? p.organizations[0]?.name : p.organizations?.name;
         return {
             id: p.id,
             fullName: p.full_name,
@@ -82,7 +71,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
             role: p.role,
             companyId: p.company_id,
             email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: companyName,
+            companyName: companyName || 'Empresa não encontrada',
         };
     });
 };

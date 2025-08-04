@@ -100,7 +100,7 @@ function MasterDataCard<T extends MasterDataItem>({
 }
 
 function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
-    const [profiles, setProfiles] = useState<UserProfile[]>([]);
+    const [profiles, setProfiles] = useState<any[]>([]); // Use 'any' to accept raw data from RPC
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -182,13 +182,17 @@ function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
                 {profiles.length > 0 ? (
                     <ul className="space-y-3">
                         {profiles.map(profile => {
+                            // Adapt to snake_case from RPC or camelCase from regular fetch
+                            const fullName = profile.fullName || profile.full_name;
+                            const companyName = profile.companyName || profile.company_name;
                             const isCurrentUser = profile.id === currentUser?.id;
+
                             return (
                             <li key={profile.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
                                 <div className="flex-grow">
-                                    <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
+                                    <p className="font-semibold">{fullName || 'Nome não definido'}</p>
                                     <p className="text-sm text-muted-foreground">{profile.email}</p>
-                                    {isSuperAdmin && <p className="text-xs font-bold text-primary mt-1">{profile.companyName}</p>}
+                                    {isSuperAdmin && <p className="text-xs font-bold text-primary mt-1">{companyName}</p>}
                                     <div className="flex gap-2 mt-2">
                                         <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
                                         <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>
