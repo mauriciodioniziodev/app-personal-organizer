@@ -73,6 +73,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         return [];
     }
     
+    // Convert snake_case from DB to camelCase for the app
     return profiles.map(profile => ({
         id: profile.id,
         fullName: profile.full_name,
@@ -870,4 +871,3 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     // Invalidate cache
     settingsCache = null;
 }
-

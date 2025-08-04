@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { getSettings } from "@/lib/data";
+import { getSettings, getProfiles as fetchProfiles } from "@/lib/data";
 
 
 const mainNavItems = [
@@ -39,13 +39,14 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         if(!supabase) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            const [userProfile, companySettings] = await Promise.all([
-                supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+            const [userProfiles, companySettings] = await Promise.all([
+                fetchProfiles(), // Use a função de data.ts
                 getSettings()
             ]);
-
-            if (userProfile.data) {
-                setProfile(toCamelCase(userProfile.data));
+            
+            const currentUserProfile = userProfiles.find(p => p.id === session.user.id);
+            if (currentUserProfile) {
+                setProfile(currentUserProfile);
             }
             setSettings(companySettings);
         }
@@ -66,23 +67,11 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
      };
   }, [router]);
   
-  const toCamelCase = (obj: any): any => {
-    if (!obj) return null;
-    return Object.keys(obj).reduce(
-        (result, key) => {
-            const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
-            result[camelKey] = toCamelCase(obj[key]);
-            return result;
-        },
-        {} as any
-    );
-  };
-  
   const companyName = settings?.companyName || 'OrganizerFlow';
   const logoUrl = settings?.logoUrl;
 
   return (
-    <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
+    <aside className={cn("hidden md:flex flex-col w-64 h-screen bg-card border-r", className)}>
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
           {logoUrl ? (
