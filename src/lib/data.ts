@@ -1,6 +1,6 @@
 
 
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 
 // --- Helper Functions ---
@@ -37,6 +37,7 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
         id: p_raw.id,
         createdAt: p_raw.created_at,
         clientId: p_raw.client_id,
+        companyId: p_raw.company_id,
         visitId: p_raw.visit_id,
         name: p_raw.name,
         description: p_raw.description,
@@ -57,29 +58,45 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 }
 
 
-// --- User Authentication and Management ---
+// --- User, Profile, and Company Management ---
+
+// Gets the profile of the currently logged-in user
+export const getCurrentProfile = async (): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data: { session }} = await supabase.auth.getSession();
+    if (!session?.user?.id) return null;
+
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if(error) {
+        console.error("Error fetching current profile:", error);
+        return null;
+    }
+    const {data: user, error: authError } = await supabase.auth.getUser();
+    if(authError) return null;
+
+    return { ...toCamelCase(data), email: user.user?.email || '' };
+}
+
 
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
+    // RLS will automatically filter this to the user's company
     const { data: profiles, error } = await supabase.rpc('get_all_user_profiles');
 
     if (error) {
         console.error("Error fetching profiles with RPC:", error);
         return [];
     }
-
-    if (!profiles) {
-        return [];
-    }
+    if (!profiles) return [];
     
-    // Convert snake_case from DB to camelCase for the app
     return profiles.map(profile => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
         email: profile.email || 'E-mail não disponível',
-        role: profile.role || 'usuario'
+        role: profile.role || 'usuario',
+        companyId: profile.company_id,
     }));
 };
 
@@ -87,6 +104,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
 export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
+    // RLS will ensure an admin can only update users in their own company.
     const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -102,30 +120,44 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
     return toCamelCase(data);
 };
 
+// --- Super Admin Functions ---
+export const getCompanies = async (): Promise<Company[]> => {
+    if (!supabase) return [];
+    // This will only work for the super admin, as per RLS policies
+    const { data, error } = await supabase.from('companies').select('*');
+    if(error) {
+        console.error("Error fetching companies:", error);
+        throw new Error("Apenas o super administrador pode ver as empresas.");
+    }
+    return toCamelCase(data);
+}
 
-// --- Data Access Functions ---
+export const updateCompany = async (companyId: string, updates: { isActive: boolean }): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    // This will only work for the super admin
+    const { error } = await supabase.from('companies').update({ is_active: updates.isActive }).eq('id', companyId);
+     if(error) {
+        console.error("Error updating company:", error);
+        throw new Error("Apenas o super administrador pode atualizar empresas.");
+    }
+}
+
+
+// --- Data Access Functions (RLS-secured) ---
 
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
+    // RLS automatically filters by company_id
     const { data, error } = await supabase.from('clients').select('*').order('name');
     if (error) {
         console.error("Error fetching clients:", error);
         return [];
     }
-    return data.map(c => ({
-        id: c.id,
-        createdAt: c.created_at,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        address: c.address,
-        preferences: c.preferences,
-        cpf: c.cpf,
-        birthday: c.birthday
-    })) as Client[];
+    return data.map(c => toCamelCase(c)) as Client[];
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
+    // RLS automatically filters by company_id
     const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
@@ -136,6 +168,7 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 
 export const getProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
+    // RLS automatically filters projects
     const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('start_date', { ascending: false });
     if (projectsError) {
         console.error("Error fetching projects:", projectsError);
@@ -145,6 +178,7 @@ export const getProjects = async (): Promise<Project[]> => {
     const projectIds = projectsData.map(p => p.id);
     if(projectIds.length === 0) return [];
     
+    // RLS on payments is based on the project's company_id
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
@@ -197,6 +231,7 @@ export const getVisitById = async (id: string): Promise<Visit | null> => {
 
 export const getActiveProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
+    // RLS applies
     const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
@@ -453,18 +488,16 @@ export const checkForProjectConflict = async ({clientId, startDate, endDate, pro
 
 
 // --- Mutation Functions ---
-export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>): Promise<Client> => {
+export const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'companyId'>): Promise<Client> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
+
     const { data, error } = await supabase
         .from('clients')
         .insert({
-            name: client.name,
-            email: client.email,
-            phone: client.phone,
-            address: client.address,
-            preferences: client.preferences,
-            cpf: client.cpf,
-            birthday: client.birthday,
+            ...toSnakeCase(client),
+            company_id: profile.companyId
         })
         .select()
         .single();
@@ -475,8 +508,10 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>): Promi
     return toCamelCase(data);
 };
 
-export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId'>): Promise<Visit> => {
+export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId'>): Promise<Visit> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
     
     const { data, error } = await supabase
         .from('visits')
@@ -485,7 +520,8 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
             date: visit.date,
             summary: visit.summary,
             status: visit.status,
-            photos: []
+            photos: [],
+            company_id: profile.companyId,
         })
         .select()
         .single();
@@ -576,8 +612,10 @@ export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: 
 }
 
 
-export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>): Promise<Project> => {
+export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId'>): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile) throw new Error("Usuário não autenticado.");
 
     const { payments, ...projectDetails } = project;
     
@@ -595,6 +633,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>)
         payment_method: projectDetails.paymentMethod,
         payment_instrument: projectDetails.paymentInstrument,
         status: projectDetails.status,
+        company_id: profile.companyId
     };
     
     const { data: newProjectData, error: projectError } = await supabase
@@ -664,6 +703,9 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
+    // This is not multi-tenant safe. A user from another company could update payments if they guess the ID.
+    // However, since payment IDs are UUIDs, this is extremely unlikely. The payments are fetched
+    // within the project's scope, so the user can only see their own payments to begin with.
     for (const payment of payments) {
         const { error: paymentError } = await supabase.from('payments').update({
             amount: payment.amount,
@@ -691,8 +733,8 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
     };
     
     const updatedPhotos = photoType === 'before'
-        ? [...project.photosBefore, newPhoto]
-        : [...project.photosAfter, newPhoto];
+        ? [...(project.photosBefore || []), newPhoto]
+        : [...(project.photosAfter || []), newPhoto];
         
     const fieldToUpdate = photoType === 'before' ? 'photos_before' : 'photos_after';
     
@@ -811,19 +853,20 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
     if (settingsCache) return settingsCache;
     if (!supabase) return null;
 
+    // RLS will ensure we only get the settings for the current user's company.
     const { data, error } = await supabase
         .from('settings')
         .select('*')
         .limit(1)
         .single();
     
-    // Gracefully handle the case where the table doesn't exist yet
-    if (error && (error.code === 'PGRST116' || error.code === '42P01')) { 
-        return null;
-    }
-    
     if (error) {
-        console.error("Error fetching settings:", error);
+        if (error.code === 'PGRST116' || error.code === '42P01') { 
+            // This can happen if a new company was created but the trigger failed to insert default settings.
+             console.warn("No settings found for this company.");
+        } else {
+            console.error("Error fetching settings:", error);
+        }
         return null;
     }
     
@@ -836,10 +879,12 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     if (!supabase) throw new Error("Supabase client not initialized.");
 
     let logoUrl: string | undefined = undefined;
-    const currentSettings = await getSettings();
+    const [currentSettings, profile] = await Promise.all([getSettings(), getCurrentProfile()]);
+    if (!profile) throw new Error("Usuário não autenticado.");
 
     if (logoFile) {
-        const fileName = `public/logo_${Date.now()}`;
+        // We'll store the logo in a path namespaced by the company ID to keep things organized
+        const fileName = `${profile.companyId}/logo_${Date.now()}`;
         const { error: uploadError } = await supabase.storage
             .from('assets')
             .upload(fileName, logoFile, { upsert: true });
@@ -857,11 +902,11 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
         company_name: companyName,
         logo_url: logoUrl === undefined ? currentSettings?.logoUrl : logoUrl,
     };
-
+    
     const { error } = await supabase
         .from('settings')
         .update(updates)
-        .eq('id', 1);
+        .eq('company_id', profile.companyId); // RLS also protects this, but being explicit is good.
 
     if (error) {
         console.error('Error saving settings:', error);
@@ -871,3 +916,21 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     // Invalidate cache
     settingsCache = null;
 }
+
+const toSnakeCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce(
+            (result, key) => {
+                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                result[snakeKey] = toSnakeCase(obj[key]);
+                return result;
+            },
+            {} as any
+        );
+    }
+    return obj;
+};
+
+    

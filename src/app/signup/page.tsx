@@ -30,13 +30,14 @@ export default function SignUpPage() {
     setSuccess(null);
 
     // This simply creates the user in auth.users.
-    // A database trigger (`on_auth_user_created`) will then create the corresponding profile row.
+    // A database trigger (`on_auth_user_created`) will then create the company,
+    // the profile (as admin), and the default settings for that company.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          full_name: fullName,
+          full_name: fullName, // This will be used as the company and user name
         }
       }
     });
@@ -57,14 +58,13 @@ export default function SignUpPage() {
         return;
     }
     
-    // Since the database trigger now handles profile creation, we just need to notify the admin.
+    // The trigger handles all the backend setup. We just notify the user.
     try {
-        await notifyAdminOfNewUser({ userName: fullName });
-        setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
+        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${fullName})` });
+        setSuccess('Cadastro realizado com sucesso! Você já pode acessar sua conta e começar a usar o sistema.');
     } catch (notificationError: any) {
         console.error("Failed to send notification:", notificationError);
-        // Even if notification fails, the user was created. Let them know.
-         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação. Ocorreu um erro ao notificar o administrador.');
+         setSuccess('Cadastro realizado com sucesso! Ocorreu um erro ao notificar o super-administrador, mas sua conta está pronta para uso.');
     } finally {
         setLoading(false);
     }
@@ -75,8 +75,8 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Crie sua Conta</CardTitle>
-            <CardDescription>Preencha os campos para solicitar seu acesso.</CardDescription>
+            <CardTitle className="text-2xl font-headline">Crie sua Conta e sua Empresa</CardTitle>
+            <CardDescription>Preencha os campos para criar seu acesso de administrador.</CardDescription>
           </CardHeader>
           <CardContent>
             {success ? (
@@ -85,25 +85,25 @@ export default function SignUpPage() {
                   <AlertDescription>{success}</AlertDescription>
                   <div className="mt-4">
                     <Link href="/login">
-                        <Button className="w-full">Voltar para o Login</Button>
+                        <Button className="w-full">Ir para o Login</Button>
                     </Link>
                   </div>
                 </Alert>
             ) : (
                 <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="fullName">Nome Completo</Label>
+                        <Label htmlFor="fullName">Nome da Empresa / Seu Nome Completo</Label>
                         <Input
                         id="fullName"
                         type="text"
-                        placeholder="Seu nome completo"
+                        placeholder="Ex: OrganizaTudo Ltda"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         required
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email">E-mail</Label>
+                        <Label htmlFor="email">Seu E-mail de Administrador</Label>
                         <Input
                         id="email"
                         type="email"
@@ -114,7 +114,7 @@ export default function SignUpPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password">Senha</Label>
+                        <Label htmlFor="password">Sua Senha</Label>
                         <Input
                         id="password"
                         type="password"
@@ -131,7 +131,7 @@ export default function SignUpPage() {
                         </Alert>
                     )}
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Conta'}
+                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Minha Conta e Empresa'}
                     </Button>
                 </form>
             )}
@@ -150,3 +150,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    

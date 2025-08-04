@@ -5,16 +5,16 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState, FormEvent } from "react";
-import { LoaderCircle, Trash, Plus, Users, Check, X } from "lucide-react";
+import { useEffect, useState, FormEvent, useCallback } from "react";
+import { LoaderCircle, Trash, Plus, Users, Check, X, Building, ToggleRight, ToggleLeft } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { 
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    getProfiles, updateProfile
+    getProfiles, updateProfile, getCompanies, updateCompany, getCurrentProfile
 } from "@/lib/data";
-import type { MasterDataItem, UserProfile } from "@/lib/definitions";
+import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -104,7 +104,7 @@ function UserManagementCard() {
     const { toast } = useToast();
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-    const fetchProfiles = async () => {
+    const fetchProfiles = useCallback(async () => {
         setLoading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -116,11 +116,11 @@ function UserManagementCard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchProfiles();
-    }, []);
+    }, [fetchProfiles]);
 
     const handleStatusChange = async (userId: string, newStatus: 'authorized' | 'revoked') => {
         try {
@@ -222,29 +222,105 @@ function UserManagementCard() {
     );
 }
 
+function SuperAdminCompanyManagement() {
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+
+    const fetchCompanies = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await getCompanies();
+            setCompanies(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar as empresas.' });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        fetchCompanies();
+    }, [fetchCompanies]);
+
+    const handleStatusToggle = async (companyId: string, currentStatus: boolean) => {
+        try {
+            await updateCompany(companyId, { isActive: !currentStatus });
+            toast({ title: 'Sucesso!', description: 'Status da empresa atualizado.' });
+            fetchCompanies();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        }
+    };
+    
+    if (loading) {
+         return <Card><CardHeader><CardTitle>Gerenciamento de Empresas</CardTitle></CardHeader><CardContent className="flex justify-center items-center h-24"><LoaderCircle className="w-6 h-6 animate-spin" /></CardContent></Card>
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2"><Building /> Gerenciamento de Empresas</CardTitle>
+                <CardDescription>Ative ou desative o acesso das empresas ao sistema.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ul className="space-y-3">
+                    {companies.map(company => (
+                        <li key={company.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
+                            <div>
+                                <p className="font-semibold">{company.name}</p>
+                                <p className="text-sm text-muted-foreground">ID: {company.id}</p>
+                            </div>
+                             <Button size="sm" variant={company.isActive ? 'destructive' : 'success'} onClick={() => handleStatusToggle(company.id, company.isActive)}>
+                                {company.isActive ? (
+                                    <><ToggleRight className="mr-2 h-4 w-4" /> Desativar</>
+                                ) : (
+                                    <><ToggleLeft className="mr-2 h-4 w-4" /> Ativar</>
+                                )}
+                            </Button>
+                        </li>
+                    ))}
+                    {companies.length === 0 && (
+                        <p className="text-muted-foreground text-center py-4">Nenhuma empresa cadastrada.</p>
+                    )}
+                </ul>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function AdminPage() {
     const [visitStatusOptions, setVisitStatusOptions] = useState<MasterDataItem[]>([]);
     const [paymentInstrumentOptions, setPaymentInstrumentOptions] = useState<MasterDataItem[]>([]);
     const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
 
-    const fetchData = async () => {
+
+    const fetchData = useCallback(async () => {
         setLoading(true);
-        const [visitStatus, paymentInstruments, projectStatus] = await Promise.all([
-            getVisitStatusOptions(),
-            getPaymentInstrumentsOptions(),
-            getProjectStatusOptions()
-        ]);
-        setVisitStatusOptions(visitStatus);
-        setPaymentInstrumentOptions(paymentInstruments);
-        setProjectStatusOptions(projectStatus);
-        setLoading(false);
-    }
+        try {
+            const [visitStatus, paymentInstruments, projectStatus, currentProfile] = await Promise.all([
+                getVisitStatusOptions(),
+                getPaymentInstrumentsOptions(),
+                getProjectStatusOptions(),
+                getCurrentProfile(),
+            ]);
+            setVisitStatusOptions(visitStatus);
+            setPaymentInstrumentOptions(paymentInstruments);
+            setProjectStatusOptions(projectStatus);
+            setProfile(currentProfile);
+        } catch(e) {
+            console.error("Failed to fetch admin data", e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const handleUpdate = () => {
         fetchData();
@@ -257,14 +333,15 @@ export default function AdminPage() {
             </div>
         );
     }
-
+    
+    const isSuperAdmin = profile?.email === 'mauriciodionizio@gmail.com';
 
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Administração" />
 
             <div className="space-y-8">
-                 <UserManagementCard />
+                 {isSuperAdmin ? <SuperAdminCompanyManagement /> : <UserManagementCard />}
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <MasterDataCard
@@ -293,3 +370,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    

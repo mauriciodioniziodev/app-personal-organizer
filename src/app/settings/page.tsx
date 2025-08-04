@@ -67,7 +67,7 @@ export default function SettingsPage() {
             toast({
                 variant: 'destructive',
                 title: 'Erro ao salvar',
-                description: 'Não foi possível salvar as configurações.',
+                description: (error as Error).message,
             });
         } finally {
             setIsSaving(false);
@@ -128,7 +128,7 @@ export default function SettingsPage() {
                             <div className="space-y-2">
                                 <Label>Pré-visualização da Logo</Label>
                                 <div className="p-4 bg-muted rounded-lg flex items-center justify-center">
-                                    <Image src={logoPreview} alt="Pré-visualização da logo" width={100} height={100} className="object-contain" />
+                                    <Image src={logoPreview} alt="Pré-visualização da logo" width={160} height={160} className="object-contain" />
                                 </div>
                             </div>
                         )}
@@ -155,3 +155,4 @@ export default function SettingsPage() {
     );
 }
 
+    

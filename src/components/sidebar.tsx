@@ -5,12 +5,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { getSettings, getProfiles as fetchProfiles } from "@/lib/data";
+import { getSettings, getCurrentProfile } from "@/lib/data";
 
 
 const mainNavItems = [
@@ -24,7 +24,7 @@ const mainNavItems = [
 
 const adminNavItems = [
   { href: "/settings", label: "Configurações", icon: Settings, role: ['administrador'] },
-  { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
+  { href: "/admin", label: "Administração", icon: Building, role: ['administrador'] },
 ];
 
 
@@ -37,19 +37,15 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
   useEffect(() => {
      const fetchProfileAndSettings = async () => {
         if(!supabase) return;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            const [userProfiles, companySettings] = await Promise.all([
-                fetchProfiles(), // Use a função de data.ts
-                getSettings()
-            ]);
-            
-            const currentUserProfile = userProfiles.find(p => p.id === session.user.id);
-            if (currentUserProfile) {
-                setProfile(currentUserProfile);
-            }
-            setSettings(companySettings);
+        const [currentProfile, companySettings] = await Promise.all([
+            getCurrentProfile(),
+            getSettings()
+        ]);
+        
+        if (currentProfile) {
+            setProfile(currentProfile);
         }
+        setSettings(companySettings);
      }
      fetchProfileAndSettings();
      
@@ -88,21 +84,25 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
           </div>
         </Link>
       </div>
-      <nav className="flex-1 px-4 flex flex-col justify-between pb-4">
-        <ul className="space-y-2">
-          {mainNavItems.map((item) => (
-            (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
-            )
-          ))}
-        </ul>
-        <ul className="space-y-2">
-           {adminNavItems.map((item) => (
-            (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
-            )
-          ))}
-        </ul>
+       <nav className="flex-1 px-4 flex flex-col justify-between pb-4">
+        <div>
+          <ul className="space-y-2">
+            {mainNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
+        </div>
+        <div>
+          <ul className="space-y-2">
+             {adminNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
+        </div>
       </nav>
     </aside>
   );
@@ -136,3 +136,5 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
+
+    
