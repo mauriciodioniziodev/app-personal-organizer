@@ -87,49 +87,70 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     const currentUser = await getCurrentProfile();
     if (!currentUser) return [];
 
-    // The RLS policy "Users can view profiles from their own company" will handle filtering.
-    // The policy is written such that super admin can see all profiles.
-    let query = supabase.from('profiles').select(`
-        id,
-        full_name,
-        status,
-        role,
-        company_id,
-        companies ( name )
-    `);
+    let profiles: any[] = [];
+    let error: any = null;
 
-    const { data: profiles, error } = await query;
+    if (currentUser.email === 'mauriciodionizio@gmail.com') {
+        // Super admin fetches all users via a secure RPC call
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_user_profiles');
+        profiles = rpcData || [];
+        error = rpcError;
+        if(error) {
+            console.error("Error fetching all profiles with RPC:", error);
+            return [];
+        }
+    } else {
+        // Regular admin fetches users from their own company via RLS
+        const { data: rlsData, error: rlsError } = await supabase
+            .from('profiles')
+            .select(`
+                id,
+                full_name,
+                status,
+                role,
+                company_id,
+                companies ( name )
+            `)
+            .eq('company_id', currentUser.companyId);
+        
+        if (rlsError) {
+             console.error("Error fetching profiles via RLS:", rlsError);
+             return [];
+        }
 
-    if (error) {
-        console.error("Error fetching profiles:", error);
-        return [];
+        // We still need to fetch emails for these users, but we do it for a limited set.
+        const userIds = (rlsData || []).map(p => p.id);
+        if (userIds.length > 0) {
+            // This is less ideal, but necessary without making all user emails public.
+            // A more advanced solution would be another RPC for this. For now, this is a pragmatic approach.
+             const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+             if (usersError) {
+                 console.error("Error fetching auth users for company:", usersError);
+                 // Fallback: return profiles without email if lookup fails
+                 return rlsData.map(p => ({
+                    ...toCamelCase(p),
+                    email: 'E-mail indisponível',
+                    companyName: p.companies?.name || 'Empresa não encontrada'
+                 }));
+             }
+             const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
+             profiles = rlsData.map(p => ({...p, email: emailMap.get(p.id) || 'E-mail não encontrado' }));
+        } else {
+            profiles = [];
+        }
     }
+    
     if (!profiles) return [];
     
-    // Now, fetch the auth users to get their emails
-    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
-    
-    if (usersError) {
-         console.error("Error fetching auth users:", usersError);
-         // Return profiles without email if auth user fetch fails
-         return profiles.map(p => toCamelCase({
-            ...p,
-            email: 'E-mail indisponível',
-            companyName: p.companies?.name || 'Empresa não encontrada'
-         }));
-    }
-    
-    const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
-
     // Manually structure the data to match the UserProfile type
     return profiles.map((profile: any) => ({
         id: profile.id,
         fullName: profile.full_name,
         status: profile.status,
-        email: emailMap.get(profile.id) || 'E-mail não disponível',
+        email: profile.email || 'E-mail não disponível',
         role: profile.role,
         companyId: profile.company_id,
-        companyName: profile.companies?.name || 'Empresa não encontrada',
+        companyName: profile.company_name || profile.companies?.name || 'Empresa não encontrada',
     }));
 };
 
@@ -1008,6 +1029,7 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 
 

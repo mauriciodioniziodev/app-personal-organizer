@@ -412,16 +412,20 @@ export default function AdminPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [visitStatus, paymentInstruments, projectStatus, currentProfile] = await Promise.all([
-                getVisitStatusOptions(),
-                getPaymentInstrumentsOptions(),
-                getProjectStatusOptions(),
-                getCurrentProfile(),
-            ]);
-            setVisitStatusOptions(visitStatus);
-            setPaymentInstrumentOptions(paymentInstruments);
-            setProjectStatusOptions(projectStatus);
-            setProfile(currentProfile);
+            const currentProfile = await getCurrentProfile();
+             setProfile(currentProfile);
+
+            if (currentProfile && currentProfile.email !== 'mauriciodionizio@gmail.com') {
+                const [visitStatus, paymentInstruments, projectStatus] = await Promise.all([
+                    getVisitStatusOptions(),
+                    getPaymentInstrumentsOptions(),
+                    getProjectStatusOptions(),
+                ]);
+                 setVisitStatusOptions(visitStatus);
+                setPaymentInstrumentOptions(paymentInstruments);
+                setProjectStatusOptions(projectStatus);
+            }
+
         } catch(e) {
             console.error("Failed to fetch admin data", e);
         } finally {
@@ -485,3 +489,4 @@ export default function AdminPage() {
         </div>
     );
 }
+
