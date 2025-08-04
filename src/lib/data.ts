@@ -81,7 +81,14 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
 export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
-    // RLS will automatically filter this to the user's company
+    // First, check if the current user is a super admin.
+    const currentUser = await getCurrentProfile();
+    if (currentUser?.email === 'mauriciodionizio@gmail.com') {
+        // Super admin manages companies, not individual users from this view. Return empty.
+        return [];
+    }
+
+    // For regular admins, call the RPC function to get users from their company.
     const { data: profiles, error } = await supabase.rpc('get_all_user_profiles_from_my_company');
 
     if (error) {
