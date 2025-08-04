@@ -66,18 +66,33 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
 
-    const { data, error } = await supabase.from('profiles').select('*, companies(name)').eq('id', session.user.id).single();
-    if(error) {
-        console.error("Error fetching current profile:", error);
+    // Simplified query for the user's own profile.
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+    
+    if(profileError) {
+        console.error("Error fetching current profile data:", profileError);
         return null;
     }
     
-    // Manually structure the data to include companyName at the top level
-    const profileData = toCamelCase(data);
+    const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', profile.company_id)
+        .single();
+
+    if(companyError) {
+        console.error("Error fetching company for profile:", companyError);
+        // Return profile without company name if company lookup fails
+    }
+
     return {
-        ...profileData,
+        ...toCamelCase(profile),
         email: session.user.email || '',
-        companyName: profileData.companies?.name || 'Empresa não encontrada'
+        companyName: company?.name || 'Empresa não encontrada'
     };
 }
 
@@ -86,9 +101,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
 
     // This single query now handles both super admin and regular admin cases,
-    // relying on the RLS policies you've already set up.
-    // The super admin will be able to see all profiles because their RLS policy allows it.
-    // A regular admin will only see profiles from their own company_id.
+    // relying on the RLS policies you've set up.
     const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -97,8 +110,8 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
             status,
             role,
             company_id,
-            email:users ( email ),
-            company:companies ( name )
+            user_details:users ( email ),
+            company_details:companies ( name )
         `);
 
     if (error) {
@@ -106,19 +119,15 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    if (!data) return [];
-    
     // The structure returned by Supabase with embedded objects needs to be flattened.
     return data.map(p => ({
         id: p.id,
         fullName: p.full_name,
         status: p.status,
-        // The email is nested inside the 'email' object which is aliased from 'users'
-        email: (p.email as any)?.email || 'E-mail indisponível', 
+        email: (p.user_details as any)?.email || 'E-mail indisponível', 
         role: p.role,
         companyId: p.company_id,
-        // The company name is nested inside the 'company' object
-        companyName: (p.company as any)?.name || 'Empresa não encontrada'
+        companyName: (p.company_details as any)?.name || 'Empresa não encontrada'
     }));
 };
 
@@ -997,6 +1006,7 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 
 
