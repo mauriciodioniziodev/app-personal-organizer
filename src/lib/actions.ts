@@ -1,33 +1,23 @@
 
 "use server";
 
-import { config } from "dotenv";
-config();
-
 import { z } from "zod";
 import { addClient, addProject, addVisit, addPhotoToVisit, getCurrentProfile } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Visit, UserProfile } from "./definitions";
-import { createClient } from "@supabase/supabase-js";
-import { Database } from "./database.types";
-
-
-// This is a privileged Supabase client that should only be used in server actions.
-const supabaseAdmin = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+import { createSupabaseAdminClient } from "./supabaseClient";
 
 
 export async function getProfiles(): Promise<UserProfile[]> {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) return [];
+
     const profile = await getCurrentProfile();
     if (!profile) return [];
     
     let query;
 
-    // The super admin needs to see all users from all companies.
-    // A regular admin should only see users from their own company.
     if (profile.email === 'mauriciodionizio@gmail.com') {
          query = supabaseAdmin.from('profiles').select('*, companies(name)');
     } else {
@@ -46,12 +36,12 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
         page: 1,
-        perPage: 1000, // Adjust as needed
+        perPage: 1000, 
     });
     
     if (usersError) {
         console.error("Error fetching auth users:", usersError);
-        return []; // Or handle differently
+        return [];
     }
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
