@@ -90,7 +90,7 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         .from('profiles')
         .select(`
             *,
-            companies ( name )
+            organizations ( name )
         `)
         .eq('id', session.user.id)
         .single();
@@ -100,7 +100,7 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         return null;
     }
     
-    const companyDetails = Array.isArray(profile.companies) ? profile.companies[0] : profile.companies;
+    const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
     return {
         ...toCamelCase(profile),
@@ -132,9 +132,9 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
 export const getCompanies = async (): Promise<Company[]> => {
     if (!supabase) return [];
     // This will only work for the super admin, as per RLS policies
-    const { data, error } = await supabase.from('companies').select('*');
+    const { data, error } = await supabase.from('organizations').select('*');
     if(error) {
-        console.error("Error fetching companies:", error);
+        console.error("Error fetching organizations:", error);
         throw new Error("Apenas o super administrador pode ver as empresas.");
     }
     return toCamelCase(data);
@@ -144,7 +144,7 @@ export const addCompany = async (name: string): Promise<Company> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
     const { data: companyData, error: companyError } = await supabase
-        .from('companies')
+        .from('organizations')
         .insert({ name })
         .select()
         .single();
@@ -174,7 +174,7 @@ export const updateCompany = async (companyId: string, updates: { isActive?: boo
 
     if (Object.keys(snakeCaseUpdates).length === 0) return;
 
-    const { error } = await supabase.from('companies').update(snakeCaseUpdates).eq('id', companyId);
+    const { error } = await supabase.from('organizations').update(snakeCaseUpdates).eq('id', companyId);
      if(error) {
         console.error("Error updating company:", error);
         throw new Error("Apenas o super administrador pode atualizar empresas.");

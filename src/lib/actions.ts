@@ -24,8 +24,10 @@ export async function getProfiles(): Promise<UserProfile[]> {
     let profilesQuery;
 
     if (user.email === 'mauriciodionizio@gmail.com') {
-        profilesQuery = supabaseAdmin.from('profiles').select('*');
+        // Super admin gets all profiles with their associated company name
+        profilesQuery = supabaseAdmin.from('profiles').select('*, organizations(name)');
     } else {
+        // Regular admin gets profiles from their own company
         const { data: currentProfile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('company_id')
@@ -37,7 +39,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
              return [];
         }
         
-        profilesQuery = supabaseAdmin.from('profiles').select('*').eq('company_id', currentProfile.company_id);
+        profilesQuery = supabaseAdmin.from('profiles').select('*, organizations(name)').eq('company_id', currentProfile.company_id);
     }
     
     const { data: profiles, error } = await profilesQuery;
@@ -54,26 +56,21 @@ export async function getProfiles(): Promise<UserProfile[]> {
         console.error("Error fetching auth users:", usersError);
         return []; // Can't proceed without emails
     }
-    
-    // Fetch all companies to map names
-    const { data: companies, error: companiesError } = await supabaseAdmin.from('companies').select('id, name');
-     if (companiesError) {
-        console.error("Error fetching companies:", companiesError);
-        return [];
-    }
 
     const emailMap = new Map(usersData.users.map(u => [u.id, u.email]));
-    const companyMap = new Map(companies.map(c => [c.id, c.name]));
-
-    return profiles.map(p => ({
-        id: p.id,
-        fullName: p.full_name,
-        status: p.status,
-        role: p.role,
-        companyId: p.company_id,
-        email: emailMap.get(p.id) || 'E-mail não encontrado',
-        companyName: companyMap.get(p.company_id) || 'Empresa não encontrada',
-    }));
+    
+    return profiles.map(p => {
+        const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+        return {
+            id: p.id,
+            fullName: p.full_name,
+            status: p.status,
+            role: p.role,
+            companyId: p.company_id,
+            email: emailMap.get(p.id) || 'E-mail não encontrado',
+            companyName: companyDetails?.name || 'Empresa não encontrada',
+        }
+    });
 };
 
 
