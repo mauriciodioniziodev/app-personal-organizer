@@ -97,7 +97,7 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
             status,
             role,
             company_id,
-            user:users ( email ),
+            email:users ( email ),
             company:companies ( name )
         `);
 
@@ -108,13 +108,16 @@ export const getProfiles = async (): Promise<UserProfile[]> => {
     
     if (!data) return [];
     
+    // The structure returned by Supabase with embedded objects needs to be flattened.
     return data.map(p => ({
         id: p.id,
         fullName: p.full_name,
         status: p.status,
-        email: (p.user as any)?.email || 'E-mail indisponível',
+        // The email is nested inside the 'email' object which is aliased from 'users'
+        email: (p.email as any)?.email || 'E-mail indisponível', 
         role: p.role,
         companyId: p.company_id,
+        // The company name is nested inside the 'company' object
         companyName: (p.company as any)?.name || 'Empresa não encontrada'
     }));
 };
@@ -994,6 +997,7 @@ const toSnakeCase = (obj: any): any => {
     
 
     
+
 
 
 
