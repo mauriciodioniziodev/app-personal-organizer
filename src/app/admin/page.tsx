@@ -18,7 +18,6 @@ import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -104,15 +103,17 @@ function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUserId(user?.id || null);
-            const profilesData = await getProfiles();
+            const [profilesData, currentUserData] = await Promise.all([
+                getProfiles(),
+                getCurrentProfile()
+            ]);
             setProfiles(profilesData);
+            setCurrentUser(currentUserData);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os usuários.' });
         } finally {
@@ -181,7 +182,7 @@ function UserManagementCard({isSuperAdmin}: {isSuperAdmin: boolean}) {
                 {profiles.length > 0 ? (
                     <ul className="space-y-3">
                         {profiles.map(profile => {
-                            const isCurrentUser = profile.id === currentUserId;
+                            const isCurrentUser = profile.id === currentUser?.id;
                             return (
                             <li key={profile.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-muted/50 rounded-md gap-4">
                                 <div className="flex-grow">
@@ -457,34 +458,40 @@ export default function AdminPage() {
             <PageHeader title="Administração" />
 
             <div className="space-y-8">
-                {isSuperAdmin && <SuperAdminCompanyManagement />}
+                {isSuperAdmin && (
+                    <>
+                        <SuperAdminCompanyManagement />
+                        <UserManagementCard isSuperAdmin={true} />
+                    </>
+                )}
                 
-                <UserManagementCard isSuperAdmin={isSuperAdmin} />
-
                 {!isSuperAdmin && (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <MasterDataCard
-                            title="Status de Visita"
-                            description="Gerencie as opções para o status de uma visita."
-                            items={visitStatusOptions}
-                            onAdd={(name) => addVisitStatusOption(name).then(handleUpdate)}
-                            onDelete={(id) => deleteVisitStatusOption(id).then(handleUpdate)}
-                        />
-                        <MasterDataCard
-                            title="Meios de Pagamento"
-                            description="Gerencie as opções para os meios de pagamento de um projeto."
-                            items={paymentInstrumentOptions}
-                            onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
-                            onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
-                        />
-                        <MasterDataCard
-                            title="Status de Execução do Projeto"
-                            description="Gerencie as opções para o status de execução de um projeto."
-                            items={projectStatusOptions}
-                            onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
-                            onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
-                        />
-                    </div>
+                    <>
+                        <UserManagementCard isSuperAdmin={false} />
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <MasterDataCard
+                                title="Status de Visita"
+                                description="Gerencie as opções para o status de uma visita."
+                                items={visitStatusOptions}
+                                onAdd={(name) => addVisitStatusOption(name).then(handleUpdate)}
+                                onDelete={(id) => deleteVisitStatusOption(id).then(handleUpdate)}
+                            />
+                            <MasterDataCard
+                                title="Meios de Pagamento"
+                                description="Gerencie as opções para os meios de pagamento de um projeto."
+                                items={paymentInstrumentOptions}
+                                onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
+                                onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
+                            />
+                            <MasterDataCard
+                                title="Status de Execução do Projeto"
+                                description="Gerencie as opções para o status de execução de um projeto."
+                                items={projectStatusOptions}
+                                onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
+                                onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
         </div>

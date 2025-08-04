@@ -14,7 +14,6 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) return [];
 
-    // Correctly get the user from the admin client's perspective
     const { data: { user } , error: userError } = await supabaseAdmin.auth.getUser();
 
     if (userError || !user) {
@@ -31,7 +30,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
             return [];
         }
 
-        // Map the results from the RPC function to the UserProfile type
+        // The RPC function already returns all the needed fields correctly named.
         return data.map(profile => ({
             id: profile.id,
             fullName: profile.full_name,
@@ -57,7 +56,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     
     const { data: companyProfiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('*, organizations(name)')
+      .select('*, organizations!inner(name)') // Using inner join to ensure company exists
       .eq('company_id', currentProfile.company_id);
 
     if (profilesError) {
@@ -74,7 +73,7 @@ export async function getProfiles(): Promise<UserProfile[]> {
     const emailMap = new Map(usersData?.users.map(u => [u.id, u.email]));
 
     return companyProfiles.map(p => {
-        // @ts-ignore - Supabase types can be tricky with nested objects
+        // Supabase returns the joined table as a nested object
         const companyName = p.organizations?.name || 'Empresa não encontrada';
         return {
             id: p.id,
