@@ -87,7 +87,7 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     // Always fetch a fresh session to ensure the correct user identity
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !session?.user?.id) {
-        console.error("Error fetching session or no user ID found:", sessionError);
+        // This is not an error, it just means the user is not logged in.
         return null;
     }
     
@@ -174,7 +174,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
          return [];
     }
 
-    const { data: companyProfiles, error: profilesError } = await supabaseAdmin
+    const { data: companyProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
             id,
@@ -193,6 +193,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     const companyUserIds = companyProfiles.map(p => p.id);
     if (companyUserIds.length === 0) return [];
 
+    // This part still needs admin client to get user emails who are not the current user.
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
      if (authError) {
         console.error("Error fetching auth users for company:", authError);
@@ -320,7 +321,7 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
 
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
-    // RLS automatically filters by company_id
+    // RLS automatically filters by company_id because this uses the public client
     const { data, error } = await supabase.from('clients').select('*').order('name');
     if (error) {
         console.error("Error fetching clients:", error);
@@ -585,7 +586,7 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
     }
     
     const projectIds = data.map(p => p.id);
-    if(projectIds.length === 0) return [];
+    if(projectIds.length === 0) return data.map(p => projectFromSupabase(p, []));
     
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
@@ -664,7 +665,7 @@ export const checkForProjectConflict = async ({clientId, startDate, endDate, pro
 export const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'companyId'>): Promise<Client> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
 
     const { data, error } = await supabase
         .from('clients')
@@ -684,7 +685,7 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'compa
 export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId'>): Promise<Visit> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
     
     const { data, error } = await supabase
         .from('visits')
@@ -788,7 +789,7 @@ export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: 
 export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId'>): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
 
     const { payments, ...projectDetails } = project;
     
@@ -879,6 +880,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
     // This is not multi-tenant safe. A user from another company could update payments if they guess the ID.
     // However, since payment IDs are UUIDs, this is extremely unlikely. The payments are fetched
     // within the project's scope, so the user can only see their own payments to begin with.
+    // RLS on the payments table provides the actual security layer.
     for (const payment of payments) {
         const { error: paymentError } = await supabase.from('payments').update({
             amount: payment.amount,
@@ -932,7 +934,7 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 // --- Master Data Functions ---
 
 export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'pendente', created_at: '' }, { id: '2', name: 'realizada', created_at: '' }, { id: '3', name: 'cancelada', created_at: '' }];
+    if (!supabase) return [];
     const { data, error } = await supabase.from('master_visit_status').select('*');
     if (error) {
         console.error("Error fetching visit status options:", error);
@@ -963,7 +965,7 @@ export const deleteVisitStatusOption = async (id: string): Promise<void> => {
 }
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'PIX', created_at: '' }, { id: '2', name: 'Dinheiro', created_at: '' }];
+    if (!supabase) return [];
     const { data, error } = await supabase.from('master_payment_instruments').select('*');
     if (error) {
         console.error("Error fetching payment instruments:", error);
@@ -994,7 +996,7 @@ export const deletePaymentInstrumentOption = async (id: string): Promise<void> =
 }
 
 export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'A iniciar', created_at: '' }];
+    if (!supabase) return [];
     const { data, error } = await supabase.from('master_project_status').select('*');
     if (error) {
         console.error("Error fetching project status options:", error);
@@ -1033,7 +1035,6 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
 
-    // This query is secured by the RLS policy on the `settings` table.
     const { data: settingsData, error } = await supabase
         .from('settings')
         .select('*')
@@ -1045,44 +1046,43 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
     
-    if (settingsData) {
-        return toCamelCase(settingsData);
-    }
+    // If no settings exist for an existing company, create them.
+    if (!settingsData) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) {
+            console.error("Admin client is required to create missing settings.");
+            return null;
+        }
 
-    // If no settings are found, create them. This is a fallback for existing companies
-    // that might not have a settings entry.
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Cannot create settings: admin client is not available.");
-        return null;
-    }
+        const { data: orgData, error: orgError } = await supabaseAdmin
+            .from('organizations')
+            .select('trade_name')
+            .eq('id', companyId)
+            .single();
+        
+        if (orgError || !orgData) {
+            console.error("Could not fetch organization name to create settings:", orgError);
+            return null;
+        }
 
-    const { data: orgData, error: orgError } = await supabaseAdmin
-        .from('organizations')
-        .select('trade_name')
-        .eq('id', companyId)
-        .single();
-    
-    if (orgError || !orgData) {
-        console.error("Could not fetch organization name to create settings:", orgError);
-        return null;
-    }
-
-    const { data: newSettings, error: insertError } = await supabaseAdmin
-        .from('settings')
-        .insert({
-            company_id: companyId,
-            company_name: orgData.trade_name,
-        })
-        .select()
-        .single();
-    
-    if (insertError) {
-        console.error("Error creating default settings:", insertError);
-        return null;
+        const { data: newSettings, error: insertError } = await supabaseAdmin
+            .from('settings')
+            .insert({
+                company_id: companyId,
+                company_name: orgData.trade_name,
+            })
+            .select()
+            .single();
+        
+        if (insertError) {
+            console.error("Error creating default settings:", insertError);
+            return null;
+        }
+        
+        return toCamelCase(newSettings);
     }
     
-    return toCamelCase(newSettings);
+    return toCamelCase(settingsData);
 };
 
 
