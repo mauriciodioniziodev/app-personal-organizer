@@ -530,23 +530,22 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const profile = await getCurrentProfile();
     if (!profile) return [];
 
-    // Set the reference time to Brazil's timezone
-    const nowInBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    // This is the correct way to get the current time in a specific timezone.
+    const nowInBrazil = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
     
-    const startOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 23, 59, 59, 999);
-    
-    // Supabase stores timestamptz in UTC. We need to provide the correct range in UTC.
-    const startOfDayUTC = new Date(startOfDay.toLocaleString('en-US', { timeZone: 'UTC' })).toISOString();
-    const endOfDayUTC = new Date(endOfDay.toLocaleString('en-US', { timeZone: 'UTC' })).toISOString();
+    const startOfDay = new Date(nowInBrazil);
+    startOfDay.setHours(0, 0, 0, 0);
 
+    const endOfDay = new Date(nowInBrazil);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     let visitsQuery = supabase.from('visits').select('*')
-        .gte('date', startOfDayUTC)
-        .lte('date', endOfDayUTC);
+        .gte('date', startOfDay.toISOString())
+        .lte('date', endOfDay.toISOString());
     
     let projectsQuery = supabase.from('projects').select('*')
-        .lt('start_date', endOfDayUTC) 
-        .gt('end_date', startOfDayUTC) 
+        .lt('start_date', endOfDay.toISOString())
+        .gt('end_date', startOfDay.toISOString())
         .in('status', ['Em andamento', 'Atrasado']);
 
     if (profile.email !== 'mauriciodionizio@gmail.com') {
@@ -574,6 +573,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
+        // Supabase returns timestamptz as a full ISO string. We can parse it directly.
         const visitDate = new Date(v.date);
         
         if (client) {
@@ -581,7 +581,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 id: `visit-${v.id}`,
                 type: 'visit',
                 date: v.date,
-                // Extract time directly from the ISO string to avoid conversions
                 time: v.date.substring(11, 16),
                 title: 'Visita Agendada',
                 clientName: client.name,
@@ -590,6 +589,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
+                // The crucial comparison: compare the parsed visit date with the current time in Brazil.
                 isOverdue: visitDate.getTime() < nowInBrazil.getTime() && v.status === 'pendente'
             });
         }
@@ -597,8 +597,9 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     
      (projectsData || []).forEach(p => {
         const client = clientMap.get(p.client_id);
+        // The project end date check is also compared against the current Brazil time.
         const projectEndDate = new Date(p.end_date);
-        projectEndDate.setHours(23, 59, 59, 999);
+        projectEndDate.setHours(23, 59, 59, 999); // Set to end of day for correct comparison
         const isOverdue = projectEndDate.getTime() < nowInBrazil.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
@@ -1300,6 +1301,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
