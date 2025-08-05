@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, FormEvent, useCallback } from "react";
-import { LoaderCircle, Trash, Plus, Users, Check, X } from "lucide-react";
+import { LoaderCircle, Trash, Plus, Users, Check, X, Building } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { 
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
@@ -102,6 +102,7 @@ function UserManagementCard() {
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
@@ -112,6 +113,7 @@ function UserManagementCard() {
             ]);
             setProfiles(profilesData);
             setCurrentUser(currentUserData);
+            setIsSuperAdmin(currentUserData?.email === 'mauriciodionizio@gmail.com');
         } catch (error) {
             console.error("Error on client fetching profiles:", error);
             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os usuários.' });
@@ -188,6 +190,12 @@ function UserManagementCard() {
                                 <div className="flex-grow">
                                     <p className="font-semibold">{profile.fullName || 'Nome não definido'}</p>
                                     <p className="text-sm text-muted-foreground">{profile.email}</p>
+                                     {isSuperAdmin && profile.companyName && (
+                                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                            <Building className="w-3 h-3"/>
+                                            <span>{profile.companyName}</span>
+                                        </div>
+                                     )}
                                     <div className="flex gap-2 mt-2">
                                         <Badge className={cn("capitalize", statusBadge[profile.status] || '')}>{profile.status}</Badge>
                                         <Badge className={cn("capitalize", roleBadge[profile.role] || '')}>{profile.role}</Badge>

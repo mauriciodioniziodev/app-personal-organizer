@@ -2,8 +2,11 @@
 
 
 
+
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
+import { createSupabaseAdminClient } from './supabaseClient';
+
 
 // --- Helper Functions ---
 
@@ -68,7 +71,6 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: { session }} = await supabase.auth.getSession();
     if (!session?.user?.id) return null;
     
-    // For regular users, fetch profile with company name
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select(`
@@ -96,44 +98,79 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     if (!supabase) return [];
     
     const currentProfile = await getCurrentProfile();
-    if (!currentProfile || !currentProfile.companyId) {
-        console.error("Could not determine current user's company.");
+    if (!currentProfile) {
+        console.error("Could not determine current user.");
         return [];
     }
 
-    const { data: profiles, error } = await supabase
+    // Super Admin Case
+    if (currentProfile.email === 'mauriciodionizio@gmail.com') {
+         const supabaseAdmin = createSupabaseAdminClient();
+         if (!supabaseAdmin) {
+            console.error("Failed to create Supabase admin client.");
+            return [];
+         }
+        const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles_with_details');
+        
+        if (error) {
+            console.error("Error fetching all user profiles (RPC):", error);
+            return [];
+        }
+
+        return data.map(p => toCamelCase(p));
+    }
+    
+    // Regular Admin Case
+    if (!currentProfile.companyId) {
+         console.error("Current user does not have a company ID.");
+         return [];
+    }
+
+    // Fetch profiles for the admin's company
+    const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('company_id', currentProfile.companyId);
 
-    if (error) {
-        console.error("Error fetching company users:", error);
+    if (profilesError) {
+        console.error("Error fetching company users:", profilesError);
         return [];
     }
+    
+    const userIds = profiles.map(p => p.id);
+    if(userIds.length === 0) return [];
+    
+    // Securely fetch corresponding auth users
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Failed to create Supabase admin client for fetching emails.");
+        return profiles.map(p => ({
+            ...toCamelCase(p),
+            email: 'E-mail indisponível',
+            companyName: currentProfile.companyName,
+        }));
+    }
 
-    // Since we cannot safely call `auth.admin.listUsers` from the client,
-    // we will rely on the email being part of the profile table or accept that we can't show it here.
-    // For now, let's assume `email` is on the profile. If not, we'd need a server-side endpoint.
-    // Based on `definitions.ts`, `email` is part of `UserProfile`. Let's ensure it's fetched and passed.
+    // We fetch all users and filter in-memory. This is less ideal than a server-side filter,
+    // but listUsers() doesn't support filtering by ID. For a large number of users,
+    // a different approach (e.g., another RPC function) would be better.
+    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
-    // The user's own profile will have the email from the session. For other users,
-    // we would ideally have their email in the `profiles` table. If it is not there,
-    // we have to accept that we cannot display it without a secure server-side call.
-    // The previous implementation was insecure.
+    if (authError) {
+        console.error("Error fetching auth users:", authError);
+        // Return profiles without email if auth user fetch fails
+        return profiles.map(p => ({
+            ...toCamelCase(p),
+            email: 'E-mail indisponível',
+            companyName: currentProfile.companyName,
+        }));
+    }
     
-    // Let's create a server action if we need emails for all users. For now, let's see if the profile has it.
-    // The `signup` flow stores the email in `auth.users`, but not in `profiles`.
-    // The trigger `on_auth_user_created` also doesn't copy the email.
-    
-    // The most secure and correct way to fix "User not allowed" is to remove the admin call.
-    // We will have to live without the email for other users for now, or add it to the profile table.
-    // Let's modify the UI to expect a potentially missing email.
-    
+    const emailMap = new Map(users.map(u => [u.id, u.email]));
+
     return profiles.map(p => ({
         ...toCamelCase(p),
-        // We cannot securely get the email of other users on the client side.
-        // We'll get the current user's email, and leave others blank if not in profile.
-        email: p.id === currentProfile.id ? currentProfile.email : (p.email || 'Não disponível'),
+        email: emailMap.get(p.id) || 'E-mail não encontrado',
         companyName: currentProfile.companyName
     }));
 }
@@ -142,7 +179,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
 export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    // RLS will ensure an admin can only update users in their own company.
     const { data, error } = await supabase
         .from('profiles')
         .update(updates)
