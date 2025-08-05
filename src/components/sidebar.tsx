@@ -37,15 +37,15 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
   useEffect(() => {
      const fetchProfileAndSettings = async () => {
         if(!supabase) return;
-        const [currentProfile, companySettings] = await Promise.all([
-            getCurrentProfile(),
-            getSettings()
-        ]);
+        const currentProfile = await getCurrentProfile();
         
         if (currentProfile) {
             setProfile(currentProfile);
+            if(currentProfile.companyId) {
+                const companySettings = await getSettings(currentProfile.companyId);
+                setSettings(companySettings);
+            }
         }
-        setSettings(companySettings);
      }
      fetchProfileAndSettings();
      
@@ -54,6 +54,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
             fetchProfileAndSettings();
         } else {
             setProfile(null);
+            setSettings(null);
             router.push('/login');
         }
      });

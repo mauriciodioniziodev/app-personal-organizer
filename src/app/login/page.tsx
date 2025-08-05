@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle, Shirt } from 'lucide-react';
-import { getSettings } from '@/lib/data';
 import type { CompanySettings } from '@/lib/definitions';
 import Image from 'next/image';
 
@@ -22,11 +21,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-
-  useEffect(() => {
-    getSettings().then(setSettings);
-  }, []);
+  // Company settings cannot be reliably fetched on login page without knowing the company.
+  // We will display a generic welcome message. The logo/name will appear after login.
+  const companyName = 'Bem-vindo(a) de volta!';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,20 +74,13 @@ export default function LoginPage() {
     router.push('/');
   };
 
-  const companyName = settings?.companyName || 'Bem-vindo(a) de volta!';
-  const logoUrl = settings?.logoUrl;
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-            {logoUrl ? (
-                <Image src={logoUrl} alt={`Logo de ${companyName}`} width={160} height={160} className="object-contain" />
-            ) : (
-                 <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-card border">
-                    <Shirt className="w-10 h-10 text-muted-foreground" />
-                 </div>
-            )}
+            <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-card border">
+                <Shirt className="w-10 h-10 text-muted-foreground" />
+            </div>
         </div>
         <Card>
           <CardHeader className="text-center">
