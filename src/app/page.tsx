@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -23,15 +22,6 @@ export default function Dashboard() {
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState('');
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-        setCurrentTime(new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -117,7 +107,6 @@ export default function Dashboard() {
                     <CardTitle className="font-headline text-xl">Agenda do Dia</CardTitle>
                     <CardDescription className='flex items-center justify-between'>
                         <span>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</span>
-                        <span className='font-mono font-semibold text-lg text-foreground bg-muted px-2 py-1 rounded-md'>{currentTime} (Horário de Brasília)</span>
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -174,14 +163,6 @@ export default function Dashboard() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                {item.debug_visitDate && item.debug_now && (
-                                                    <div className='mt-3 p-2 border border-dashed border-amber-500 bg-amber-50 rounded-md text-xs font-mono text-amber-800 space-y-1'>
-                                                         <p className='font-bold'>[Debug Info]</p>
-                                                         <p><span className='font-semibold'>Visit Date (UTC):</span> {item.debug_visitDate}</p>
-                                                         <p><span className='font-semibold'>Server Time (UTC):</span> {item.debug_now}</p>
-                                                         <p><span className='font-semibold'>Result:</span> isOverdue = {item.debug_isOverdue ? 'true' : 'false'}</p>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </Link>
@@ -402,5 +383,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-

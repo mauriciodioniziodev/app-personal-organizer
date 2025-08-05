@@ -86,10 +86,6 @@ export type ScheduleItem = {
     projectStartDate?: string;
     projectEndDate?: string;
     isOverdue?: boolean;
-    // Debug fields
-    debug_isOverdue?: boolean;
-    debug_visitDate?: string;
-    debug_now?: string;
 };
 
 // --- Master Data Types ---

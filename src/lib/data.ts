@@ -568,9 +568,8 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const schedule: ScheduleItem[] = [];
     
-    const now = new Date();
-    const nowBrazil = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Apply UTC-3 offset
-
+    const nowBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
         const visitDate = new Date(v.date);
@@ -591,10 +590,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 clientPhone: client.phone,
                 clientAddress: client.address,
                 isOverdue: isOverdue,
-                // Debug fields
-                debug_isOverdue: isOverdue,
-                debug_visitDate: visitDate.toISOString(),
-                debug_now: now.toISOString(),
             });
         }
     });
@@ -1308,6 +1303,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
