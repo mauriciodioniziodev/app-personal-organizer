@@ -1119,3 +1119,5 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
     
 
     
+
+    
