@@ -110,7 +110,6 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
 }
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
-    const supabaseAdmin = createSupabaseAdminClient();
     if (!supabase) return [];
     
     const currentProfile = await getCurrentProfile();
@@ -121,6 +120,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     
     // Super Admin Case
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
+         const supabaseAdmin = createSupabaseAdminClient();
          if (!supabaseAdmin) {
             console.error("Failed to create Supabase admin client for Superadmin.");
             return [];
@@ -188,34 +188,18 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     }
     
     // For regular admins, we can only see our own email due to security policies.
-    // This logic needs to be revisited if admins need to see emails of their company's users.
-    // For now, let's assume we need to fetch them securely.
-    const userIds = companyProfiles.map(p => p.id);
-    if(userIds.length === 0) return [];
+    // So, we find the current user's email from the profile we already fetched.
+    // For other users in the company, we'll have to leave email blank for now
+    // unless we create a secure RPC call to fetch them.
     
-    // Using admin client to get user emails for a specific company
-    if (!supabaseAdmin) {
-        console.error("Admin client needed to fetch user emails for company admin.");
-        return [];
-    }
-    
-    const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-     if(authError) {
-        console.error("Error fetching auth users for company admin:", authError);
-        return companyProfiles.map(p => ({
+    return companyProfiles.map(p => {
+        const isCurrentUser = p.id === currentProfile.id;
+        return {
             ...toCamelCase(p),
-            email: 'E-mail indisponível',
+            email: isCurrentUser ? currentProfile.email : '*********', // Obfuscate other emails
             companyName: currentProfile.companyName
-        }));
-    }
-
-    const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
-    
-    return companyProfiles.map(p => ({
-        ...toCamelCase(p),
-        email: emailMap.get(p.id) || 'Não encontrado',
-        companyName: currentProfile.companyName
-    }));
+        }
+    });
 }
 
 
@@ -1028,9 +1012,9 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         .single();
     
     if (error) {
-        if (error.code === 'PGRST116' || error.code === '42P01') { 
+        if (error.code === 'PGRST116' || error.code === '42P01' || error.code === '406') { 
             // This can happen if a new company was created but the trigger failed to insert default settings.
-             console.warn("No settings found for this company.");
+             console.warn("No settings found for this company, or RLS prevented access.");
         } else {
             console.error("Error fetching settings:", error);
         }
@@ -1045,9 +1029,11 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
 export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    let logoUrl: string | undefined = undefined;
     const [currentSettings, profile] = await Promise.all([getSettings(), getCurrentProfile()]);
     if (!profile) throw new Error("Usuário não autenticado.");
+    if (!profile.companyId) throw new Error("O perfil do usuário não está associado a uma empresa.");
+
+    let logoUrl: string | undefined = currentSettings?.logoUrl || undefined;
 
     if (logoFile) {
         // We'll store the logo in a path namespaced by the company ID to keep things organized
@@ -1067,7 +1053,7 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
 
     const updates = {
         company_name: companyName,
-        logo_url: logoUrl === undefined ? currentSettings?.logoUrl : logoUrl,
+        logo_url: logoUrl,
     };
     
     const { error } = await supabase
@@ -1083,3 +1069,5 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     // Invalidate cache
     settingsCache = null;
 }
+
+    
