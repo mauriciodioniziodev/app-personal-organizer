@@ -123,23 +123,22 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
 }
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
-    // This function must use the admin client to fetch user emails,
-    // but the initial profile fetch must use the public client to respect RLS.
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    // First, get the current user's profile to know which company to query for
+    // This uses the standard client to respect RLS (user can only see their own profile)
     const currentProfile = await getCurrentProfile();
     if (!currentProfile) {
         console.error("Could not determine current user.");
         return [];
     }
-    
-    // Super Admin Case: Fetch all users and their company names
-    if (currentProfile.email === 'mauriciodionizio@gmail.com') {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if (!supabaseAdmin) {
-            console.error("Failed to create Supabase admin client.");
-            return [];
-        }
 
-        const { data: profiles, error: profilesError } = await supabaseAdmin
+    let profilesQuery;
+
+    // Super admin can see all users
+    if (currentProfile.email === 'mauriciodionizio@gmail.com') {
+        profilesQuery = supabaseAdmin
             .from('profiles')
             .select(`
                 id,
@@ -149,86 +148,56 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
                 company_id,
                 organizations ( trade_name )
             `);
-
-        if (profilesError) {
-            console.error("Error fetching all profiles:", profilesError);
+    } else {
+        // Regular admins can see users from their own company
+        if (!currentProfile.companyId) {
+            console.error("Current admin user does not have a company ID.");
             return [];
         }
-
-        const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-        
-        if (authError) {
-            console.error("Error fetching auth users:", authError);
-            return [];
-        }
-        
-        const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
-
-        return profiles.map(p => {
-             const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
-             return {
-                id: p.id,
-                fullName: p.full_name,
-                email: emailMap.get(p.id) || 'E-mail não encontrado',
-                role: p.role,
-                status: p.status,
-                companyId: p.company_id,
-                companyName: companyDetails?.trade_name || 'N/A',
-             }
-        });
-    }
-    
-    // Regular Admin Case: Fetch users from the same company
-    if (!currentProfile.companyId) {
-         console.error("Current user does not have a company ID.");
-         return [];
+        profilesQuery = supabaseAdmin
+            .from('profiles')
+            .select(`
+                id,
+                full_name,
+                role,
+                status,
+                company_id,
+                organizations ( trade_name )
+            `)
+            .eq('company_id', currentProfile.companyId);
     }
 
-    // This query now uses the standard client, so RLS will apply.
-    const { data: companyProfiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-            id,
-            full_name,
-            role,
-            status,
-            company_id
-        `);
+    const { data: profiles, error: profilesError } = await profilesQuery;
 
     if (profilesError) {
-        console.error("Error fetching company users:", profilesError);
-        return [];
-    }
-    
-    const companyUserIds = companyProfiles.map(p => p.id);
-    if (companyUserIds.length === 0) return [];
-    
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Failed to create Supabase admin client for email fetching.");
+        console.error("Error fetching profiles with admin client:", profilesError);
         return [];
     }
 
+    // Now, fetch all auth users to map emails (this is a privileged operation)
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-     if (authError) {
-        console.error("Error fetching auth users for company:", authError);
+    
+    if (authError) {
+        console.error("Error fetching auth users:", authError);
         return [];
     }
     
     const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
 
-    return companyProfiles.map(p => {
-        return {
+    return profiles.map(p => {
+         const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+         return {
             id: p.id,
             fullName: p.full_name,
+            email: emailMap.get(p.id) || 'E-mail não encontrado',
             role: p.role,
             status: p.status,
             companyId: p.company_id,
-            email: emailMap.get(p.id) || 'E-mail não encontrado',
-            companyName: currentProfile.companyName
-        }
+            companyName: companyDetails?.trade_name || 'N/A',
+         }
     });
 }
+
 
 
 export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario', company_id?: string }): Promise<UserProfile> => {
@@ -1059,45 +1028,43 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
 
-    if (settingsData) {
-        return toCamelCase(settingsData);
-    }
-    
-    // If settings do not exist, create them. This requires admin privileges.
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Admin client is required to create missing settings.");
-        return null;
-    }
+    // This handles the case where a company exists but has no settings row yet.
+    if (!settingsData) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) {
+            console.error("Admin client is required to create missing settings.");
+            return null;
+        }
 
-    // First, get the organization's name
-    const { data: orgData, error: orgError } = await supabaseAdmin
-        .from('organizations')
-        .select('trade_name')
-        .eq('id', companyId)
-        .single();
-    
-    if (orgError || !orgData) {
-        console.error("Could not fetch organization name to create settings:", orgError);
-        return null;
-    }
+        const { data: orgData, error: orgError } = await supabaseAdmin
+            .from('organizations')
+            .select('trade_name')
+            .eq('id', companyId)
+            .single();
+        
+        if (orgError || !orgData) {
+            console.error("Could not fetch organization name to create settings:", orgError);
+            return null;
+        }
 
-    // Now, create the settings entry
-    const { data: newSettings, error: insertError } = await supabaseAdmin
-        .from('settings')
-        .insert({
-            company_id: companyId,
-            company_name: orgData.trade_name,
-        })
-        .select()
-        .single();
-    
-    if (insertError) {
-        console.error("Error creating default settings:", insertError);
-        return null;
+        const { data: newSettings, error: insertError } = await supabaseAdmin
+            .from('settings')
+            .insert({
+                company_id: companyId,
+                company_name: orgData.trade_name,
+            })
+            .select()
+            .single();
+        
+        if (insertError) {
+            console.error("Error creating default settings:", insertError);
+            return null;
+        }
+        
+        return toCamelCase(newSettings);
     }
     
-    return toCamelCase(newSettings);
+    return toCamelCase(settingsData);
 };
 
 
@@ -1156,3 +1123,6 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
     
 
 
+
+
+    

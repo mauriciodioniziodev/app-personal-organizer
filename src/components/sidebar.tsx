@@ -42,6 +42,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         setProfile(currentProfile);
 
         if (currentProfile?.companyId) {
+            // Pass the companyId to getSettings to ensure the correct settings are fetched
             const companySettings = await getSettings(currentProfile.companyId);
             setSettings(companySettings);
         }
@@ -141,3 +142,5 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
   );
 }
 
+
+    
