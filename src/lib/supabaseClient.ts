@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
-import { config } from 'dotenv';
 
 // This is the public client, safe to be used in the browser.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -24,9 +23,6 @@ export const supabase = supabaseInstance;
 
 // This function creates a privileged client for server-side operations.
 export const createSupabaseAdminClient = () => {
-    // We must load env variables here specifically for server-side execution.
-    config(); 
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 

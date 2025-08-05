@@ -1,8 +1,6 @@
 
 
-
-
-
+import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
@@ -162,7 +160,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return profiles.map(p => ({
             ...toCamelCase(p),
             email: 'E-mail indisponível',
-            companyName: currentProfile.companyName,
+            companyName: currentProfile.companyName
         }));
     }
     
