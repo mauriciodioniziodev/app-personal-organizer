@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -43,14 +44,20 @@ export default function LoginPage() {
     if (rpcError) {
         console.error('Error checking user status:', rpcError);
     }
+    
+    if (status?.company_is_active === false) {
+        setError('O acesso da sua empresa ao sistema foi suspenso. Por favor, entre em contato com o suporte.');
+        setLoading(false);
+        return;
+    }
 
-    if (status === 'revoked') {
+    if (status?.profile_status === 'revoked') {
         setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
         setLoading(false);
         return;
     }
 
-    if (status === 'pending') {
+    if (status?.profile_status === 'pending') {
         setError('Sua conta ainda está pendente de aprovação pelo administrador.');
         setLoading(false);
         return;

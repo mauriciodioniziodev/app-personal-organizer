@@ -188,9 +188,32 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     }
     
     // For regular admins, we can only see our own email due to security policies.
+    // This logic needs to be revisited if admins need to see emails of their company's users.
+    // For now, let's assume we need to fetch them securely.
+    const userIds = companyProfiles.map(p => p.id);
+    if(userIds.length === 0) return [];
+    
+    // Using admin client to get user emails for a specific company
+    if (!supabaseAdmin) {
+        console.error("Admin client needed to fetch user emails for company admin.");
+        return [];
+    }
+    
+    const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+     if(authError) {
+        console.error("Error fetching auth users for company admin:", authError);
+        return companyProfiles.map(p => ({
+            ...toCamelCase(p),
+            email: 'E-mail indisponível',
+            companyName: currentProfile.companyName
+        }));
+    }
+
+    const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
+    
     return companyProfiles.map(p => ({
         ...toCamelCase(p),
-        email: p.id === currentProfile.id ? currentProfile.email : `(acesso restrito)`,
+        email: emailMap.get(p.id) || 'Não encontrado',
         companyName: currentProfile.companyName
     }));
 }

@@ -103,7 +103,7 @@ function MasterDataCard<T extends MasterDataItem>({
     )
 }
 
-function OrganizationManagementCard() {
+function OrganizationManagementCard({ onDataChange }: { onDataChange: () => void }) {
     const [orgs, setOrgs] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -139,7 +139,8 @@ function OrganizationManagementCard() {
             await addOrganization(newOrgName);
             toast({ title: 'Sucesso!', description: `Empresa "${newOrgName}" criada.` });
             setNewOrgName('');
-            fetchOrgs();
+            await fetchOrgs();
+            onDataChange();
         } catch(e) {
              toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
         } finally {
@@ -151,7 +152,8 @@ function OrganizationManagementCard() {
         try {
             await updateOrganization(org.id, { isActive: !org.isActive });
             toast({ title: 'Sucesso!', description: `Status de "${org.tradeName}" alterado.` });
-            fetchOrgs();
+            await fetchOrgs();
+            onDataChange();
         } catch (e) {
              toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
         }
@@ -177,7 +179,8 @@ function OrganizationManagementCard() {
         try {
             await updateOrganization(selectedOrg.id, selectedOrg);
             toast({ title: 'Sucesso!', description: 'Empresa atualizada.' });
-            fetchOrgs();
+            await fetchOrgs();
+            onDataChange();
             setIsEditModalOpen(false);
         } catch (e) {
              toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
@@ -214,7 +217,9 @@ function OrganizationManagementCard() {
                                 <TableCell className={cn(!org.isActive && 'text-muted-foreground line-through')}>{org.tradeName}</TableCell>
                                 <TableCell>{org.cnpj || '-'}</TableCell>
                                 <TableCell>
-                                     <Badge variant={org.isActive ? 'default': 'outline'}>{org.isActive ? 'Ativa' : 'Inativa'}</Badge>
+                                    <Badge className={cn(org.isActive ? 'text-green-800 bg-green-100' : 'text-red-800 bg-red-100')}>
+                                        {org.isActive ? 'Ativa' : 'Inativa'}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
@@ -302,7 +307,7 @@ function OrganizationManagementCard() {
 }
 
 
-function UserManagementCard() {
+function UserManagementCard({ refreshTrigger }: { refreshTrigger: number }) {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
     const [organizations, setOrganizations] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
@@ -332,7 +337,7 @@ function UserManagementCard() {
 
     useEffect(() => {
         fetchProfiles();
-    }, [fetchProfiles]);
+    }, [fetchProfiles, refreshTrigger]);
 
     const handleStatusChange = async (userId: string, newStatus: 'authorized' | 'revoked') => {
         try {
@@ -476,6 +481,7 @@ export default function AdminPage() {
     const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -501,7 +507,8 @@ export default function AdminPage() {
         fetchData();
     }, [fetchData]);
 
-    const handleUpdate = () => {
+    const handleDataChange = () => {
+        setRefreshTrigger(prev => prev + 1);
         fetchData();
     }
     
@@ -518,29 +525,29 @@ export default function AdminPage() {
             <PageHeader title="Administração" />
 
             <div className="space-y-8">
-                {isSuperAdmin && <OrganizationManagementCard />}
-                <UserManagementCard />
+                {isSuperAdmin && <OrganizationManagementCard onDataChange={handleDataChange} />}
+                <UserManagementCard refreshTrigger={refreshTrigger} />
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <MasterDataCard
                         title="Status de Visita"
                         description="Gerencie as opções para o status de uma visita."
                         items={visitStatusOptions}
-                        onAdd={(name) => addVisitStatusOption(name).then(handleUpdate)}
-                        onDelete={(id) => deleteVisitStatusOption(id).then(handleUpdate)}
+                        onAdd={(name) => addVisitStatusOption(name).then(handleDataChange)}
+                        onDelete={(id) => deleteVisitStatusOption(id).then(handleDataChange)}
                     />
                     <MasterDataCard
                         title="Meios de Pagamento"
                         description="Gerencie as opções para os meios de pagamento de um projeto."
                         items={paymentInstrumentOptions}
-                        onAdd={(name) => addPaymentInstrumentOption(name).then(handleUpdate)}
-                        onDelete={(id) => deletePaymentInstrumentOption(id).then(handleUpdate)}
+                        onAdd={(name) => addPaymentInstrumentOption(name).then(handleDataChange)}
+                        onDelete={(id) => deletePaymentInstrumentOption(id).then(handleDataChange)}
                     />
                     <MasterDataCard
                         title="Status de Execução do Projeto"
                         description="Gerencie as opções para o status de execução de um projeto."
                         items={projectStatusOptions}
-                        onAdd={(name) => addProjectStatusOption(name).then(handleUpdate)}
-                        onDelete={(id) => deleteProjectStatusOption(id).then(handleUpdate)}
+                        onAdd={(name) => addProjectStatusOption(name).then(handleDataChange)}
+                        onDelete={(id) => deleteProjectStatusOption(id).then(handleDataChange)}
                     />
                 </div>
             </div>
