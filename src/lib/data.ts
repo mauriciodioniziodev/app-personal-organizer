@@ -484,6 +484,7 @@ export const getUpcomingVisits = async (): Promise<Visit[]> => {
     let query = supabase
         .from('visits')
         .select('*')
+        .eq('status', 'pendente')
         .gte('date', today.toISOString())
         .lte('date', future.toISOString());
 
@@ -568,13 +569,13 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const schedule: ScheduleItem[] = [];
     
-    const nowBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const now = new Date();
     
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
         const visitDate = new Date(v.date);
         
-        const isOverdue = visitDate < nowBrazil && v.status === 'pendente';
+        const isOverdue = visitDate < now && v.status === 'pendente';
         
         if (client) {
             schedule.push({
@@ -598,7 +599,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999); 
-        const isOverdue = projectEndDate < nowBrazil && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -1303,6 +1304,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
