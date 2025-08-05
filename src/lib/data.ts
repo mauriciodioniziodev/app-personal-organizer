@@ -529,8 +529,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
     if (!profile) return [];
-
-    const now = new Date();
     
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -569,10 +567,12 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const schedule: ScheduleItem[] = [];
+    const now = new Date();
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
         const visitDate = new Date(v.date);
+        const isOverdue = visitDate < now && v.status === 'pendente';
         
         if (client) {
             schedule.push({
@@ -587,7 +587,11 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: visitDate < now && v.status === 'pendente'
+                isOverdue: isOverdue,
+                // Debug fields
+                debug_isOverdue: isOverdue,
+                debug_visitDate: visitDate.toISOString(),
+                debug_now: now.toISOString(),
             });
         }
     });
@@ -1301,6 +1305,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 

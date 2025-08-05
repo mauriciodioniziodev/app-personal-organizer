@@ -174,6 +174,14 @@ export default function Dashboard() {
                                                         </div>
                                                     )}
                                                 </div>
+                                                {item.debug_visitDate && item.debug_now && (
+                                                    <div className='mt-3 p-2 border border-dashed border-amber-500 bg-amber-50 rounded-md text-xs font-mono text-amber-800 space-y-1'>
+                                                         <p className='font-bold'>[Debug Info]</p>
+                                                         <p><span className='font-semibold'>Visit Date (UTC):</span> {item.debug_visitDate}</p>
+                                                         <p><span className='font-semibold'>Server Time (UTC):</span> {item.debug_now}</p>
+                                                         <p><span className='font-semibold'>Result:</span> isOverdue = {item.debug_isOverdue ? 'true' : 'false'}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </Link>
@@ -394,4 +402,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
