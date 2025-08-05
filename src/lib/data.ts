@@ -530,13 +530,13 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const profile = await getCurrentProfile();
     if (!profile) return [];
     
-    // Use a specific time for 'now' to ensure consistent results during the function's execution
-    const now = new Date(); 
+    const now = new Date();
+    // Get the current time in Brazil (America/Sao_Paulo)
+    const nowInBrazil = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     
-    // Get the start and end of the current day in the local timezone of the server.
-    // Supabase will treat timestamp without timezone as UTC, so we create dates that reflect the day's boundaries.
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    // Get the start and end of the current day based on Brazil's timezone.
+    const startOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 23, 59, 59, 999);
 
     let visitsQuery = supabase.from('visits').select('*')
         .gte('date', startOfDay.toISOString())
@@ -834,7 +834,7 @@ export const updateClient = async (client: Client): Promise<Client> => {
     return toCamelCase(data);
 }
 
-export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId'>): Promise<Visit> => {
+export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId' | 'budgetAmount' | 'budgetPdfUrl'>): Promise<Visit> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
     if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
@@ -938,7 +938,7 @@ export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: 
 }
 
 
-export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId'>): Promise<Project> => {
+export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId' | 'createdAt'>): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
     if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
@@ -1297,6 +1297,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
