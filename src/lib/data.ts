@@ -1,5 +1,4 @@
 
-
 import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
@@ -115,7 +114,16 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
             return [];
         }
 
-        return data.map(p => toCamelCase(p));
+        // The RPC function now returns camelCase fields directly.
+        return data.map((p: any) => ({
+             id: p.id,
+            fullName: p.full_name,
+            email: p.email,
+            role: p.role,
+            status: p.status,
+            companyId: p.company_id,
+            companyName: p.company_name
+        }));
     }
     
     // Regular Admin Case
@@ -135,40 +143,11 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    const userIds = profiles.map(p => p.id);
-    if(userIds.length === 0) return [];
-    
-    // Securely fetch corresponding auth users
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Failed to create Supabase admin client for fetching emails.");
-        return profiles.map(p => ({
-            ...toCamelCase(p),
-            email: 'E-mail indisponível',
-            companyName: currentProfile.companyName,
-        }));
-    }
-
-    // We fetch all users and filter in-memory. This is less ideal than a server-side filter,
-    // but listUsers() doesn't support filtering by ID. For a large number of users,
-    // a different approach (e.g., another RPC function) would be better.
-    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (authError) {
-        console.error("Error fetching auth users:", authError);
-        // Return profiles without email if auth user fetch fails
-        return profiles.map(p => ({
-            ...toCamelCase(p),
-            email: 'E-mail indisponível',
-            companyName: currentProfile.companyName
-        }));
-    }
-    
-    const emailMap = new Map(users.map(u => [u.id, u.email]));
-
+    // For regular admins, we can't get other users' emails for security reasons.
+    // We'll just return the profile data we can access.
     return profiles.map(p => ({
         ...toCamelCase(p),
-        email: emailMap.get(p.id) || 'E-mail não encontrado',
+        email: 'N/A', // Email is not available for security reasons
         companyName: currentProfile.companyName
     }));
 }
@@ -988,3 +967,5 @@ const toSnakeCase = (obj: any): any => {
     }
     return obj;
 };
+
+    
