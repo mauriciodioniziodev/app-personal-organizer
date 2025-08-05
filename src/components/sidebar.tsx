@@ -42,21 +42,25 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         setProfile(currentProfile);
 
         if (currentProfile?.companyId) {
-            const companySettings = await getSettings();
+            const companySettings = await getSettings(currentProfile.companyId);
             setSettings(companySettings);
         }
      }
-     fetchProfileAndSettings();
      
-     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if(session) {
+     const handleAuthChange = (_event: string, session: any) => {
+        if (session) {
             fetchProfileAndSettings();
         } else {
             setProfile(null);
             setSettings(null);
             router.push('/login');
         }
-     });
+     };
+
+     // Initial fetch
+     fetchProfileAndSettings();
+     
+     const { data: authListener } = supabase.auth.onAuthStateChange(handleAuthChange);
 
      return () => {
        authListener?.subscription.unsubscribe();
@@ -136,3 +140,4 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
+

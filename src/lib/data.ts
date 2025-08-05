@@ -131,14 +131,14 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Failed to create Supabase admin client.");
-        return [];
-    }
-
     // Super Admin Case: Fetch all users and their company names
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) {
+            console.error("Failed to create Supabase admin client.");
+            return [];
+        }
+
         const { data: profiles, error: profilesError } = await supabaseAdmin
             .from('profiles')
             .select(`
@@ -185,8 +185,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     }
 
     // This query now uses the standard client, so RLS will apply.
-    // We need to create a specific RLS policy for profiles to allow this.
-    // For now, let's assume an admin can see other profiles in their company.
     const { data: companyProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -195,8 +193,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
             role,
             status,
             company_id
-        `)
-        .eq('company_id', currentProfile.companyId);
+        `);
 
     if (profilesError) {
         console.error("Error fetching company users:", profilesError);
@@ -205,6 +202,12 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     
     const companyUserIds = companyProfiles.map(p => p.id);
     if (companyUserIds.length === 0) return [];
+    
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Failed to create Supabase admin client for email fetching.");
+        return [];
+    }
 
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
      if (authError) {
@@ -249,6 +252,7 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
 
 // --- Organization Management (Superadmin only) ---
 export const getOrganizations = async (): Promise<Company[]> => {
+    // This MUST use the admin client as only a superadmin can see all organizations
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
@@ -299,6 +303,7 @@ export const addOrganization = async (name: string): Promise<Company> => {
         .insert({ company_id: orgData.id, company_name: orgData.trade_name });
 
     if (settingsError) {
+        // Log the error but don't fail the whole operation
         console.error("Error creating settings for new organization:", settingsError);
     }
 
@@ -330,7 +335,7 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
 
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
-    // RLS automatically filters by company_id because this uses the public client
+    // RLS is enforced automatically because this uses the public client
     const { data, error } = await supabase.from('clients').select('*').order('name');
     if (error) {
         console.error("Error fetching clients:", error);
@@ -340,7 +345,7 @@ export const getClients = async (): Promise<Client[]> => {
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
-    // RLS automatically filters by company_id
+    // RLS is enforced automatically
     const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
@@ -351,7 +356,7 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 
 export const getProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
-    // RLS automatically filters projects
+    // RLS is enforced automatically
     const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('start_date', { ascending: false });
     if (projectsError) {
         console.error("Error fetching projects:", projectsError);
@@ -373,6 +378,7 @@ export const getProjects = async (): Promise<Project[]> => {
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
     if (!supabase || !id) return null;
+    // RLS is enforced automatically
     const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
     if (projectError || !projectData) {
         console.error(`Error fetching project ${id}:`, projectError);
@@ -391,6 +397,7 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 
 export const getVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
+    // RLS is enforced automatically
     const { data, error } = await supabase.from('visits').select('*').order('date', { ascending: false });
     if (error) {
         console.error("Error fetching visits:", error);
@@ -401,6 +408,7 @@ export const getVisits = async (): Promise<Visit[]> => {
 
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
+    // RLS is enforced automatically
     const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
     if (error) {
         console.error(`Error fetching visit ${id}:`, error);
@@ -627,7 +635,7 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
     const oneHourAfter = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString();
 
     let query = supabase.from('visits')
-        .select('*')
+        .select('id, summary, date')
         .eq('client_id', clientId)
         .gte('date', oneHourBefore)
         .lte('date', oneHourAfter);
@@ -643,14 +651,14 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
         return null;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    return data && data.length > 0 ? toCamelCase(data[0]) : null;
 }
 
 export const checkForProjectConflict = async ({clientId, startDate, endDate, projectId}: {clientId: string, startDate: string, endDate: string, projectId?: string}) => {
      if(!supabase || !clientId || !startDate || !endDate) return null;
      
      let query = supabase.from('projects')
-        .select('*')
+        .select('id, name, start_date, end_date')
         .eq('client_id', clientId)
         .lte('start_date', endDate) 
         .gte('end_date', startDate); 
@@ -1033,16 +1041,12 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 
 // --- Company Settings Functions ---
 
-export const getSettings = async (): Promise<CompanySettings | null> => {
+export const getSettings = async (companyId: string): Promise<CompanySettings | null> => {
     if (!supabase) return null;
-    
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) {
-        console.error("User not authenticated or has no company ID.");
+    if (!companyId) {
+        console.error("getSettings requires a companyId.");
         return null;
     }
-    
-    const { companyId } = profile;
 
     const { data: settingsData, error } = await supabase
         .from('settings')
@@ -1051,46 +1055,49 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         .maybeSingle();
 
     if (error) {
-        console.error("Error fetching settings:", error.message);
+        console.error("Error fetching settings:", error);
+        return null;
+    }
+
+    if (settingsData) {
+        return toCamelCase(settingsData);
+    }
+    
+    // If settings do not exist, create them. This requires admin privileges.
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Admin client is required to create missing settings.");
+        return null;
+    }
+
+    // First, get the organization's name
+    const { data: orgData, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .select('trade_name')
+        .eq('id', companyId)
+        .single();
+    
+    if (orgError || !orgData) {
+        console.error("Could not fetch organization name to create settings:", orgError);
+        return null;
+    }
+
+    // Now, create the settings entry
+    const { data: newSettings, error: insertError } = await supabaseAdmin
+        .from('settings')
+        .insert({
+            company_id: companyId,
+            company_name: orgData.trade_name,
+        })
+        .select()
+        .single();
+    
+    if (insertError) {
+        console.error("Error creating default settings:", insertError);
         return null;
     }
     
-    if (!settingsData) {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if (!supabaseAdmin) {
-            console.error("Admin client is required to create missing settings.");
-            return null;
-        }
-
-        const { data: orgData, error: orgError } = await supabaseAdmin
-            .from('organizations')
-            .select('trade_name')
-            .eq('id', companyId)
-            .single();
-        
-        if (orgError || !orgData) {
-            console.error("Could not fetch organization name to create settings:", orgError);
-            return null;
-        }
-
-        const { data: newSettings, error: insertError } = await supabaseAdmin
-            .from('settings')
-            .insert({
-                company_id: companyId,
-                company_name: orgData.trade_name,
-            })
-            .select()
-            .single();
-        
-        if (insertError) {
-            console.error("Error creating default settings:", insertError);
-            return null;
-        }
-        
-        return toCamelCase(newSettings);
-    }
-    
-    return toCamelCase(settingsData);
+    return toCamelCase(newSettings);
 };
 
 
@@ -1098,7 +1105,13 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
      if (!supabase) throw new Error("Supabase client not initialized.");
      if (!companyId) throw new Error("Company ID is required to update settings.");
 
-    const { data: currentSettings } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
+    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
+
+    if(fetchError && fetchError.code !== 'PGRST116') { // Ignore "exact one row" error if settings don't exist yet
+        console.error('Error fetching current settings:', fetchError);
+        throw new Error("Não foi possível buscar as configurações atuais.");
+    }
+
 
     let logoUrl: string | undefined | null = currentSettings?.logo_url || undefined;
 
@@ -1121,13 +1134,14 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
     }
 
     const updates = {
+        company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
     };
     
     const { error } = await supabase
         .from('settings')
-        .update(updates)
+        .upsert(updates, { onConflict: 'company_id'})
         .eq('company_id', companyId); 
 
     if (error) {
@@ -1140,4 +1154,5 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
     
 
     
+
 
