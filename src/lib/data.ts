@@ -305,9 +305,15 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
 
-    const { data, error } = await supabase.from('clients').select('*').eq('company_id', profile.companyId).order('name');
+    let query = supabase.from('clients').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query.order('name');
     if (error) {
         console.error("Error fetching clients:", error);
         return [];
@@ -317,9 +323,16 @@ export const getClients = async (): Promise<Client[]> => {
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return null;
+    if (!profile) return null;
 
-    const { data, error } = await supabase.from('clients').select('*').eq('id', id).eq('company_id', profile.companyId).single();
+    let query = supabase.from('clients').select('*').eq('id', id);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
         return null;
@@ -330,9 +343,15 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const getProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
 
-    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').eq('company_id', profile.companyId).order('start_date', { ascending: false });
+    let projectsQuery = supabase.from('projects').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+         if (!profile.companyId) return [];
+        projectsQuery = projectsQuery.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectsData, error: projectsError } = await projectsQuery.order('start_date', { ascending: false });
     if (projectsError) {
         console.error("Error fetching projects:", projectsError);
         return [];
@@ -353,9 +372,15 @@ export const getProjects = async (): Promise<Project[]> => {
 export const getProjectById = async (id: string): Promise<Project | null> => {
     if (!supabase || !id) return null;
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return null;
+    if (!profile) return null;
 
-    const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).eq('company_id', profile.companyId).single();
+    let query = supabase.from('projects').select('*').eq('id', id);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectData, error: projectError } = await query.single();
     if (projectError || !projectData) {
         console.error(`Error fetching project ${id}:`, projectError);
         return null;
@@ -374,9 +399,15 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 export const getVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
     
-    const { data, error } = await supabase.from('visits').select('*').eq('company_id', profile.companyId).order('date', { ascending: false });
+    let query = supabase.from('visits').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: false });
     if (error) {
         console.error("Error fetching visits:", error);
         return [];
@@ -387,9 +418,15 @@ export const getVisits = async (): Promise<Visit[]> => {
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return null;
+    if (!profile) return null;
 
-    const { data, error } = await supabase.from('visits').select('*').eq('id', id).eq('company_id', profile.companyId).single();
+    let query = supabase.from('visits').select('*').eq('id', id);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.single();
     if (error) {
         console.error(`Error fetching visit ${id}:`, error);
         return null;
@@ -403,15 +440,20 @@ export const getVisitById = async (id: string): Promise<Visit | null> => {
 export const getActiveProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
     
-    const { data: projectsData, error: projectsError } = await supabase
+    let query = supabase
         .from('projects')
         .select('*')
-        .eq('company_id', profile.companyId)
         .in('status', ['Em andamento', 'A iniciar', 'Pausado', 'Atrasado'])
-        .gte('end_date', new Date().toISOString())
-        .order('end_date', { ascending: true });
+        .gte('end_date', new Date().toISOString());
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectsData, error: projectsError } = await query.order('end_date', { ascending: true });
         
     if (projectsError) {
         console.error("Error fetching active projects:", projectsError);
@@ -433,19 +475,24 @@ export const getActiveProjects = async (): Promise<Project[]> => {
 export const getUpcomingVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
 
     const today = new Date();
     const future = new Date();
     future.setDate(today.getDate() + 7);
     
-    const { data, error } = await supabase
+    let query = supabase
         .from('visits')
         .select('*')
-        .eq('company_id', profile.companyId)
         .gte('date', today.toISOString())
-        .lte('date', future.toISOString())
-        .order('date', { ascending: true });
+        .lte('date', future.toISOString());
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: true });
         
     if (error) {
         console.error("Error fetching upcoming visits:", error);
@@ -457,9 +504,15 @@ export const getUpcomingVisits = async (): Promise<Visit[]> => {
 export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     if (!supabase) return {};
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return {};
+    if (!profile) return {};
 
-    const { data, error } = await supabase.from('visits').select('status').eq('company_id', profile.companyId);
+    let query = supabase.from('visits').select('status');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return {};
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query;
     if (error) {
         console.error("Error fetching visits summary:", error);
         return {};
@@ -475,26 +528,34 @@ export const getVisitsSummary = async (): Promise<VisitsSummary> => {
 export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
     
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    let visitsQuery = supabase.from('visits').select('*')
+        .gte('date', startOfDay.toISOString())
+        .lte('date', endOfDay.toISOString());
+    
+    let projectsQuery = supabase.from('projects').select('*')
+        .lt('start_date', endOfDay.toISOString())
+        .gt('end_date', startOfDay.toISOString())
+        .in('status', ['Em andamento', 'Atrasado']);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        visitsQuery = visitsQuery.eq('company_id', profile.companyId);
+        projectsQuery = projectsQuery.eq('company_id', profile.companyId);
+    }
 
     const [
         { data: visitsData, error: visitsError },
         { data: projectsData, error: projectsError },
         clients
     ] = await Promise.all([
-        supabase.from('visits').select('*')
-            .eq('company_id', profile.companyId)
-            .gte('date', startOfDay.toISOString())
-            .lte('date', endOfDay.toISOString()),
-        supabase.from('projects').select('*')
-            .eq('company_id', profile.companyId)
-            .lt('start_date', endOfDay.toISOString())
-            .gt('end_date', startOfDay.toISOString())
-            .in('status', ['Em andamento', 'Atrasado']),
+        visitsQuery,
+        projectsQuery,
         getClients()
     ]);
 
@@ -556,13 +617,17 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return 0;
+    if (!profile) return 0;
 
     let query = supabase
         .from('payments')
         .select('amount, projects!inner(company_id)')
-        .eq('projects.company_id', profile.companyId)
         .eq('status', 'pago');
+    
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('projects.company_id', profile.companyId);
+    }
     
     if (startDate) {
         query = query.gte('due_date', startDate);
@@ -584,16 +649,19 @@ export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: stri
 export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return 0;
+    if (!profile) return 0;
     
     const now = new Date().toISOString();
 
     let query = supabase
         .from('payments')
         .select('amount, projects!inner(company_id)')
-        .eq('projects.company_id', profile.companyId)
-        .eq('status', 'pendente')
-        .lte('due_date', now);
+        .eq('status', 'pendente');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('projects.company_id', profile.companyId);
+    }
 
     if (startDate) {
         query = query.gte('due_date', startDate);
@@ -616,9 +684,17 @@ export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
     
-    const { data, error } = await supabase.from('projects').select('*').eq('client_id', clientId).eq('company_id', profile.companyId);
+    let query = supabase.from('projects').select('*').eq('client_id', clientId);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query;
+
     if(error) {
         console.error("Error fetching projects by client:", error);
         return [];
@@ -638,9 +714,16 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
     if(!supabase || !clientId) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
+    if (!profile) return [];
     
-    const { data, error } = await supabase.from('visits').select('*').eq('client_id', clientId).eq('company_id', profile.companyId).order('date', {ascending: false});
+    let query = supabase.from('visits').select('*').eq('client_id', clientId);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', {ascending: false});
      if(error) {
         console.error("Error fetching visits by client:", error);
         return [];
@@ -989,16 +1072,28 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 // --- Master Data Functions ---
 
-export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
+const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
-    const { data, error } = await supabase.from('master_visit_status').select('*').eq('company_id', profile.companyId);
+    if (!profile) return [];
+
+    let query = supabase.from(tableName).select('*');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query;
     if (error) {
-        console.error("Error fetching visit status options:", error);
+        console.error(`Error fetching ${tableName}:`, error);
         return [];
     }
     return data;
+}
+
+export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
+    return getMasterData('master_visit_status');
 }
 
 export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
@@ -1023,15 +1118,7 @@ export const deleteVisitStatusOption = async (id: string): Promise<void> => {
 }
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [];
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
-    const { data, error } = await supabase.from('master_payment_instruments').select('*').eq('company_id', profile.companyId);
-    if (error) {
-        console.error("Error fetching payment instruments:", error);
-        return [];
-    }
-    return data;
+    return getMasterData('master_payment_instruments');
 }
 
 export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
@@ -1056,15 +1143,7 @@ export const deletePaymentInstrumentOption = async (id: string): Promise<void> =
 }
 
 export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [];
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) return [];
-    const { data, error } = await supabase.from('master_project_status').select('*').eq('company_id', profile.companyId);
-    if (error) {
-        console.error("Error fetching project status options:", error);
-        return [];
-    }
-    return data;
+    return getMasterData('master_project_status');
 }
 
 export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
@@ -1206,4 +1285,5 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
