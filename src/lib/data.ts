@@ -567,12 +567,15 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const schedule: ScheduleItem[] = [];
+    
     const now = new Date();
+    const nowBrazil = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Apply UTC-3 offset
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
         const visitDate = new Date(v.date);
-        const isOverdue = visitDate < now && v.status === 'pendente';
+        
+        const isOverdue = visitDate < nowBrazil && v.status === 'pendente';
         
         if (client) {
             schedule.push({
@@ -600,7 +603,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999); 
-        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate < nowBrazil && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -1305,6 +1308,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
