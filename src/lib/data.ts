@@ -262,20 +262,31 @@ export const getActiveOrganizations = async (): Promise<Company[]> => {
 export const addOrganization = async (name: string): Promise<Company> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
-    
-    // The database trigger 'on_organization_created' will now automatically create the settings entry.
-    // We just need to insert into the organizations table.
-    const { data, error } = await supabaseAdmin
+
+    // Insert the new organization
+    const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .insert({ trade_name: name, is_active: true })
         .select()
         .single();
 
-    if (error) {
-        console.error("Error adding organization:", error);
+    if (orgError) {
+        console.error("Error adding organization:", orgError);
         throw new Error("Não foi possível adicionar a nova empresa.");
     }
-    return toCamelCase(data);
+    
+    // Explicitly create the settings entry for the new organization
+    const { error: settingsError } = await supabaseAdmin
+        .from('settings')
+        .insert({ company_id: orgData.id, company_name: orgData.trade_name });
+
+    if (settingsError) {
+        console.error("Error creating settings for new organization:", settingsError);
+        // Don't throw an error here, the org was created, but log it.
+        // The getSettings function can recover from this.
+    }
+
+    return toCamelCase(orgData);
 };
 
 export const updateOrganization = async (id: string, updates: Partial<Company>): Promise<Company> => {
@@ -928,7 +939,7 @@ export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
 export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
     const { data, error } = await supabase.from('master_visit_status').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding visit status option:", error);
@@ -958,8 +969,8 @@ export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> 
 
 export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
     const { data, error } = await supabase.from('master_payment_instruments').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding payment instrument:", error);
@@ -989,8 +1000,8 @@ export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
 
 export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-     const profile = await getCurrentProfile();
-    if (!profile) throw new Error("Usuário não autenticado.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
     const { data, error } = await supabase.from('master_project_status').insert({ name, company_id: profile.companyId }).select().single();
     if (error) {
         console.error("Error adding project status option:", error);
@@ -1026,8 +1037,6 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 
     if (error) {
         console.error("Error fetching settings:", error.message);
-        // Don't create settings here, as the error might be an RLS violation,
-        // and we should not bypass it with an admin client.
         return null;
     }
     
@@ -1035,15 +1044,14 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return toCamelCase(settingsData);
     }
 
-    // If no settings are found for a legitimate user, it means they haven't been created yet.
-    // We use the admin client to create them, as the user might not have insert permissions.
+    // If no settings are found, create them. This is a fallback for existing companies
+    // that might not have a settings entry.
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) {
         console.error("Cannot create settings: admin client is not available.");
         return null;
     }
 
-    // Check if the organization actually exists before creating settings for it.
     const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .select('trade_name')
@@ -1052,15 +1060,14 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
     
     if (orgError || !orgData) {
         console.error("Could not fetch organization name to create settings:", orgError);
-        return null; // Don't create settings for a non-existent company
+        return null;
     }
 
-    // Create the default settings for the company.
     const { data: newSettings, error: insertError } = await supabaseAdmin
         .from('settings')
         .insert({
             company_id: companyId,
-            company_name: orgData.trade_name
+            company_name: orgData.trade_name,
         })
         .select()
         .single();
