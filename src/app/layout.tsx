@@ -79,9 +79,8 @@ export default function RootLayout({
      return (
         <html lang="en" suppressHydrationWarning>
             <head>
-                <title>Amanda Martins - Organização Personalizada</title>
+                <title>OrganizerFlow</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
-                 <link rel="manifest" href="/manifest.json" />
             </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
@@ -97,9 +96,8 @@ export default function RootLayout({
       return (
         <html lang="en" suppressHydrationWarning>
              <head>
-                <title>Amanda Martins - Organização Personalizada</title>
+                <title>OrganizerFlow</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
-                 <link rel="manifest" href="/manifest.json" />
             </head>
             <body className="flex items-center justify-center h-screen bg-background">
                 <LoaderCircle className="w-8 h-8 animate-spin" />
@@ -112,11 +110,14 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
-                <title>Amanda Martins - Organização Personalizada</title>
+                <title>OrganizerFlow</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
-                 <link rel="manifest" href="/manifest.json" />
             </head>
-            <body className="bg-background">
+            <body className={cn(
+              "bg-background font-body antialiased",
+              belleza.variable,
+              alegreya.variable
+            )}>
                 {children}
                 <Toaster />
             </body>
@@ -128,9 +129,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Amanda Martins - Organização Personalizada</title>
+        <title>OrganizerFlow</title>
         <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
-        <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
