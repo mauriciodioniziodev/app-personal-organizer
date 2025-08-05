@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -140,7 +141,7 @@ export default function Dashboard() {
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {item.isOverdue && item.type === 'visit' && (
+                                                        {item.isOverdue && (
                                                             <Badge variant="destructive">Atrasada</Badge>
                                                         )}
                                                          {isVisit && (
@@ -393,3 +394,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

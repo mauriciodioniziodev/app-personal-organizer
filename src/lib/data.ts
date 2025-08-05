@@ -530,13 +530,12 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const profile = await getCurrentProfile();
     if (!profile) return [];
 
-    // This is the correct way to get the current time in a specific timezone.
-    const nowInBrazil = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    const now = new Date();
     
-    const startOfDay = new Date(nowInBrazil);
+    const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(nowInBrazil);
+    const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
     
     let visitsQuery = supabase.from('visits').select('*')
@@ -573,7 +572,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
-        // Supabase returns timestamptz as a full ISO string. We can parse it directly.
         const visitDate = new Date(v.date);
         
         if (client) {
@@ -589,24 +587,22 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                // The crucial comparison: compare the parsed visit date with the current time in Brazil.
-                isOverdue: visitDate.getTime() < nowInBrazil.getTime() && v.status === 'pendente'
+                isOverdue: visitDate.getTime() < now.getTime() && v.status === 'pendente'
             });
         }
     });
     
      (projectsData || []).forEach(p => {
         const client = clientMap.get(p.client_id);
-        // The project end date check is also compared against the current Brazil time.
         const projectEndDate = new Date(p.end_date);
-        projectEndDate.setHours(23, 59, 59, 999); // Set to end of day for correct comparison
-        const isOverdue = projectEndDate.getTime() < nowInBrazil.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
+        projectEndDate.setHours(23, 59, 59, 999); 
+        const isOverdue = projectEndDate.getTime() < now.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
                 id: `project-${p.id}`,
                 type: 'project',
-                date: p.start_date, // For sorting purposes
+                date: p.start_date, 
                 title: p.name,
                 clientName: client.name,
                 clientId: client.id,
@@ -1301,6 +1297,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
