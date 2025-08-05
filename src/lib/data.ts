@@ -107,23 +107,41 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
             console.error("Failed to create Supabase admin client.");
             return [];
          }
-        const { data, error } = await supabaseAdmin.rpc('get_all_user_profiles_with_details');
-        
-        if (error) {
-            console.error("Error fetching all user profiles (RPC):", error);
+        // Fetch all profiles with company info
+        const { data: profiles, error: profilesError } = await supabaseAdmin
+            .from('profiles')
+            .select(`
+                *,
+                organizations ( name )
+            `);
+
+        if (profilesError) {
+            console.error("Error fetching all profiles:", profilesError);
             return [];
         }
 
-        // The RPC function now returns camelCase fields directly.
-        return data.map((p: any) => ({
-             id: p.id,
-            fullName: p.full_name,
-            email: p.email,
-            role: p.role,
-            status: p.status,
-            companyId: p.company_id,
-            companyName: p.company_name
-        }));
+        // Fetch all auth users to get their emails
+        const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+        
+        if (authError) {
+            console.error("Error fetching auth users:", authError);
+            return [];
+        }
+        
+        const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
+
+        return profiles.map(p => {
+             const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+             return {
+                id: p.id,
+                fullName: p.full_name,
+                email: emailMap.get(p.id) || 'N/A',
+                role: p.role,
+                status: p.status,
+                companyId: p.company_id,
+                companyName: companyDetails?.name || 'N/A',
+             }
+        });
     }
     
     // Regular Admin Case
@@ -144,10 +162,10 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     }
     
     // For regular admins, we can't get other users' emails for security reasons.
-    // We'll just return the profile data we can access.
+    // We'll just return the profile data we can access, and map the email from the current session if it matches.
     return profiles.map(p => ({
         ...toCamelCase(p),
-        email: 'N/A', // Email is not available for security reasons
+        email: p.id === currentProfile.id ? currentProfile.email : 'N/A', // Email is not available for other users
         companyName: currentProfile.companyName
     }));
 }
