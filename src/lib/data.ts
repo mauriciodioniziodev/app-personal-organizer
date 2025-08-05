@@ -1010,19 +1010,17 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 
 // --- Company Settings Functions ---
 
-export const getSettings = async (): Promise<CompanySettings | null> => {
+export const getSettings = async (companyId: string): Promise<CompanySettings | null> => {
     if (!supabase) return null;
-
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) {
-        console.error("User not authenticated or has no company ID.");
+    if (!companyId) {
+        console.error("getSettings requires a companyId.");
         return null;
     }
 
     const { data: settingsData, error } = await supabase
         .from('settings')
         .select('*')
-        .eq('company_id', profile.companyId)
+        .eq('company_id', companyId)
         .maybeSingle();
 
     if (error) {
@@ -1044,7 +1042,7 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
     const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .select('trade_name')
-        .eq('id', profile.companyId)
+        .eq('id', companyId)
         .single();
     
     if (orgError) {
@@ -1055,7 +1053,7 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
     const { data: newSettings, error: insertError } = await supabaseAdmin
         .from('settings')
         .insert({
-            company_id: profile.companyId,
+            company_id: companyId,
             company_name: orgData.trade_name
         })
         .select()

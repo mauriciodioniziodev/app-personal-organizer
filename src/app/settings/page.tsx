@@ -17,7 +17,6 @@ import Image from 'next/image';
 
 export default function SettingsPage() {
     const { toast } = useToast();
-    const [settings, setSettings] = useState<CompanySettings | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -27,24 +26,28 @@ export default function SettingsPage() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchSettings = async () => {
+        const fetchInitialData = async () => {
             setLoading(true);
-            const [currentSettings, currentProfile] = await Promise.all([
-                getSettings(),
-                getCurrentProfile()
-            ]);
-            
-            setSettings(currentSettings);
+            const currentProfile = await getCurrentProfile();
             setProfile(currentProfile);
 
-            if (currentSettings) {
-                setCompanyName(currentSettings.companyName || '');
-                setLogoPreview(currentSettings.logoUrl || null);
+            if (currentProfile?.companyId) {
+                const currentSettings = await getSettings(currentProfile.companyId);
+                if (currentSettings) {
+                    setCompanyName(currentSettings.companyName || '');
+                    setLogoPreview(currentSettings.logoUrl || null);
+                }
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Erro de Autenticação',
+                    description: 'Não foi possível identificar sua empresa. Por favor, faça login novamente.',
+                });
             }
             setLoading(false);
         };
-        fetchSettings();
-    }, []);
+        fetchInitialData();
+    }, [toast]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
