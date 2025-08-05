@@ -530,20 +530,24 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const profile = await getCurrentProfile();
     if (!profile) return [];
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    // Set the reference time to Brazil's timezone
+    const nowInBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     
-    // As `date` in Supabase is `timestamp with time zone`, we can query it directly.
-    // The database will correctly handle the comparison with the provided ISO strings.
+    const startOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 23, 59, 59, 999);
+    
+    // Supabase stores timestamptz in UTC. We need to provide the correct range in UTC.
+    const startOfDayUTC = new Date(startOfDay.toLocaleString('en-US', { timeZone: 'UTC' })).toISOString();
+    const endOfDayUTC = new Date(endOfDay.toLocaleString('en-US', { timeZone: 'UTC' })).toISOString();
+
     let visitsQuery = supabase.from('visits').select('*')
-        .gte('date', startOfDay.toISOString())
-        .lte('date', endOfDay.toISOString());
+        .gte('date', startOfDayUTC)
+        .lte('date', endOfDayUTC);
     
     let projectsQuery = supabase.from('projects').select('*')
-        .lt('start_date', endOfDay.toISOString()) // Project has started
-        .gt('end_date', startOfDay.toISOString()) // And has not yet ended
-        .in('status', ['Em andamento', 'Atrasado']); // And is in a relevant status
+        .lt('start_date', endOfDayUTC) 
+        .gt('end_date', startOfDayUTC) 
+        .in('status', ['Em andamento', 'Atrasado']);
 
     if (profile.email !== 'mauriciodionizio@gmail.com') {
         if (!profile.companyId) return [];
@@ -577,7 +581,8 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 id: `visit-${v.id}`,
                 type: 'visit',
                 date: v.date,
-                time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                // Extract time directly from the ISO string to avoid conversions
+                time: v.date.substring(11, 16),
                 title: 'Visita Agendada',
                 clientName: client.name,
                 clientId: client.id,
@@ -585,7 +590,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: visitDate.getTime() < now.getTime() && v.status === 'pendente'
+                isOverdue: visitDate.getTime() < nowInBrazil.getTime() && v.status === 'pendente'
             });
         }
     });
@@ -594,7 +599,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999);
-        const isOverdue = projectEndDate.getTime() < now.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate.getTime() < nowInBrazil.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -1295,6 +1300,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
