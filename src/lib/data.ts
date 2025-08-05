@@ -554,44 +554,64 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 // --- Financial data functions ---
 
 export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
-     if (!supabase) return 0;
+    if (!supabase) return 0;
     const profile = await getCurrentProfile();
     if (!profile || !profile.companyId) return 0;
-    
-    let query = supabase.rpc('get_total_revenue_for_company', { 
-        company_id_param: profile.companyId,
-        start_date_param: startDate || null,
-        end_date_param: endDate || null,
-    });
-    
-    const { data, error } = await query;
 
+    let query = supabase
+        .from('payments')
+        .select('amount, projects!inner(company_id)')
+        .eq('projects.company_id', profile.companyId)
+        .eq('status', 'pago');
+    
+    if (startDate) {
+        query = query.gte('due_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('due_date', endDate);
+    }
+
+    const { data, error } = await query;
+    
     if (error) {
-        console.error("Error fetching total revenue:", error);
+        console.error("Error fetching total revenue from payments:", error.message);
         return 0;
     }
-    
-    return data || 0;
+
+    return data.reduce((sum, payment) => sum + payment.amount, 0);
 };
 
 export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
     const profile = await getCurrentProfile();
     if (!profile || !profile.companyId) return 0;
+    
+    const now = new Date().toISOString();
 
-     let query = supabase.rpc('get_total_pending_revenue_for_company', { 
-        company_id_param: profile.companyId,
-        start_date_param: startDate || null,
-        end_date_param: endDate || null,
-    });
+    let query = supabase
+        .from('payments')
+        .select('amount, projects!inner(company_id)')
+        .eq('projects.company_id', profile.companyId)
+        .eq('status', 'pendente')
+        .lte('due_date', now);
+
+    if (startDate) {
+        query = query.gte('due_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('due_date', endDate);
+    }
 
     const { data, error } = await query;
+
     if (error) {
-        console.error("Error fetching pending revenue:", error);
+        console.error("Error fetching pending revenue from payments:", error.message);
         return 0;
     }
-    return data || 0;
+    
+    return data.reduce((sum, payment) => sum + payment.amount, 0);
 };
+
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
@@ -1186,3 +1206,4 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
