@@ -1013,35 +1013,83 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 export const getSettings = async (): Promise<CompanySettings | null> => {
     if (!supabase) return null;
 
-    const { data, error } = await supabase.rpc('get_or_create_settings');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) {
+        console.error("User not authenticated or has no company ID.");
+        return null;
+    }
+
+    // First, try to fetch the settings using RLS with the user's client
+    const { data: settingsData, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('company_id', profile.companyId)
+        .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is the code for "0 rows returned"
+        console.error("Error fetching settings:", error);
+        return null;
+    }
+
+    // If settings are found, return them
+    if (settingsData) {
+        return toCamelCase(settingsData);
+    }
     
-    if (error) {
-        console.error("Error fetching or creating settings via RPC:", error);
+    // If no settings are found, create them using the admin client
+    console.warn(`No settings found for company ${profile.companyId}. Creating default settings.`);
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Cannot create settings: admin client is not available.");
+        return null;
+    }
+
+    const { data: orgData, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .select('trade_name')
+        .eq('id', profile.companyId)
+        .single();
+    
+    if (orgError) {
+        console.error("Could not fetch organization name to create settings:", orgError);
+        return null;
+    }
+
+    const { data: newSettings, error: insertError } = await supabaseAdmin
+        .from('settings')
+        .insert({
+            company_id: profile.companyId,
+            company_name: orgData.trade_name
+        })
+        .select()
+        .single();
+    
+    if (insertError) {
+        console.error("Error creating default settings:", insertError);
         return null;
     }
     
-    // The RPC function returns an array, even if it's just one item or empty.
-    if (!data || data.length === 0) {
-        console.warn("No settings returned for this user's company.");
-        return null;
-    }
-    
-    return toCamelCase(data[0]);
-}
+    console.log(`Successfully created settings for company ${profile.companyId}`);
+    return toCamelCase(newSettings);
+};
+
 
 export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
+     if (!supabase) throw new Error("Supabase client not initialized.");
 
     const [currentSettings, profile] = await Promise.all([getSettings(), getCurrentProfile()]);
     if (!profile) throw new Error("Usuário não autenticado.");
     if (!profile.companyId) throw new Error("O perfil do usuário não está associado a uma empresa.");
 
-    let logoUrl: string | undefined = currentSettings?.logoUrl || undefined;
+    let logoUrl: string | undefined | null = currentSettings?.logoUrl || undefined;
 
     if (logoFile) {
-        // We'll store the logo in a path namespaced by the company ID to keep things organized
+        // Use admin client for storage to bypass RLS if needed, although storage policies are separate.
+        const supabaseAdmin = createSupabaseAdminClient();
+        if(!supabaseAdmin) throw new Error("Admin client is required for file upload.");
+
         const fileName = `${profile.companyId}/logo_${Date.now()}`;
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabaseAdmin.storage
             .from('assets')
             .upload(fileName, logoFile, { upsert: true });
 
@@ -1050,7 +1098,7 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
             throw new Error("Não foi possível carregar a logomarca.");
         }
 
-        const { data } = supabase.storage.from('assets').getPublicUrl(fileName);
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(fileName);
         logoUrl = data.publicUrl;
     }
 
@@ -1070,5 +1118,6 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
+    
 
     
