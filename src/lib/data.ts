@@ -83,8 +83,13 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 // Gets the profile of the currently logged-in user
 export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    const { data: { session }} = await supabase.auth.getSession();
-    if (!session?.user?.id) return null;
+    
+    // Always fetch a fresh session to ensure the correct user identity
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user?.id) {
+        console.error("Error fetching session or no user ID found:", sessionError);
+        return null;
+    }
     
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -1128,3 +1133,4 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
     
 
     
+
