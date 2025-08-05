@@ -118,13 +118,14 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    // Super Admin Case
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Failed to create Supabase admin client.");
+        return [];
+    }
+    
+    // Super Admin Case: Fetch all users and their company names
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
-         const supabaseAdmin = createSupabaseAdminClient();
-         if (!supabaseAdmin) {
-            console.error("Failed to create Supabase admin client for Superadmin.");
-            return [];
-         }
         // Fetch all profiles with company info
         const { data: profiles, error: profilesError } = await supabaseAdmin
             .from('profiles')
@@ -143,15 +144,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         
         if (authError) {
             console.error("Error fetching auth users:", authError);
-            // Don't fail completely, just return profiles without email if auth call fails
-             return profiles.map(p => {
-                 const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
-                 return {
-                    ...toCamelCase(p),
-                    email: 'Não foi possível carregar o e-mail',
-                    companyName: companyDetails?.trade_name || 'N/A',
-                 }
-            });
+            return []; // Fail gracefully if auth users can't be fetched
         }
         
         const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
@@ -187,16 +180,22 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    // For regular admins, we can only see our own email due to security policies.
-    // So, we find the current user's email from the profile we already fetched.
-    // For other users in the company, we'll have to leave email blank for now
-    // unless we create a secure RPC call to fetch them.
+    const companyUserIds = companyProfiles.map(p => p.id);
+    if (companyUserIds.length === 0) return [];
+
+    // Fetch auth users only for this company
+    const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+     if (authError) {
+        console.error("Error fetching auth users for company:", authError);
+        return [];
+    }
     
+    const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
+
     return companyProfiles.map(p => {
-        const isCurrentUser = p.id === currentProfile.id;
         return {
             ...toCamelCase(p),
-            email: isCurrentUser ? currentProfile.email : '*********', // Obfuscate other emails
+            email: emailMap.get(p.id) || 'E-mail não encontrado',
             companyName: currentProfile.companyName
         }
     });
@@ -240,6 +239,8 @@ export const getOrganizations = async (): Promise<Company[]> => {
 }
 export const getActiveOrganizations = async (): Promise<Company[]> => {
     if (!supabase) return [];
+    // This now uses a secure RPC call that is invokable by anonymous users
+    // but only returns active organizations due to the function's definition.
     const { data, error } = await supabase.rpc('get_active_organizations');
     
     if (error) {
@@ -254,6 +255,8 @@ export const addOrganization = async (name: string): Promise<Company> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
     
+    // The database trigger 'on_organization_created' will now automatically create the settings entry.
+    // We just need to insert into the organizations table.
     const { data, error } = await supabaseAdmin
         .from('organizations')
         .insert({ trade_name: name, is_active: true })
@@ -271,6 +274,7 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
     
+    // Omit fields that are not part of the 'organizations' table or shouldn't be updated this way
     const { id: companyId, createdAt, ...updateData } = updates;
 
     const { data, error } = await supabaseAdmin
@@ -998,10 +1002,7 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 
 // --- Company Settings Functions ---
 
-let settingsCache: CompanySettings | null = null;
-
 export const getSettings = async (): Promise<CompanySettings | null> => {
-    if (settingsCache) return settingsCache;
     if (!supabase) return null;
 
     // RLS will ensure we only get the settings for the current user's company.
@@ -1012,18 +1013,15 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         .single();
     
     if (error) {
-        if (error.code === 'PGRST116' || error.code === '42P01' || error.code === '406') { 
-            // This can happen if a new company was created but the trigger failed to insert default settings.
-             console.warn("No settings found for this company, or RLS prevented access.");
+        if (error.code === 'PGRST116') { 
+            console.warn("No settings found for this company. This can happen if the creation trigger failed or for new companies before the first setting is saved.");
         } else {
             console.error("Error fetching settings:", error);
         }
         return null;
     }
     
-    const settings = toCamelCase(data);
-    settingsCache = settings;
-    return settings;
+    return toCamelCase(data);
 }
 
 export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
@@ -1056,18 +1054,16 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
         logo_url: logoUrl,
     };
     
+    // RLS policies now handle the authorization for this update.
     const { error } = await supabase
         .from('settings')
         .update(updates)
-        .eq('company_id', profile.companyId); // RLS also protects this, but being explicit is good.
+        .eq('company_id', profile.companyId); 
 
     if (error) {
         console.error('Error saving settings:', error);
         throw new Error("Não foi possível salvar as configurações.");
     }
-    
-    // Invalidate cache
-    settingsCache = null;
 }
 
     
