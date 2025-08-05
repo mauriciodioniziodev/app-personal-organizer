@@ -530,7 +530,11 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const profile = await getCurrentProfile();
     if (!profile) return [];
     
-    const now = new Date();
+    // Use a specific time for 'now' to ensure consistent results during the function's execution
+    const now = new Date(); 
+    
+    // Get the start and end of the current day in the local timezone of the server.
+    // Supabase will treat timestamp without timezone as UTC, so we create dates that reflect the day's boundaries.
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
@@ -539,9 +543,9 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         .lte('date', endOfDay.toISOString());
     
     let projectsQuery = supabase.from('projects').select('*')
-        .lt('start_date', endOfDay.toISOString())
-        .gt('end_date', startOfDay.toISOString())
-        .in('status', ['Em andamento', 'Atrasado']);
+        .lt('start_date', endOfDay.toISOString()) // Project has started
+        .gt('end_date', startOfDay.toISOString()) // And has not yet ended
+        .in('status', ['Em andamento', 'Atrasado']); // And is in a relevant status
 
     if (profile.email !== 'mauriciodionizio@gmail.com') {
         if (!profile.companyId) return [];
@@ -581,14 +585,19 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: new Date(v.date) < now && v.status === 'pendente'
+                 // A visita está atrasada se a data/hora for anterior a agora E o status ainda for pendente.
+                isOverdue: new Date(v.date).getTime() < now.getTime() && v.status === 'pendente'
             });
         }
     });
     
      (projectsData || []).forEach(p => {
         const client = clientMap.get(p.client_id);
-        const isOverdue = new Date(p.end_date) < now;
+        // Um projeto está atrasado se a data final for anterior a HOJE (sem considerar a hora) e o status não for "Concluído" ou "Cancelado"
+        const projectEndDate = new Date(p.end_date);
+        projectEndDate.setUTCHours(23, 59, 59, 999); // Consider EOD for comparison
+        const isOverdue = projectEndDate.getTime() < now.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
+
         if (client) {
             schedule.push({
                 id: `project-${p.id}`,
@@ -1288,6 +1297,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
