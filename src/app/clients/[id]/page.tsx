@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getClientById, getProjectsByClientId, getVisitsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo, Edit } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
@@ -96,6 +96,12 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={client.name}>
+        <Link href={`/clients/${id}/edit`}>
+            <Button variant="outline">
+                <Edit className="mr-2 h-4 w-4" />
+                Editar Cliente
+            </Button>
+        </Link>
         <Dialog open={isVisitFormOpen} onOpenChange={setIsVisitFormOpen}>
             <DialogTrigger asChild>
                 <Button>

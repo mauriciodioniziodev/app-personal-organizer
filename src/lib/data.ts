@@ -806,6 +806,25 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'compa
     return toCamelCase(data);
 };
 
+export const updateClient = async (client: Client): Promise<Client> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { id, createdAt, companyId, ...updateData } = client;
+
+    const { data, error } = await supabase
+        .from('clients')
+        .update(toSnakeCase(updateData))
+        .eq('id', id)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error updating client:", error);
+        throw new Error("Não foi possível atualizar o cliente.");
+    }
+    return toCamelCase(data);
+}
+
 export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId'>): Promise<Visit> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
@@ -1285,5 +1304,6 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
