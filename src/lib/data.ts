@@ -1019,25 +1019,22 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         return null;
     }
 
-    // First, try to fetch the settings using RLS with the user's client
     const { data: settingsData, error } = await supabase
         .from('settings')
         .select('*')
         .eq('company_id', profile.companyId)
         .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is the code for "0 rows returned"
+    if (error) {
         console.error("Error fetching settings:", error);
         return null;
     }
-
-    // If settings are found, return them
+    
     if (settingsData) {
         return toCamelCase(settingsData);
     }
     
-    // If no settings are found, create them using the admin client
-    console.warn(`No settings found for company ${profile.companyId}. Creating default settings.`);
+    // If no settings found, create them for the existing company
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) {
         console.error("Cannot create settings: admin client is not available.");
@@ -1069,26 +1066,22 @@ export const getSettings = async (): Promise<CompanySettings | null> => {
         return null;
     }
     
-    console.log(`Successfully created settings for company ${profile.companyId}`);
     return toCamelCase(newSettings);
 };
 
 
-export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
+export const updateSettings = async ({ companyId, companyName, logoFile }: { companyId: string, companyName: string, logoFile: File | null }): Promise<void> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
 
-    const [currentSettings, profile] = await Promise.all([getSettings(), getCurrentProfile()]);
-    if (!profile) throw new Error("Usuário não autenticado.");
-    if (!profile.companyId) throw new Error("O perfil do usuário não está associado a uma empresa.");
+    const { data: currentSettings } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
 
-    let logoUrl: string | undefined | null = currentSettings?.logoUrl || undefined;
+    let logoUrl: string | undefined | null = currentSettings?.logo_url || undefined;
 
     if (logoFile) {
-        // Use admin client for storage to bypass RLS if needed, although storage policies are separate.
         const supabaseAdmin = createSupabaseAdminClient();
         if(!supabaseAdmin) throw new Error("Admin client is required for file upload.");
 
-        const fileName = `${profile.companyId}/logo_${Date.now()}`;
+        const fileName = `${companyId}/logo_${Date.now()}`;
         const { error: uploadError } = await supabaseAdmin.storage
             .from('assets')
             .upload(fileName, logoFile, { upsert: true });
@@ -1107,11 +1100,10 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
         logo_url: logoUrl,
     };
     
-    // RLS policies now handle the authorization for this update.
     const { error } = await supabase
         .from('settings')
         .update(updates)
-        .eq('company_id', profile.companyId); 
+        .eq('company_id', companyId); 
 
     if (error) {
         console.error('Error saving settings:', error);

@@ -4,8 +4,8 @@
 
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { getSettings, updateSettings } from '@/lib/data';
-import type { CompanySettings } from '@/lib/definitions';
+import { getSettings, updateSettings, getCurrentProfile } from '@/lib/data';
+import type { CompanySettings, UserProfile } from '@/lib/definitions';
 import { useToast } from '@/hooks/use-toast';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import Image from 'next/image';
 export default function SettingsPage() {
     const { toast } = useToast();
     const [settings, setSettings] = useState<CompanySettings | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -28,10 +29,18 @@ export default function SettingsPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             setLoading(true);
-            const currentSettings = await getSettings();
+            const [currentSettings, currentProfile] = await Promise.all([
+                getSettings(),
+                getCurrentProfile()
+            ]);
+            
             setSettings(currentSettings);
-            setCompanyName(currentSettings?.companyName || '');
-            setLogoPreview(currentSettings?.logoUrl || null);
+            setProfile(currentProfile);
+
+            if (currentSettings) {
+                setCompanyName(currentSettings.companyName || '');
+                setLogoPreview(currentSettings.logoUrl || null);
+            }
             setLoading(false);
         };
         fetchSettings();
@@ -53,9 +62,18 @@ export default function SettingsPage() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (!profile?.companyId) {
+             toast({
+                variant: 'destructive',
+                title: 'Erro de Autenticação',
+                description: 'Não foi possível identificar sua empresa. Por favor, faça login novamente.',
+            });
+            return;
+        }
+
         setIsSaving(true);
         try {
-            await updateSettings({ companyName, logoFile });
+            await updateSettings({ companyId: profile.companyId, companyName, logoFile });
             toast({
                 title: 'Sucesso!',
                 description: 'As configurações foram salvas.',
