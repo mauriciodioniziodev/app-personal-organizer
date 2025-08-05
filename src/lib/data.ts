@@ -569,9 +569,6 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const schedule: ScheduleItem[] = [];
-    
-    // This is the only way to get the correct "now" in the server environment for Brazil
-    const nowInBrazil = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
@@ -590,7 +587,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: visitDate < nowInBrazil && v.status === 'pendente'
+                isOverdue: visitDate < now && v.status === 'pendente'
             });
         }
     });
@@ -599,7 +596,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999); 
-        const isOverdue = projectEndDate < nowInBrazil && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -1304,6 +1301,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
