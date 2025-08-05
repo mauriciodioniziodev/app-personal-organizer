@@ -110,7 +110,11 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
 }
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
-    if (!supabase) return [];
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Failed to create Supabase admin client.");
+        return [];
+    }
     
     const currentProfile = await getCurrentProfile();
     if (!currentProfile) {
@@ -118,19 +122,16 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Failed to create Supabase admin client.");
-        return [];
-    }
-    
     // Super Admin Case: Fetch all users and their company names
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
-        // Fetch all profiles with company info
         const { data: profiles, error: profilesError } = await supabaseAdmin
             .from('profiles')
             .select(`
-                *,
+                id,
+                full_name,
+                role,
+                status,
+                company_id,
                 organizations ( trade_name )
             `);
 
@@ -139,12 +140,11 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
             return [];
         }
 
-        // Fetch all auth users to get their emails
         const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
         
         if (authError) {
             console.error("Error fetching auth users:", authError);
-            return []; // Fail gracefully if auth users can't be fetched
+            return [];
         }
         
         const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
@@ -169,10 +169,15 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
          return [];
     }
 
-    // Fetch profiles for the admin's company
-    const { data: companyProfiles, error: profilesError } = await supabase
+    const { data: companyProfiles, error: profilesError } = await supabaseAdmin
         .from('profiles')
-        .select('*')
+        .select(`
+            id,
+            full_name,
+            role,
+            status,
+            company_id
+        `)
         .eq('company_id', currentProfile.companyId);
 
     if (profilesError) {
@@ -183,7 +188,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     const companyUserIds = companyProfiles.map(p => p.id);
     if (companyUserIds.length === 0) return [];
 
-    // Fetch auth users only for this company
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
      if (authError) {
         console.error("Error fetching auth users for company:", authError);
@@ -194,7 +198,11 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
 
     return companyProfiles.map(p => {
         return {
-            ...toCamelCase(p),
+            id: p.id,
+            fullName: p.full_name,
+            role: p.role,
+            status: p.status,
+            companyId: p.company_id,
             email: emailMap.get(p.id) || 'E-mail não encontrado',
             companyName: currentProfile.companyName
         }
@@ -1005,23 +1013,20 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 export const getSettings = async (): Promise<CompanySettings | null> => {
     if (!supabase) return null;
 
-    // RLS will ensure we only get the settings for the current user's company.
-    const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .limit(1)
-        .single();
+    const { data, error } = await supabase.rpc('get_or_create_settings');
     
     if (error) {
-        if (error.code === 'PGRST116') { 
-            console.warn("No settings found for this company. This can happen if the creation trigger failed or for new companies before the first setting is saved.");
-        } else {
-            console.error("Error fetching settings:", error);
-        }
+        console.error("Error fetching or creating settings via RPC:", error);
         return null;
     }
     
-    return toCamelCase(data);
+    // The RPC function returns an array, even if it's just one item or empty.
+    if (!data || data.length === 0) {
+        console.warn("No settings returned for this user's company.");
+        return null;
+    }
+    
+    return toCamelCase(data[0]);
 }
 
 export const updateSettings = async ({ companyName, logoFile }: { companyName: string, logoFile: File | null }): Promise<void> => {
