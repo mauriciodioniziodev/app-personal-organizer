@@ -1091,19 +1091,11 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 // --- Master Data Functions ---
 
+// Master data is global, so it doesn't need company_id filtering.
 const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
-    const profile = await getCurrentProfile();
-    if (!profile) return [];
-
-    let query = supabase.from(tableName).select('*');
-
-    if (profile.email !== 'mauriciodionizio@gmail.com') {
-        if (!profile.companyId) return [];
-        query = query.eq('company_id', profile.companyId);
-    }
     
-    const { data, error } = await query;
+    const { data, error } = await supabase.from(tableName).select('*');
     if (error) {
         console.error(`Error fetching ${tableName}:`, error);
         return [];
@@ -1111,29 +1103,47 @@ const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
     return data;
 }
 
+const addMasterDataItem = async (tableName: string, name: string): Promise<MasterDataItem> => {
+    const profile = await getCurrentProfile();
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o superadministrador pode adicionar novos itens.");
+    }
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // company_id is no longer added, as this is global data.
+    const { data, error } = await supabase.from(tableName).insert({ name }).select().single();
+    if (error) {
+        console.error(`Error adding item to ${tableName}:`, error);
+        throw new Error("Não foi possível adicionar a opção.");
+    }
+    return data;
+};
+
+const deleteMasterDataItem = async (tableName: string, id: string): Promise<void> => {
+    const profile = await getCurrentProfile();
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o superadministrador pode remover itens.");
+    }
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { error } = await supabase.from(tableName).delete().eq('id', id);
+    if (error) {
+        console.error(`Error deleting item from ${tableName}:`, error);
+        throw new Error("Não foi possível remover a opção.");
+    }
+};
+
+
 export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
     return getMasterData('master_visit_status');
 }
 
 export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
-    const { data, error } = await supabase.from('master_visit_status').insert({ name, company_id: profile.companyId }).select().single();
-    if (error) {
-        console.error("Error adding visit status option:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_visit_status', name);
 }
 
 export const deleteVisitStatusOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_visit_status').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting visit status option:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_visit_status', id);
 }
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
@@ -1141,24 +1151,11 @@ export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> 
 }
 
 export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
-    const { data, error } = await supabase.from('master_payment_instruments').insert({ name, company_id: profile.companyId }).select().single();
-    if (error) {
-        console.error("Error adding payment instrument:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_payment_instruments', name);
 }
 
 export const deletePaymentInstrumentOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_payment_instruments').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting payment instrument:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_payment_instruments', id);
 }
 
 export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
@@ -1166,24 +1163,11 @@ export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
 }
 
 export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado ou sem empresa associada.");
-    const { data, error } = await supabase.from('master_project_status').insert({ name, company_id: profile.companyId }).select().single();
-    if (error) {
-        console.error("Error adding project status option:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_project_status', name);
 }
 
 export const deleteProjectStatusOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_project_status').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting project status option:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_project_status', id);
 }
 
 // --- Company Settings Functions ---
@@ -1304,6 +1288,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 

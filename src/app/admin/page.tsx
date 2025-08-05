@@ -527,29 +527,32 @@ export default function AdminPage() {
             <div className="space-y-8">
                 {isSuperAdmin && <OrganizationManagementCard onDataChange={handleDataChange} />}
                 <UserManagementCard refreshTrigger={refreshTrigger} />
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <MasterDataCard
-                        title="Status de Visita"
-                        description="Gerencie as opções para o status de uma visita."
-                        items={visitStatusOptions}
-                        onAdd={(name) => addVisitStatusOption(name).then(handleDataChange)}
-                        onDelete={(id) => deleteVisitStatusOption(id).then(handleDataChange)}
-                    />
-                    <MasterDataCard
-                        title="Meios de Pagamento"
-                        description="Gerencie as opções para os meios de pagamento de um projeto."
-                        items={paymentInstrumentOptions}
-                        onAdd={(name) => addPaymentInstrumentOption(name).then(handleDataChange)}
-                        onDelete={(id) => deletePaymentInstrumentOption(id).then(handleDataChange)}
-                    />
-                    <MasterDataCard
-                        title="Status de Execução do Projeto"
-                        description="Gerencie as opções para o status de execução de um projeto."
-                        items={projectStatusOptions}
-                        onAdd={(name) => addProjectStatusOption(name).then(handleDataChange)}
-                        onDelete={(id) => deleteProjectStatusOption(id).then(handleDataChange)}
-                    />
-                </div>
+                
+                {isSuperAdmin && (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <MasterDataCard
+                            title="Status de Visita"
+                            description="Gerencie as opções para o status de uma visita."
+                            items={visitStatusOptions}
+                            onAdd={(name) => addVisitStatusOption(name).then(handleDataChange)}
+                            onDelete={(id) => deleteVisitStatusOption(id).then(handleDataChange)}
+                        />
+                        <MasterDataCard
+                            title="Meios de Pagamento"
+                            description="Gerencie as opções para os meios de pagamento de um projeto."
+                            items={paymentInstrumentOptions}
+                            onAdd={(name) => addPaymentInstrumentOption(name).then(handleDataChange)}
+                            onDelete={(id) => deletePaymentInstrumentOption(id).then(handleDataChange)}
+                        />
+                        <MasterDataCard
+                            title="Status de Execução do Projeto"
+                            description="Gerencie as opções para o status de execução de um projeto."
+                            items={projectStatusOptions}
+                            onAdd={(name) => addProjectStatusOption(name).then(handleDataChange)}
+                            onDelete={(id) => deleteProjectStatusOption(id).then(handleDataChange)}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
