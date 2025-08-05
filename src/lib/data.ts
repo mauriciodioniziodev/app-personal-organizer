@@ -529,15 +529,13 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
     const profile = await getCurrentProfile();
     if (!profile) return [];
-    
-    const now = new Date();
-    // Get the current time in Brazil (America/Sao_Paulo)
-    const nowInBrazil = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    
-    // Get the start and end of the current day based on Brazil's timezone.
-    const startOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(nowInBrazil.getFullYear(), nowInBrazil.getMonth(), nowInBrazil.getDate(), 23, 59, 59, 999);
 
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    
+    // As `date` in Supabase is `timestamp with time zone`, we can query it directly.
+    // The database will correctly handle the comparison with the provided ISO strings.
     let visitsQuery = supabase.from('visits').select('*')
         .gte('date', startOfDay.toISOString())
         .lte('date', endOfDay.toISOString());
@@ -572,12 +570,14 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
+        const visitDate = new Date(v.date);
+        
         if (client) {
             schedule.push({
                 id: `visit-${v.id}`,
                 type: 'visit',
                 date: v.date,
-                time: new Date(v.date).toLocaleTimeString('pt-BR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }),
+                time: visitDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                 title: 'Visita Agendada',
                 clientName: client.name,
                 clientId: client.id,
@@ -585,17 +585,15 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                 // A visita está atrasada se a data/hora for anterior a agora E o status ainda for pendente.
-                isOverdue: new Date(v.date).getTime() < now.getTime() && v.status === 'pendente'
+                isOverdue: visitDate.getTime() < now.getTime() && v.status === 'pendente'
             });
         }
     });
     
      (projectsData || []).forEach(p => {
         const client = clientMap.get(p.client_id);
-        // Um projeto está atrasado se a data final for anterior a HOJE (sem considerar a hora) e o status não for "Concluído" ou "Cancelado"
         const projectEndDate = new Date(p.end_date);
-        projectEndDate.setUTCHours(23, 59, 59, 999); // Consider EOD for comparison
+        projectEndDate.setHours(23, 59, 59, 999);
         const isOverdue = projectEndDate.getTime() < now.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
@@ -1297,6 +1295,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 

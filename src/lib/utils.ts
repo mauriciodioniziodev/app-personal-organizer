@@ -17,9 +17,9 @@ export function formatDate(dateString: string) {
 
 export function formatDateTime(dateTimeString: string) {
     if (!dateTimeString) return '';
-    // Force display in UTC to avoid local timezone shifts
+    // Correctly format a UTC timestamp to local Brazilian time for display
     return new Date(dateTimeString).toLocaleString('pt-BR', {
-        timeZone: 'UTC',
+        timeZone: 'America/Sao_Paulo', // Brazil's timezone
         dateStyle: 'long',
         timeStyle: 'short'
     });

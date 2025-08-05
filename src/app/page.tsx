@@ -129,7 +129,7 @@ export default function Dashboard() {
                                                         <p className="text-sm font-medium text-foreground">{item.clientName}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {item.isOverdue && (
+                                                        {item.isOverdue && item.type === 'visit' && (
                                                             <Badge variant="destructive">Atrasada</Badge>
                                                         )}
                                                          {isVisit && (
