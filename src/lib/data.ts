@@ -304,8 +304,10 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
 
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
-    // RLS is enforced automatically because this uses the public client
-    const { data, error } = await supabase.from('clients').select('*').order('name');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+
+    const { data, error } = await supabase.from('clients').select('*').eq('company_id', profile.companyId).order('name');
     if (error) {
         console.error("Error fetching clients:", error);
         return [];
@@ -314,8 +316,10 @@ export const getClients = async (): Promise<Client[]> => {
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
-    // RLS is enforced automatically
-    const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return null;
+
+    const { data, error } = await supabase.from('clients').select('*').eq('id', id).eq('company_id', profile.companyId).single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
         return null;
@@ -325,8 +329,10 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 
 export const getProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
-    // RLS is enforced automatically
-    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('start_date', { ascending: false });
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+
+    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').eq('company_id', profile.companyId).order('start_date', { ascending: false });
     if (projectsError) {
         console.error("Error fetching projects:", projectsError);
         return [];
@@ -335,7 +341,6 @@ export const getProjects = async (): Promise<Project[]> => {
     const projectIds = projectsData.map(p => p.id);
     if(projectIds.length === 0) return [];
     
-    // RLS on payments is based on the project's company_id
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
@@ -347,8 +352,10 @@ export const getProjects = async (): Promise<Project[]> => {
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
     if (!supabase || !id) return null;
-    // RLS is enforced automatically
-    const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return null;
+
+    const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).eq('company_id', profile.companyId).single();
     if (projectError || !projectData) {
         console.error(`Error fetching project ${id}:`, projectError);
         return null;
@@ -366,8 +373,10 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 
 export const getVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
-    // RLS is enforced automatically
-    const { data, error } = await supabase.from('visits').select('*').order('date', { ascending: false });
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+    
+    const { data, error } = await supabase.from('visits').select('*').eq('company_id', profile.companyId).order('date', { ascending: false });
     if (error) {
         console.error("Error fetching visits:", error);
         return [];
@@ -377,8 +386,10 @@ export const getVisits = async (): Promise<Visit[]> => {
 
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
-    // RLS is enforced automatically
-    const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return null;
+
+    const { data, error } = await supabase.from('visits').select('*').eq('id', id).eq('company_id', profile.companyId).single();
     if (error) {
         console.error(`Error fetching visit ${id}:`, error);
         return null;
@@ -391,10 +402,13 @@ export const getVisitById = async (id: string): Promise<Visit | null> => {
 
 export const getActiveProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
-    // RLS applies
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+    
     const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
+        .eq('company_id', profile.companyId)
         .in('status', ['Em andamento', 'A iniciar', 'Pausado', 'Atrasado'])
         .gte('end_date', new Date().toISOString())
         .order('end_date', { ascending: true });
@@ -418,6 +432,9 @@ export const getActiveProjects = async (): Promise<Project[]> => {
 
 export const getUpcomingVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+
     const today = new Date();
     const future = new Date();
     future.setDate(today.getDate() + 7);
@@ -425,6 +442,7 @@ export const getUpcomingVisits = async (): Promise<Visit[]> => {
     const { data, error } = await supabase
         .from('visits')
         .select('*')
+        .eq('company_id', profile.companyId)
         .gte('date', today.toISOString())
         .lte('date', future.toISOString())
         .order('date', { ascending: true });
@@ -438,7 +456,10 @@ export const getUpcomingVisits = async (): Promise<Visit[]> => {
 
 export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     if (!supabase) return {};
-    const { data, error } = await supabase.from('visits').select('status');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return {};
+
+    const { data, error } = await supabase.from('visits').select('status').eq('company_id', profile.companyId);
     if (error) {
         console.error("Error fetching visits summary:", error);
         return {};
@@ -453,6 +474,8 @@ export const getVisitsSummary = async (): Promise<VisitsSummary> => {
 
 export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
     
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -464,9 +487,11 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         clients
     ] = await Promise.all([
         supabase.from('visits').select('*')
+            .eq('company_id', profile.companyId)
             .gte('date', startOfDay.toISOString())
             .lte('date', endOfDay.toISOString()),
         supabase.from('projects').select('*')
+            .eq('company_id', profile.companyId)
             .lt('start_date', endOfDay.toISOString())
             .gt('end_date', startOfDay.toISOString())
             .in('status', ['Em andamento', 'Atrasado']),
@@ -530,11 +555,14 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
 export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
      if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return 0;
     
-    let query = supabase.from('payments').select('amount').eq('status', 'pago');
-    if (startDate && endDate) {
-        query = query.gte('due_date', startDate).lte('due_date', endDate);
-    }
+    let query = supabase.rpc('get_total_revenue_for_company', { 
+        company_id_param: profile.companyId,
+        start_date_param: startDate || null,
+        end_date_param: endDate || null,
+    });
     
     const { data, error } = await query;
 
@@ -543,29 +571,34 @@ export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: stri
         return 0;
     }
     
-    return data.reduce((sum, payment) => sum + payment.amount, 0);
+    return data || 0;
 };
 
 export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return 0;
 
-    let query = supabase.from('payments').select('amount').eq('status', 'pendente');
-    if (startDate && endDate) {
-        query = query.gte('due_date', startDate).lte('due_date', endDate);
-    }
+     let query = supabase.rpc('get_total_pending_revenue_for_company', { 
+        company_id_param: profile.companyId,
+        start_date_param: startDate || null,
+        end_date_param: endDate || null,
+    });
 
     const { data, error } = await query;
     if (error) {
         console.error("Error fetching pending revenue:", error);
         return 0;
     }
-    return data.reduce((sum, payment) => sum + payment.amount, 0);
+    return data || 0;
 };
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
     
-    const { data, error } = await supabase.from('projects').select('*').eq('client_id', clientId);
+    const { data, error } = await supabase.from('projects').select('*').eq('client_id', clientId).eq('company_id', profile.companyId);
     if(error) {
         console.error("Error fetching projects by client:", error);
         return [];
@@ -584,8 +617,10 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
 
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
     if(!supabase || !clientId) return [];
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
     
-    const { data, error } = await supabase.from('visits').select('*').eq('client_id', clientId).order('date', {ascending: false});
+    const { data, error } = await supabase.from('visits').select('*').eq('client_id', clientId).eq('company_id', profile.companyId).order('date', {ascending: false});
      if(error) {
         console.error("Error fetching visits by client:", error);
         return [];
@@ -863,20 +898,39 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    for (const payment of payments) {
-        const { error: paymentError } = await supabase.from('payments').update({
-            amount: payment.amount,
-            status: payment.status,
-            due_date: payment.dueDate
-        }).eq('id', payment.id);
+    // First, delete existing payments for the project to handle cases where payment structure changes (e.g., vista to parcelado)
+    const { error: deleteError } = await supabase.from('payments').delete().eq('project_id', project.id);
+    if (deleteError) {
+        console.error("Error deleting old payments:", deleteError);
+        throw new Error("Não foi possível atualizar as parcelas do projeto.");
+    }
 
-        if (paymentError) {
-            console.error("Error updating payment:", paymentError);
+    // Now, insert the new/updated payments
+    if (payments && payments.length > 0) {
+        const paymentsToInsert = payments.map(p => ({
+            project_id: project.id,
+            amount: p.amount,
+            status: p.status,
+            due_date: p.dueDate,
+            description: p.description,
+            // We need to decide if we keep the old id or generate new ones. 
+            // For simplicity in upsert-like logic, let's treat them as new if the structure can change.
+            // However, if we want to preserve payment history, a more complex update logic is needed.
+            // For now, let's re-insert.
+        }));
+        const { error: insertError } = await supabase.from('payments').insert(paymentsToInsert);
+
+        if (insertError) {
+            console.error("Error inserting new payments:", insertError);
+            throw new Error("Não foi possível salvar as novas parcelas do projeto.");
         }
     }
     
-    return projectFromSupabase(updatedProjectData, payments);
+    const { data: finalPayments } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
+    
+    return projectFromSupabase(updatedProjectData, finalPayments || []);
 };
+
 
 export const addPhotoToProject = async (projectId: string, photoType: 'before' | 'after', photoData: Omit<Photo, 'id'>): Promise<Project> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
@@ -917,7 +971,9 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('master_visit_status').select('*');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+    const { data, error } = await supabase.from('master_visit_status').select('*').eq('company_id', profile.companyId);
     if (error) {
         console.error("Error fetching visit status options:", error);
         return [];
@@ -948,7 +1004,9 @@ export const deleteVisitStatusOption = async (id: string): Promise<void> => {
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('master_payment_instruments').select('*');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+    const { data, error } = await supabase.from('master_payment_instruments').select('*').eq('company_id', profile.companyId);
     if (error) {
         console.error("Error fetching payment instruments:", error);
         return [];
@@ -979,7 +1037,9 @@ export const deletePaymentInstrumentOption = async (id: string): Promise<void> =
 
 export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('master_project_status').select('*');
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+    const { data, error } = await supabase.from('master_project_status').select('*').eq('company_id', profile.companyId);
     if (error) {
         console.error("Error fetching project status options:", error);
         return [];
