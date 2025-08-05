@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -79,7 +80,7 @@ export default function SignUpPage() {
     
     try {
         const selectedCompany = organizations.find(o => o.id === companyId);
-        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${selectedCompany?.name || 'N/A'})` });
+        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${selectedCompany?.tradeName || 'N/A'})` });
         setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso. Você será notificado por e-mail.');
     } catch (notificationError: any) {
         console.error("Failed to send notification:", notificationError);
@@ -119,7 +120,7 @@ export default function SignUpPage() {
                           <SelectContent>
                             {organizations.length > 0 ? (
                               organizations.map(org => (
-                                <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                                <SelectItem key={org.id} value={org.id}>{org.tradeName}</SelectItem>
                               ))
                             ) : (
                               <div className="p-4 text-sm text-muted-foreground">Nenhuma empresa encontrada.</div>
@@ -186,5 +187,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    

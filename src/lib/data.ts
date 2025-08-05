@@ -1,4 +1,5 @@
 
+
 import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
@@ -22,6 +23,23 @@ const toCamelCase = (obj: any): any => {
     }
     return obj;
 };
+
+const toSnakeCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce(
+            (result, key) => {
+                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                result[snakeKey] = toSnakeCase(obj[key]);
+                return result;
+            },
+            {} as any
+        );
+    }
+    return obj;
+};
+
 
 const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     if (!payments || payments.length === 0) {
@@ -72,7 +90,7 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         .from('profiles')
         .select(`
             *,
-            organizations ( name )
+            organizations ( trade_name )
         `)
         .eq('id', session.user.id)
         .single();
@@ -87,11 +105,12 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     return {
         ...toCamelCase(profile),
         email: session.user.email || '',
-        companyName: companyDetails?.name || 'Empresa não encontrada'
+        companyName: companyDetails?.trade_name || 'Empresa não encontrada'
     };
 }
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
+    const supabaseAdmin = createSupabaseAdminClient();
     if (!supabase) return [];
     
     const currentProfile = await getCurrentProfile();
@@ -99,12 +118,11 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         console.error("Could not determine current user.");
         return [];
     }
-
+    
     // Super Admin Case
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
-         const supabaseAdmin = createSupabaseAdminClient();
          if (!supabaseAdmin) {
-            console.error("Failed to create Supabase admin client.");
+            console.error("Failed to create Supabase admin client for Superadmin.");
             return [];
          }
         // Fetch all profiles with company info
@@ -112,7 +130,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
             .from('profiles')
             .select(`
                 *,
-                organizations ( name )
+                organizations ( trade_name )
             `);
 
         if (profilesError) {
@@ -125,7 +143,15 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         
         if (authError) {
             console.error("Error fetching auth users:", authError);
-            return [];
+            // Don't fail completely, just return profiles without email if auth call fails
+             return profiles.map(p => {
+                 const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+                 return {
+                    ...toCamelCase(p),
+                    email: 'Não foi possível carregar o e-mail',
+                    companyName: companyDetails?.trade_name || 'N/A',
+                 }
+            });
         }
         
         const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
@@ -135,11 +161,11 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
              return {
                 id: p.id,
                 fullName: p.full_name,
-                email: emailMap.get(p.id) || 'N/A',
+                email: emailMap.get(p.id) || 'E-mail não encontrado',
                 role: p.role,
                 status: p.status,
                 companyId: p.company_id,
-                companyName: companyDetails?.name || 'N/A',
+                companyName: companyDetails?.trade_name || 'N/A',
              }
         });
     }
@@ -151,7 +177,7 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     }
 
     // Fetch profiles for the admin's company
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: companyProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('company_id', currentProfile.companyId);
@@ -161,17 +187,10 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    const userIds = profiles.map(p => p.id);
-    if (userIds.length === 0) return [];
-    
-    // For regular admins, we can only get other users' emails if we have a way to query them securely.
-    // The previous attempt failed. Let's try to get auth users via RPC call for this specific case.
-    // NOTE: This part is complex due to RLS and security.
-    // We will assume for now that we can't fetch emails for other users unless we are superadmin.
-    
-    return profiles.map(p => ({
+    // For regular admins, we can only see our own email due to security policies.
+    return companyProfiles.map(p => ({
         ...toCamelCase(p),
-        email: p.id === currentProfile.id ? currentProfile.email : `(oculto)`,
+        email: p.id === currentProfile.id ? currentProfile.email : `(acesso restrito)`,
         companyName: currentProfile.companyName
     }));
 }
@@ -204,7 +223,7 @@ export const getOrganizations = async (): Promise<Company[]> => {
     const { data, error } = await supabaseAdmin
         .from('organizations')
         .select('*')
-        .order('name');
+        .order('trade_name');
     
     if (error) {
         console.error("Error fetching organizations:", error);
@@ -218,7 +237,7 @@ export const getActiveOrganizations = async (): Promise<Company[]> => {
         .from('organizations')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('trade_name');
     
     if (error) {
         console.error("Error fetching active organizations:", error);
@@ -234,7 +253,7 @@ export const addOrganization = async (name: string): Promise<Company> => {
     
     const { data, error } = await supabaseAdmin
         .from('organizations')
-        .insert({ name: name, is_active: true })
+        .insert({ trade_name: name, is_active: true })
         .select()
         .single();
 
@@ -245,13 +264,15 @@ export const addOrganization = async (name: string): Promise<Company> => {
     return toCamelCase(data);
 };
 
-export const updateOrganization = async (id: string, updates: { name?: string; is_active?: boolean }): Promise<Company> => {
+export const updateOrganization = async (id: string, updates: Partial<Company>): Promise<Company> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+    
+    const { id: companyId, createdAt, ...updateData } = updates;
 
     const { data, error } = await supabaseAdmin
         .from('organizations')
-        .update(updates)
+        .update(toSnakeCase(updateData))
         .eq('id', id)
         .select()
         .single();
@@ -1043,21 +1064,3 @@ export const updateSettings = async ({ companyName, logoFile }: { companyName: s
     // Invalidate cache
     settingsCache = null;
 }
-
-const toSnakeCase = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => toSnakeCase(v));
-    } else if (obj !== null && obj.constructor === Object) {
-        return Object.keys(obj).reduce(
-            (result, key) => {
-                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-                result[snakeKey] = toSnakeCase(obj[key]);
-                return result;
-            },
-            {} as any
-        );
-    }
-    return obj;
-};
-
-    

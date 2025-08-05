@@ -136,5 +136,3 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
-
-    

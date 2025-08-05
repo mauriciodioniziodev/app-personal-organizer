@@ -108,9 +108,15 @@ export type UserProfile = {
 
 export type Company = {
     id: string;
-    name: string;
+    tradeName: string;
     isActive: boolean;
     createdAt: string;
+    legalName?: string;
+    cnpj?: string;
+    phone?: string;
+    address?: string;
+    contactPerson?: string;
+    notes?: string;
 }
 
 export type CompanySettings = {
