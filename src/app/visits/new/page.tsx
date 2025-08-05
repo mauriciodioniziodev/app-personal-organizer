@@ -23,17 +23,18 @@ const visitSchema = z.object({
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
-    status: z.string(),
+    status: z.string().min(1, "O status é obrigatório."),
 });
 
 export default function NewVisitPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
-    const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
+    const [visitStatusOptions, setVisitStatusOptions] = useState<MasterDataItem[]>([]);
+    const [selectedStatus, setSelectedStatus] = useState('');
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
     const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
     const [conflictMessage, setConflictMessage] = useState("");
@@ -47,7 +48,10 @@ export default function NewVisitPage() {
                 getVisitStatusOptions()
             ]);
             setClients(clientsData);
-            setVisitStatus(statusOptions);
+            setVisitStatusOptions(statusOptions);
+            if (statusOptions.length > 0) {
+                setSelectedStatus(statusOptions[0].name);
+            }
             setLoading(false);
         }
         fetchData();
@@ -88,10 +92,8 @@ export default function NewVisitPage() {
                 description: "Ocorreu um erro. Verifique os dados e tente novamente."
             });
             setIsSubmitting(false);
-        } finally {
-            setIsSubmitting(false);
         }
-    }
+    };
 
     const handleValidation = async () => {
         if (!formRef.current) return;
@@ -174,14 +176,17 @@ export default function NewVisitPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
-                            <Select name="status" defaultValue={visitStatus[0]?.name} required>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
+                            <Select name="status" required value={selectedStatus} onValueChange={setSelectedStatus}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um status" />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {visitStatus.map(status => (
+                                    {visitStatusOptions.map(status => (
                                         <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                             {errors.status && <p className="text-sm text-destructive">{errors.status[0]}</p>}
                         </div>
                         <div className="flex justify-end gap-2">
                              <Link href="/visits">
