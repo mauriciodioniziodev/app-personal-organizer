@@ -256,17 +256,13 @@ export const getOrganizations = async (): Promise<Company[]> => {
 }
 export const getActiveOrganizations = async (): Promise<Company[]> => {
     if (!supabase) return [];
-     const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('is_active', true)
-        .order('trade_name');
+    const { data, error } = await supabase.rpc('get_active_organizations');
     
     if (error) {
-        console.error("Error fetching active organizations:", error);
+        console.error("Error fetching active organizations via RPC:", error);
         return [];
     }
-    return toCamelCase(data);
+    return toCamelCase(data) as Company[];
 }
 
 
