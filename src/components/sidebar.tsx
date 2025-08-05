@@ -37,14 +37,13 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
   useEffect(() => {
      const fetchProfileAndSettings = async () => {
         if(!supabase) return;
-        const currentProfile = await getCurrentProfile();
         
-        if (currentProfile) {
-            setProfile(currentProfile);
-            if(currentProfile.companyId) {
-                const companySettings = await getSettings(currentProfile.companyId);
-                setSettings(companySettings);
-            }
+        const currentProfile = await getCurrentProfile();
+        setProfile(currentProfile);
+
+        if (currentProfile?.companyId) {
+            const companySettings = await getSettings();
+            setSettings(companySettings);
         }
      }
      fetchProfileAndSettings();

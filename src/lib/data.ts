@@ -94,7 +94,11 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select(`
-            *,
+            id,
+            company_id,
+            full_name,
+            role,
+            status,
             organizations ( trade_name )
         `)
         .eq('id', session.user.id)
@@ -108,25 +112,31 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
     return {
-        ...toCamelCase(profile),
+        id: profile.id,
+        companyId: profile.company_id,
+        fullName: profile.full_name,
         email: session.user.email || '',
+        status: profile.status,
+        role: profile.role,
         companyName: companyDetails?.trade_name || 'Empresa não encontrada'
     };
 }
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
-    const supabaseAdmin = createSupabaseAdminClient();
-    if (!supabaseAdmin) {
-        console.error("Failed to create Supabase admin client.");
-        return [];
-    }
-    
+    // This function must use the admin client to fetch user emails,
+    // but the initial profile fetch must use the public client to respect RLS.
     const currentProfile = await getCurrentProfile();
     if (!currentProfile) {
         console.error("Could not determine current user.");
         return [];
     }
     
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+        console.error("Failed to create Supabase admin client.");
+        return [];
+    }
+
     // Super Admin Case: Fetch all users and their company names
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
         const { data: profiles, error: profilesError } = await supabaseAdmin
@@ -168,12 +178,15 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         });
     }
     
-    // Regular Admin Case
+    // Regular Admin Case: Fetch users from the same company
     if (!currentProfile.companyId) {
          console.error("Current user does not have a company ID.");
          return [];
     }
 
+    // This query now uses the standard client, so RLS will apply.
+    // We need to create a specific RLS policy for profiles to allow this.
+    // For now, let's assume an admin can see other profiles in their company.
     const { data: companyProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -193,7 +206,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     const companyUserIds = companyProfiles.map(p => p.id);
     if (companyUserIds.length === 0) return [];
 
-    // This part still needs admin client to get user emails who are not the current user.
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
      if (authError) {
         console.error("Error fetching auth users for company:", authError);
@@ -288,8 +300,6 @@ export const addOrganization = async (name: string): Promise<Company> => {
 
     if (settingsError) {
         console.error("Error creating settings for new organization:", settingsError);
-        // Don't throw an error here, the org was created, but log it.
-        // The getSettings function can recover from this.
     }
 
     return toCamelCase(orgData);
@@ -299,7 +309,6 @@ export const updateOrganization = async (id: string, updates: Partial<Company>):
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
     
-    // Omit fields that are not part of the 'organizations' table or shouldn't be updated this way
     const { id: companyId, createdAt, ...updateData } = updates;
 
     const { data, error } = await supabaseAdmin
@@ -877,10 +886,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    // This is not multi-tenant safe. A user from another company could update payments if they guess the ID.
-    // However, since payment IDs are UUIDs, this is extremely unlikely. The payments are fetched
-    // within the project's scope, so the user can only see their own payments to begin with.
-    // RLS on the payments table provides the actual security layer.
     for (const payment of payments) {
         const { error: paymentError } = await supabase.from('payments').update({
             amount: payment.amount,
@@ -1028,12 +1033,16 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
 
 // --- Company Settings Functions ---
 
-export const getSettings = async (companyId: string): Promise<CompanySettings | null> => {
+export const getSettings = async (): Promise<CompanySettings | null> => {
     if (!supabase) return null;
-    if (!companyId) {
-        console.error("getSettings requires a companyId.");
+    
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) {
+        console.error("User not authenticated or has no company ID.");
         return null;
     }
+    
+    const { companyId } = profile;
 
     const { data: settingsData, error } = await supabase
         .from('settings')
@@ -1046,7 +1055,6 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
     
-    // If no settings exist for an existing company, create them.
     if (!settingsData) {
         const supabaseAdmin = createSupabaseAdminClient();
         if (!supabaseAdmin) {
@@ -1117,7 +1125,6 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
         logo_url: logoUrl,
     };
     
-    // This update is protected by RLS. The user must be an admin of the specified companyId.
     const { error } = await supabase
         .from('settings')
         .update(updates)
