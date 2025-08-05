@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -23,6 +22,15 @@ export default function Dashboard() {
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+        setCurrentTime(new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -106,7 +114,10 @@ export default function Dashboard() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline text-xl">Agenda do Dia</CardTitle>
-                    <CardDescription>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</CardDescription>
+                    <CardDescription className='flex items-center justify-between'>
+                        <span>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</span>
+                        <span className='font-mono font-semibold text-lg text-foreground bg-muted px-2 py-1 rounded-md'>{currentTime} (Horário de Brasília)</span>
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {dailySchedule.length > 0 ? (
