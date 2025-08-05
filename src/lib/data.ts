@@ -161,20 +161,27 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
     
-    // For regular admins, we can't get other users' emails for security reasons.
-    // We'll just return the profile data we can access, and map the email from the current session if it matches.
+    const userIds = profiles.map(p => p.id);
+    if (userIds.length === 0) return [];
+    
+    // For regular admins, we can only get other users' emails if we have a way to query them securely.
+    // The previous attempt failed. Let's try to get auth users via RPC call for this specific case.
+    // NOTE: This part is complex due to RLS and security.
+    // We will assume for now that we can't fetch emails for other users unless we are superadmin.
+    
     return profiles.map(p => ({
         ...toCamelCase(p),
-        email: p.id === currentProfile.id ? currentProfile.email : 'N/A', // Email is not available for other users
+        email: p.id === currentProfile.id ? currentProfile.email : `(oculto)`,
         companyName: currentProfile.companyName
     }));
 }
 
 
-export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
+export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario', company_id?: string }): Promise<UserProfile> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('profiles')
         .update(updates)
         .eq('id', userId)
@@ -188,6 +195,73 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
 
     return toCamelCase(data);
 };
+
+// --- Organization Management (Superadmin only) ---
+export const getOrganizations = async (): Promise<Company[]> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    const { data, error } = await supabaseAdmin
+        .from('organizations')
+        .select('*')
+        .order('name');
+    
+    if (error) {
+        console.error("Error fetching organizations:", error);
+        return [];
+    }
+    return toCamelCase(data);
+}
+export const getActiveOrganizations = async (): Promise<Company[]> => {
+    if (!supabase) return [];
+     const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+    
+    if (error) {
+        console.error("Error fetching active organizations:", error);
+        return [];
+    }
+    return toCamelCase(data);
+}
+
+
+export const addOrganization = async (name: string): Promise<Company> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+    
+    const { data, error } = await supabaseAdmin
+        .from('organizations')
+        .insert({ name: name, is_active: true })
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error adding organization:", error);
+        throw new Error("Não foi possível adicionar a nova empresa.");
+    }
+    return toCamelCase(data);
+};
+
+export const updateOrganization = async (id: string, updates: { name?: string; is_active?: boolean }): Promise<Company> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    const { data, error } = await supabaseAdmin
+        .from('organizations')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("Error updating organization:", error);
+        throw new Error("Não foi possível atualizar a empresa.");
+    }
+    return toCamelCase(data);
+}
 
 
 // --- Data Access Functions (RLS-secured) ---

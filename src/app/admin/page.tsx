@@ -5,20 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, FormEvent, useCallback } from "react";
-import { LoaderCircle, Trash, Plus, Users, Check, X, Building } from "lucide-react";
+import { LoaderCircle, Trash, Plus, Users, Check, X, Building, Save, Power, PowerOff } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { 
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    updateProfile, getMyCompanyUsers
+    updateProfile, getMyCompanyUsers, getOrganizations, addOrganization, updateOrganization
 } from "@/lib/data";
 import { getCurrentProfile } from "@/lib/data";
-import type { MasterDataItem, UserProfile } from "@/lib/definitions";
+import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 function MasterDataCard<T extends MasterDataItem>({
     title,
@@ -97,8 +99,102 @@ function MasterDataCard<T extends MasterDataItem>({
     )
 }
 
+function OrganizationManagementCard() {
+    const [orgs, setOrgs] = useState<Company[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+    const [newOrgName, setNewOrgName] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+
+    const fetchOrgs = useCallback(async () => {
+        setLoading(true);
+        try {
+            const orgsData = await getOrganizations();
+            setOrgs(orgsData);
+        } catch(e) {
+            toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        fetchOrgs();
+    }, [fetchOrgs]);
+    
+    const handleAddOrg = async (e: FormEvent) => {
+        e.preventDefault();
+        if(!newOrgName.trim()) return;
+        setIsAdding(true);
+        try {
+            await addOrganization(newOrgName);
+            toast({ title: 'Sucesso!', description: `Empresa "${newOrgName}" criada.` });
+            setNewOrgName('');
+            fetchOrgs();
+        } catch(e) {
+             toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
+        } finally {
+            setIsAdding(false);
+        }
+    }
+    
+    const handleToggleActive = async (org: Company) => {
+        try {
+            await updateOrganization(org.id, { is_active: !org.isActive });
+            toast({ title: 'Sucesso!', description: `Status de "${org.name}" alterado.` });
+            fetchOrgs();
+        } catch (e) {
+             toast({ variant: 'destructive', title: 'Erro', description: (e as Error).message });
+        }
+    }
+
+    if(loading) {
+        return <Card><CardHeader><CardTitle>Gerenciamento de Empresas</CardTitle></CardHeader><CardContent><LoaderCircle className="animate-spin"/></CardContent></Card>
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2"><Building /> Gerenciamento de Empresas</CardTitle>
+                <CardDescription>Adicione novas empresas e gerencie o acesso delas ao sistema.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <ul className="space-y-2 mb-4">
+                    {orgs.map(org => (
+                        <li key={org.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                            <span className={cn(!org.isActive && 'text-muted-foreground line-through')}>{org.name}</span>
+                            <div className="flex items-center gap-2">
+                                <Switch
+                                    checked={org.isActive}
+                                    onCheckedChange={() => handleToggleActive(org)}
+                                    aria-label="Ativar/Desativar Empresa"
+                                />
+                                <Badge variant={org.isActive ? 'default': 'outline'}>{org.isActive ? 'Ativa' : 'Inativa'}</Badge>
+                            </div>
+                        </li>
+                    ))}
+                     {orgs.length === 0 && <p className="text-sm text-muted-foreground text-center">Nenhuma empresa cadastrada.</p>}
+                </ul>
+                <form onSubmit={handleAddOrg} className="flex gap-2">
+                    <Input 
+                        placeholder="Nome da nova empresa..." 
+                        value={newOrgName}
+                        onChange={(e) => setNewOrgName(e.target.value)}
+                    />
+                    <Button type="submit" disabled={isAdding}>
+                        {isAdding ? <LoaderCircle className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4" />}
+                        <span className="sr-only">Adicionar Empresa</span>
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    )
+}
+
+
 function UserManagementCard() {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
+    const [organizations, setOrganizations] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -107,12 +203,14 @@ function UserManagementCard() {
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
         try {
-            const [profilesData, currentUserData] = await Promise.all([
+            const [profilesData, currentUserData, orgsData] = await Promise.all([
                 getMyCompanyUsers(),
-                getCurrentProfile()
+                getCurrentProfile(),
+                getOrganizations()
             ]);
             setProfiles(profilesData);
             setCurrentUser(currentUserData);
+            setOrganizations(orgsData);
             setIsSuperAdmin(currentUserData?.email === 'mauriciodionizio@gmail.com');
         } catch (error) {
             console.error("Error on client fetching profiles:", error);
@@ -145,6 +243,17 @@ function UserManagementCard() {
             toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
         }
     };
+
+    const handleCompanyChange = async (userId: string, newCompanyId: string) => {
+         try {
+            await updateProfile(userId, { company_id: newCompanyId });
+            toast({ title: 'Sucesso!', description: 'Empresa do usuário atualizada.' });
+            fetchProfiles(); // Refresh the list
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        }
+    };
+
 
     const statusBadge: Record<string, string> = {
         pending: 'bg-yellow-100 text-yellow-800',
@@ -202,6 +311,22 @@ function UserManagementCard() {
                                     </div>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                    {isSuperAdmin && (
+                                         <Select 
+                                            value={profile.companyId} 
+                                            onValueChange={(v) => handleCompanyChange(profile.id, v as any)}
+                                            disabled={isCurrentUser}
+                                        >
+                                            <SelectTrigger className="w-full sm:w-[180px]">
+                                                <SelectValue placeholder="Alterar Empresa" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {organizations.map(org => (
+                                                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                     <Select 
                                         value={profile.role} 
                                         onValueChange={(v) => handleRoleChange(profile.id, v as any)}
@@ -240,18 +365,21 @@ export default function AdminPage() {
     const [paymentInstrumentOptions, setPaymentInstrumentOptions] = useState<MasterDataItem[]>([]);
     const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [visitStatus, paymentInstruments, projectStatus] = await Promise.all([
+            const [visitStatus, paymentInstruments, projectStatus, currentUser] = await Promise.all([
                 getVisitStatusOptions(),
                 getPaymentInstrumentsOptions(),
                 getProjectStatusOptions(),
+                getCurrentProfile(),
             ]);
             setVisitStatusOptions(visitStatus);
             setPaymentInstrumentOptions(paymentInstruments);
             setProjectStatusOptions(projectStatus);
+            setIsSuperAdmin(currentUser?.email === 'mauriciodionizio@gmail.com');
         } catch(e) {
             console.error("Failed to fetch admin data", e);
         } finally {
@@ -280,6 +408,7 @@ export default function AdminPage() {
             <PageHeader title="Administração" />
 
             <div className="space-y-8">
+                {isSuperAdmin && <OrganizationManagementCard />}
                 <UserManagementCard />
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <MasterDataCard

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -10,34 +10,53 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
 import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
+import { getActiveOrganizations } from '@/lib/data';
+import type { Company } from '@/lib/definitions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SignUpPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [organizations, setOrganizations] = useState<Company[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
+
+  useEffect(() => {
+    async function fetchOrgs() {
+      setLoadingOrgs(true);
+      const orgs = await getActiveOrganizations();
+      setOrganizations(orgs);
+      setLoadingOrgs(false);
+    }
+    fetchOrgs();
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+    
+    if (!companyId) {
+        setError("Por favor, selecione a sua empresa.");
+        setLoading(false);
+        return;
+    }
 
-    // This simply creates the user in auth.users.
-    // A database trigger (`on_auth_user_created`) will then create the company,
-    // the profile (as admin), and the default settings for that company.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          full_name: fullName, // This will be used as the company and user name
+          full_name: fullName,
+          company_id: companyId,
         }
       }
     });
@@ -58,13 +77,13 @@ export default function SignUpPage() {
         return;
     }
     
-    // The trigger handles all the backend setup. We just notify the user.
     try {
-        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${fullName})` });
-        setSuccess('Cadastro realizado com sucesso! Você já pode acessar sua conta e começar a usar o sistema.');
+        const selectedCompany = organizations.find(o => o.id === companyId);
+        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${selectedCompany?.name || 'N/A'})` });
+        setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso. Você será notificado por e-mail.');
     } catch (notificationError: any) {
         console.error("Failed to send notification:", notificationError);
-         setSuccess('Cadastro realizado com sucesso! Ocorreu um erro ao notificar o super-administrador, mas sua conta está pronta para uso.');
+         setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso.');
     } finally {
         setLoading(false);
     }
@@ -75,8 +94,8 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Crie sua Conta e sua Empresa</CardTitle>
-            <CardDescription>Preencha os campos para criar seu acesso de administrador.</CardDescription>
+            <CardTitle className="text-2xl font-headline">Criar sua Conta</CardTitle>
+            <CardDescription>Preencha os campos para criar seu acesso.</CardDescription>
           </CardHeader>
           <CardContent>
             {success ? (
@@ -85,25 +104,42 @@ export default function SignUpPage() {
                   <AlertDescription>{success}</AlertDescription>
                   <div className="mt-4">
                     <Link href="/login">
-                        <Button className="w-full">Ir para o Login</Button>
+                        <Button className="w-full">Voltar para o Login</Button>
                     </Link>
                   </div>
                 </Alert>
             ) : (
                 <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="fullName">Nome da Empresa / Seu Nome Completo</Label>
+                        <Label htmlFor="companyId">Empresa</Label>
+                        <Select name="companyId" required value={companyId} onValueChange={setCompanyId}>
+                          <SelectTrigger disabled={loadingOrgs}>
+                            <SelectValue placeholder={loadingOrgs ? "Carregando empresas..." : "Selecione sua empresa"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizations.length > 0 ? (
+                              organizations.map(org => (
+                                <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-sm text-muted-foreground">Nenhuma empresa encontrada.</div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="fullName">Seu Nome Completo</Label>
                         <Input
                         id="fullName"
                         type="text"
-                        placeholder="Ex: OrganizaTudo Ltda"
+                        placeholder="Ex: Ana de Souza"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         required
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email">Seu E-mail de Administrador</Label>
+                        <Label htmlFor="email">Seu E-mail</Label>
                         <Input
                         id="email"
                         type="email"
@@ -130,8 +166,8 @@ export default function SignUpPage() {
                         <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
-                    <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Minha Conta e Empresa'}
+                    <Button type="submit" className="w-full" disabled={loading || loadingOrgs}>
+                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Minha Conta'}
                     </Button>
                 </form>
             )}
