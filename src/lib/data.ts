@@ -532,10 +532,10 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
 
     const now = new Date();
     
-    const startOfDay = new Date(now);
+    const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(now);
+    const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
     
     let visitsQuery = supabase.from('visits').select('*')
@@ -587,7 +587,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: visitDate.getTime() < now.getTime() && v.status === 'pendente'
+                isOverdue: visitDate < now && v.status === 'pendente'
             });
         }
     });
@@ -596,7 +596,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999); 
-        const isOverdue = projectEndDate.getTime() < now.getTime() && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -617,7 +617,11 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         }
     });
 
-    return schedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return schedule.sort((a, b) => {
+        const timeA = a.time ? a.date.substring(11, 16) : '00:00';
+        const timeB = b.time ? b.date.substring(11, 16) : '00:00';
+        return timeA.localeCompare(timeB);
+    });
 };
 
 
@@ -1297,6 +1301,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
