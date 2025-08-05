@@ -1017,6 +1017,7 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
 
+    // This query is secured by the RLS policy on the `settings` table.
     const { data: settingsData, error } = await supabase
         .from('settings')
         .select('*')
@@ -1024,32 +1025,37 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         .maybeSingle();
 
     if (error) {
-        console.error("Error fetching settings:", error);
+        console.error("Error fetching settings:", error.message);
+        // Don't create settings here, as the error might be an RLS violation,
+        // and we should not bypass it with an admin client.
         return null;
     }
     
     if (settingsData) {
         return toCamelCase(settingsData);
     }
-    
-    // If no settings found, create them for the existing company
+
+    // If no settings are found for a legitimate user, it means they haven't been created yet.
+    // We use the admin client to create them, as the user might not have insert permissions.
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) {
         console.error("Cannot create settings: admin client is not available.");
         return null;
     }
 
+    // Check if the organization actually exists before creating settings for it.
     const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .select('trade_name')
         .eq('id', companyId)
         .single();
     
-    if (orgError) {
+    if (orgError || !orgData) {
         console.error("Could not fetch organization name to create settings:", orgError);
-        return null;
+        return null; // Don't create settings for a non-existent company
     }
 
+    // Create the default settings for the company.
     const { data: newSettings, error: insertError } = await supabaseAdmin
         .from('settings')
         .insert({
@@ -1070,6 +1076,7 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 
 export const updateSettings = async ({ companyId, companyName, logoFile }: { companyId: string, companyName: string, logoFile: File | null }): Promise<void> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
+     if (!companyId) throw new Error("Company ID is required to update settings.");
 
     const { data: currentSettings } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
 
@@ -1098,6 +1105,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
         logo_url: logoUrl,
     };
     
+    // This update is protected by RLS. The user must be an admin of the specified companyId.
     const { error } = await supabase
         .from('settings')
         .update(updates)
