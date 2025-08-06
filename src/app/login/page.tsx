@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle, Shirt } from 'lucide-react';
-import type { CompanySettings } from '@/lib/definitions';
 import Image from 'next/image';
 
 function LoginPageContent() {
@@ -24,7 +23,7 @@ function LoginPageContent() {
   const companyName = 'Bem-vindo(a) de volta!';
 
   useEffect(() => {
-    // Check for error messages passed via query params from the layout redirect
+    // Check for error messages passed via query params (e.g., from layout redirect on session check)
     const authError = searchParams.get('error');
     if (authError) {
       setError(decodeURIComponent(authError));
@@ -42,8 +41,7 @@ function LoginPageContent() {
         return;
     }
     
-    // The logic has been simplified to directly use Supabase auth.
-    // The check for company status and user status will happen in the RootLayout after a successful login.
+    // 1. Attempt to sign in the user
     const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -65,8 +63,45 @@ function LoginPageContent() {
         return;
     }
 
-    // On successful login, clear any previous errors and redirect to the dashboard.
-    // The RootLayout will handle the authorization checks.
+    // 2. If sign-in is successful, perform authorization checks before navigating
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('status, organizations ( is_active )')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Error fetching profile post-login:", profileError);
+      setError("Erro ao verificar suas permissões. Tente novamente.");
+      await supabase.auth.signOut(); // Sign out to be safe
+      setLoading(false);
+      return;
+    }
+
+    const company = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
+
+    if (!company?.is_active) {
+       setError("O acesso da sua empresa ao sistema foi suspenso.");
+       await supabase.auth.signOut();
+       setLoading(false);
+       return;
+    }
+
+    if (profile.status === 'revoked') {
+       setError("Seu acesso foi revogado pelo administrador.");
+       await supabase.auth.signOut();
+       setLoading(false);
+       return;
+    }
+
+    if (profile.status === 'pending') {
+       setError("Sua conta aguarda aprovação do administrador.");
+       await supabase.auth.signOut();
+       setLoading(false);
+       return;
+    }
+    
+    // 3. If all checks pass, navigate to the dashboard
     router.push('/');
   };
 
