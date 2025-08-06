@@ -24,6 +24,15 @@ export default function LoginPage() {
   // We will display a generic welcome message. The logo/name will appear after login.
   const companyName = 'Bem-vindo(a) de volta!';
 
+  useEffect(() => {
+    // Check for error messages passed via query params from the layout redirect
+    const searchParams = new URLSearchParams(window.location.search);
+    const authError = searchParams.get('error');
+    if (authError) {
+      setError(decodeURIComponent(authError));
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -35,51 +44,31 @@ export default function LoginPage() {
         return;
     }
     
-    // Step 1: Securely check user and company status BEFORE attempting to sign in.
-    const { data: status, error: rpcError } = await supabase.rpc('get_user_and_company_status', { p_email: email });
-
-    if (rpcError) {
-        // This covers cases where the user doesn't exist or another RPC error occurred.
-        // In all these cases, we show a generic "Invalid credentials" error to prevent user enumeration.
-        setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-        setLoading(false);
-        return;
-    }
-
-    // Step 2: Evaluate the status returned by the RPC function.
-    if (status) {
-      if (status.company_is_active === false) {
-          setError('O acesso da sua empresa ao sistema foi suspenso. Por favor, entre em contato com o suporte.');
-          setLoading(false);
-          return;
-      }
-
-      if (status.user_status === 'revoked') {
-          setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
-          setLoading(false);
-          return;
-      }
-
-      if (status.user_status === 'pending') {
-          setError('Sua conta ainda está pendente de aprovação pelo administrador.');
-          setLoading(false);
-          return;
-      }
-    }
-    
-    // Step 3: If all checks pass, proceed with the actual authentication.
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // The logic has been simplified to directly use Supabase auth.
+    // The check for company status and user status will happen in the RootLayout after a successful login.
+    const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (signInError) {
-      // This will now only trigger for genuinely wrong passwords, as other failure cases are handled above.
-      setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-      setLoading(false);
-      return;
+        if (signInError.message.includes("Invalid login credentials")) {
+            setError('Credenciais inválidas. Verifique seu e-mail e senha.');
+        } else {
+            setError(signInError.message);
+        }
+        setLoading(false);
+        return;
+    }
+    
+    if (!user) {
+        setError("Ocorreu um erro inesperado durante o login. Tente novamente.");
+        setLoading(false);
+        return;
     }
 
+    // On successful login, clear any previous errors and redirect to the dashboard.
+    // The RootLayout will handle the authorization checks.
     router.push('/');
   };
 

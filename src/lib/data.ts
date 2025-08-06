@@ -219,6 +219,19 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
     return toCamelCase(data);
 };
 
+// Forces a sign-out for a specific user. For admin use.
+export const signOutUserById = async (userId: string): Promise<void> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    const { error } = await supabaseAdmin.auth.admin.signOut(userId);
+    if (error) {
+        console.error(`Error signing out user ${userId}:`, error);
+        // Don't throw an error to the UI, just log it. The primary action (status change) was successful.
+    }
+};
+
+
 // --- Organization Management (Superadmin only) ---
 export const getOrganizations = async (): Promise<Company[]> => {
     // This MUST use the admin client as only a superadmin can see all organizations
@@ -564,14 +577,14 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const schedule: ScheduleItem[] = [];
     
     const now = new Date();
-    const nowForComparison = new Date(now.valueOf() - 3 * 60 * 60 * 1000);
+    now.setHours(now.getHours() - 3);
 
     
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
         const visitDate = new Date(v.date);
         
-        const isOverdue = visitDate < nowForComparison && v.status === 'pendente';
+        const isOverdue = visitDate < now && v.status === 'pendente';
         
         if (client) {
             schedule.push({
@@ -595,7 +608,7 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         const client = clientMap.get(p.client_id);
         const projectEndDate = new Date(p.end_date);
         projectEndDate.setHours(23, 59, 59, 999); 
-        const isOverdue = projectEndDate < nowForComparison && !['Concluído', 'Cancelado'].includes(p.status);
+        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
 
         if (client) {
             schedule.push({
@@ -1300,6 +1313,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 

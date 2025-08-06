@@ -12,7 +12,8 @@ import {
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
-    updateProfile, getMyCompanyUsers, getOrganizations, addOrganization, updateOrganization
+    updateProfile, getMyCompanyUsers, getOrganizations, addOrganization, updateOrganization,
+    signOutUserById
 } from "@/lib/data";
 import { getCurrentProfile } from "@/lib/data";
 import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
@@ -342,6 +343,9 @@ function UserManagementCard({ refreshTrigger }: { refreshTrigger: number }) {
     const handleStatusChange = async (userId: string, newStatus: 'authorized' | 'revoked') => {
         try {
             await updateProfile(userId, { status: newStatus });
+            if (newStatus === 'revoked') {
+                await signOutUserById(userId);
+            }
             toast({ title: 'Sucesso!', description: 'Status do usuário atualizado.' });
             fetchProfiles(); // Refresh the list
         } catch (error) {

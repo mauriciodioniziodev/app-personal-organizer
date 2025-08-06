@@ -13,7 +13,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { LoaderCircle } from "lucide-react";
 import LoginPage from "./login/page";
 import Header from "@/components/header";
-import type { Session } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
+import { getOrganizations } from "@/lib/data";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -25,6 +26,46 @@ const alegreya = Alegreya({
   subsets: ["latin"],
   variable: "--font-alegreya",
 });
+
+async function checkAuthorization(user: User | null, router: ReturnType<typeof useRouter>) {
+    if (!user) return true; // Let the regular logic handle unauthenticated users
+
+    const { data: profile, error: profileError } = await supabase!
+      .from('profiles')
+      .select('status, company_id, organizations ( is_active )')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching profile for auth check:", profileError);
+      await supabase!.auth.signOut();
+      router.push(`/login?error=${encodeURIComponent("Erro ao verificar suas permissões. Tente novamente.")}`);
+      return false;
+    }
+    
+    const company = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
+
+    if (!company?.is_active) {
+       await supabase!.auth.signOut();
+       router.push(`/login?error=${encodeURIComponent("O acesso da sua empresa ao sistema foi suspenso.")}`);
+       return false;
+    }
+
+    if (profile.status === 'revoked') {
+       await supabase!.auth.signOut();
+       router.push(`/login?error=${encodeURIComponent("Seu acesso foi revogado pelo administrador.")}`);
+       return false;
+    }
+
+     if (profile.status === 'pending') {
+       await supabase!.auth.signOut();
+       router.push(`/login?error=${encodeURIComponent("Sua conta aguarda aprovação do administrador.")}`);
+       return false;
+    }
+    
+    return true; // Authorized
+}
+
 
 export default function RootLayout({
   children,
@@ -42,8 +83,18 @@ export default function RootLayout({
         return;
     }
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+      async (_event, session) => {
+        setLoading(true);
+        if (session?.user) {
+            const isAuthorized = await checkAuthorization(session.user, router);
+            if (isAuthorized) {
+                setSession(session);
+            } else {
+                setSession(null);
+            }
+        } else {
+            setSession(null);
+        }
         setLoading(false);
       }
     );
@@ -51,7 +102,16 @@ export default function RootLayout({
     // Also check session on initial load
      const checkInitialSession = async () => {
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
+        if (session?.user) {
+            const isAuthorized = await checkAuthorization(session.user, router);
+             if (isAuthorized) {
+                setSession(session);
+            } else {
+                setSession(null);
+            }
+        } else {
+            setSession(null);
+        }
         setLoading(false);
      }
      checkInitialSession();
@@ -60,7 +120,7 @@ export default function RootLayout({
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (loading) return;
@@ -92,8 +152,7 @@ export default function RootLayout({
   }
   
   const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
-  const isAuthPage = publicAuthPages.includes(pathname);
-
+  const isAuthPage = publicAuthPages.some(page => pathname.startsWith(page));
 
   if (!session && !isAuthPage) {
       // Show loading or a blank page while redirecting
@@ -127,6 +186,22 @@ export default function RootLayout({
             </body>
         </html>
     )
+  }
+
+  // This handles the case where the user is logged in, but their access might have been revoked.
+  // The session check above handles redirecting them away, so we can just show a loader here.
+  if (!session) {
+      return (
+         <html lang="en" suppressHydrationWarning>
+            <head>
+                <title>OrganizerFlow</title>
+                <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
+            </head>
+            <body className="flex items-center justify-center h-screen bg-background">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
+            </body>
+        </html>
+      )
   }
 
 
