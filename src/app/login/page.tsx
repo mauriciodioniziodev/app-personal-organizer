@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,24 +14,22 @@ import { LoaderCircle, Shirt } from 'lucide-react';
 import type { CompanySettings } from '@/lib/definitions';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // Company settings cannot be reliably fetched on login page without knowing the company.
-  // We will display a generic welcome message. The logo/name will appear after login.
   const companyName = 'Bem-vindo(a) de volta!';
 
   useEffect(() => {
     // Check for error messages passed via query params from the layout redirect
-    const searchParams = new URLSearchParams(window.location.search);
     const authError = searchParams.get('error');
     if (authError) {
       setError(decodeURIComponent(authError));
     }
-  }, []);
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,4 +137,10 @@ export default function LoginPage() {
   );
 }
 
-    
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-background"><LoaderCircle className="w-8 h-8 animate-spin" /></div>}>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
