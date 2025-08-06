@@ -11,10 +11,8 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { LoaderCircle } from "lucide-react";
-import LoginPage from "./login/page";
 import Header from "@/components/header";
 import type { Session, User } from "@supabase/supabase-js";
-import { getOrganizations } from "@/lib/data";
 
 const belleza = Belleza({
   subsets: ["latin"],
