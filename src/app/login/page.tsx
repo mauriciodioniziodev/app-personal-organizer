@@ -71,8 +71,7 @@ function LoginPageContent() {
       .single();
 
     if (profileError || !profile) {
-      console.error("Error fetching profile post-login:", profileError);
-      setError("Erro ao verificar suas permissões. Tente novamente.");
+      setError("Seu perfil não foi encontrado. Se você acabou de se cadastrar, aguarde a aprovação do administrador.");
       await supabase.auth.signOut(); // Sign out to be safe
       setLoading(false);
       return;

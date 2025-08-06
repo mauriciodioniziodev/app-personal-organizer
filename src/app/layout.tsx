@@ -34,10 +34,10 @@ async function checkAuthorization(user: User | null, router: ReturnType<typeof u
       .eq('id', user.id)
       .single();
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error("Error fetching profile for auth check:", profileError);
       await supabase!.auth.signOut();
-      router.push(`/login?error=${encodeURIComponent("Erro ao verificar suas permissões. Tente novamente.")}`);
+      router.push(`/login?error=${encodeURIComponent("Seu perfil não foi encontrado. Por favor, faça login novamente.")}`);
       return false;
     }
     
