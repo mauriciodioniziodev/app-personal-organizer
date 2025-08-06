@@ -35,32 +35,36 @@ export default function LoginPage() {
         setLoading(false);
         return;
     }
-
-    const { data: status, error: rpcError } = await supabase.rpc('get_user_status_by_email', { user_email: email });
+    
+    // Step 1: Check user and company status BEFORE attempting to sign in.
+    const { data: status, error: rpcError } = await supabase.rpc('get_user_and_company_status', { p_email: email });
 
     if (rpcError) {
-        console.error('Error checking user status:', rpcError);
-        // Fall through to try login anyway, in case the user does not exist yet, the login will fail with "Invalid credentials"
+      // This could happen if the user doesn't exist. We want to show a generic "Invalid credentials" error.
+      // So we'll try to sign in anyway, and let that fail.
+      console.warn('RPC get_user_and_company_status failed, proceeding to login attempt:', rpcError.message);
+    } else if (status) {
+        // Step 2: Evaluate the status returned by the RPC function.
+        if (status.company_is_active === false) {
+            setError('O acesso da sua empresa ao sistema foi suspenso. Por favor, entre em contato com o suporte.');
+            setLoading(false);
+            return;
+        }
+
+        if (status.user_status === 'revoked') {
+            setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
+            setLoading(false);
+            return;
+        }
+
+        if (status.user_status === 'pending') {
+            setError('Sua conta ainda está pendente de aprovação pelo administrador.');
+            setLoading(false);
+            return;
+        }
     }
     
-    if (status?.company_is_active === false) {
-        setError('O acesso da sua empresa ao sistema foi suspenso. Por favor, entre em contato com o suporte.');
-        setLoading(false);
-        return;
-    }
-
-    if (status?.profile_status === 'revoked') {
-        setError('Seu acesso foi revogado. Por favor, entre em contato com o administrador.');
-        setLoading(false);
-        return;
-    }
-
-    if (status?.profile_status === 'pending') {
-        setError('Sua conta ainda está pendente de aprovação pelo administrador.');
-        setLoading(false);
-        return;
-    }
-
+    // Step 3: If all checks pass, proceed with the actual authentication.
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
