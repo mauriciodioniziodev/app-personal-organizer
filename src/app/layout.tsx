@@ -41,6 +41,8 @@ async function checkAuthorization(user: User | null, router: ReturnType<typeof u
       return false;
     }
     
+    // The result from a joined query can be an object or an array of objects.
+    // This normalization handles both cases safely.
     const company = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
     if (!company?.is_active) {
