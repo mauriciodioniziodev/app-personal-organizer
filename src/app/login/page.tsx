@@ -40,6 +40,7 @@ export default function LoginPage() {
 
     if (rpcError) {
         console.error('Error checking user status:', rpcError);
+        // Fall through to try login anyway, in case the user does not exist yet, the login will fail with "Invalid credentials"
     }
     
     if (status?.company_is_active === false) {
