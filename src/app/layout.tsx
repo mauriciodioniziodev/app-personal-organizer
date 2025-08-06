@@ -65,7 +65,9 @@ export default function RootLayout({
   useEffect(() => {
     if (loading) return;
 
-    const isAuthPage = pathname === '/login' || pathname === '/signup';
+    const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
+    const isAuthPage = publicAuthPages.includes(pathname);
+
 
     if (!session && !isAuthPage) {
       router.push('/login');
@@ -89,7 +91,9 @@ export default function RootLayout({
     );
   }
   
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
+  const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
+  const isAuthPage = publicAuthPages.includes(pathname);
+
 
   if (!session && !isAuthPage) {
       // Show loading or a blank page while redirecting
