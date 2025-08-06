@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { LoaderCircle, Shirt } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import Image from 'next/image';
 
 function LoginPageContent() {
@@ -107,11 +107,6 @@ function LoginPageContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-            <div className="w-20 h-20 rounded-lg flex items-center justify-center bg-card border">
-                <Shirt className="w-10 h-10 text-muted-foreground" />
-            </div>
-        </div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline">{companyName}</CardTitle>
