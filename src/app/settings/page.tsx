@@ -12,8 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LoaderCircle, UploadCloud, Save, Image as ImageIcon } from 'lucide-react';
+import { LoaderCircle, UploadCloud, Save, Image as ImageIcon, Sun, Moon, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -24,6 +25,7 @@ export default function SettingsPage() {
     const [companyName, setCompanyName] = useState('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [theme, setTheme] = useState<CompanySettings['theme']>('default');
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -36,6 +38,7 @@ export default function SettingsPage() {
                 if (currentSettings) {
                     setCompanyName(currentSettings.companyName || '');
                     setLogoPreview(currentSettings.logoUrl || null);
+                    setTheme(currentSettings.theme || 'default');
                 }
             } else {
                  toast({
@@ -76,7 +79,7 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
-            await updateSettings({ companyId: profile.companyId, companyName, logoFile });
+            await updateSettings({ companyId: profile.companyId, companyName, logoFile, theme });
             toast({
                 title: 'Sucesso!',
                 description: 'As configurações foram salvas.',
@@ -107,7 +110,7 @@ export default function SettingsPage() {
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Configurações da Empresa" />
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Identidade Visual</CardTitle>
@@ -154,26 +157,58 @@ export default function SettingsPage() {
                             </div>
                         )}
                         
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={isSaving}>
-                                {isSaving ? (
-                                    <>
-                                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                                        Salvando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="mr-2 h-4 w-4" />
-                                        Salvar Alterações
-                                    </>
-                                )}
-                            </Button>
-                        </div>
+                       
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline">Tema do Sistema</CardTitle>
+                        <CardDescription>Selecione o tema de cores que será aplicado para todos os usuários da sua empresa.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <RadioGroup value={theme} onValueChange={(value) => setTheme(value as CompanySettings['theme'])} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <RadioGroupItem value="default" id="default-theme" className="peer sr-only" />
+                                <Label htmlFor="default-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                    <Sparkles className="mb-3 h-6 w-6" />
+                                    Padrão
+                                </Label>
+                            </div>
+                             <div>
+                                <RadioGroupItem value="light" id="light-theme" className="peer sr-only" />
+                                <Label htmlFor="light-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                    <Sun className="mb-3 h-6 w-6" />
+                                    Claro
+                                </Label>
+                            </div>
+                             <div>
+                                <RadioGroupItem value="dark" id="dark-theme" className="peer sr-only" />
+                                <Label htmlFor="dark-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                    <Moon className="mb-3 h-6 w-6" />
+                                    Escuro
+                                </Label>
+                            </div>
+                        </RadioGroup>
+                    </CardContent>
+                </Card>
+
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? (
+                            <>
+                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                Salvando...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="mr-2 h-4 w-4" />
+                                Salvar Alterações
+                            </>
+                        )}
+                    </Button>
+                </div>
             </form>
         </div>
     );
 }
-
-    

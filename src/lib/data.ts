@@ -282,7 +282,7 @@ export const addOrganization = async (name: string): Promise<Company> => {
     // Explicitly create the settings entry for the new organization
     const { error: settingsError } = await supabaseAdmin
         .from('settings')
-        .insert({ company_id: orgData.id, company_name: orgData.trade_name });
+        .insert({ company_id: orgData.id, company_name: orgData.trade_name, theme: 'default' });
 
     if (settingsError) {
         // Log the error but don't fail the whole operation
@@ -1239,6 +1239,7 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
             .insert({
                 company_id: companyId,
                 company_name: orgData.trade_name,
+                theme: 'default'
             })
             .select()
             .single();
@@ -1255,11 +1256,11 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 };
 
 
-export const updateSettings = async ({ companyId, companyName, logoFile }: { companyId: string, companyName: string, logoFile: File | null }): Promise<void> => {
+export const updateSettings = async ({ companyId, companyName, logoFile, theme }: { companyId: string, companyName: string, logoFile: File | null, theme: CompanySettings['theme'] }): Promise<void> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
      if (!companyId) throw new Error("Company ID is required to update settings.");
 
-    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
+    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).maybeSingle();
 
     if(fetchError && fetchError.code !== 'PGRST116') { // Ignore "exact one row" error if settings don't exist yet
         console.error('Error fetching current settings:', fetchError);
@@ -1291,6 +1292,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
         company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
+        theme: theme,
     };
     
     const { error } = await supabase
@@ -1313,6 +1315,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile }: { com
 
 
     
+
 
 
 
