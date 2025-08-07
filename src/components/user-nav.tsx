@@ -15,38 +15,36 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import type { UserProfile } from "@/lib/definitions";
 import { LogOut } from "lucide-react";
+import { getCurrentProfile } from "@/lib/data";
 
 export function UserNav() {
-  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchUserData = async () => {
       if (!supabase) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-        if (userProfile) {
-            setProfile({
-                id: userProfile.id,
-                fullName: userProfile.full_name,
-                email: user.email || '',
-                status: userProfile.status,
-                role: userProfile.role,
-            });
-        }
+      const userProfile = await getCurrentProfile();
+      if (userProfile) {
+          setProfile(userProfile);
       }
     };
     fetchUserData();
+
+     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+            fetchUserData();
+        } else {
+            setProfile(null);
+        }
+     });
+
+     return () => {
+       authListener?.subscription.unsubscribe();
+     };
+
   }, []);
   
   const getInitials = (name: string | undefined | null) => {
@@ -64,7 +62,7 @@ export function UserNav() {
     router.push('/login');
   }
 
-  if (!user || !profile) {
+  if (!profile) {
     return null;
   }
   

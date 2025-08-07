@@ -21,8 +21,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-belleza)', 'sans-serif'],
-        headline: ['var(--font-alegreya)', 'serif'],
+        body: ['var(--font-alegreya)', 'serif'],
+        headline: ['var(--font-belleza)', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -107,5 +107,3 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
-
-    

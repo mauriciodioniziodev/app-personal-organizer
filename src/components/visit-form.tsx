@@ -24,13 +24,13 @@ const visitSchema = z.object({
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
-    status: z.string(),
+    status: z.string().min(1, "O status é obrigatório."),
 });
 
 export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
-    const [visitStatus, setVisitStatus] = useState<MasterDataItem[]>([]);
+    const [visitStatusOptions, setVisitStatusOptions] = useState<MasterDataItem[]>([]);
+    const [selectedStatus, setSelectedStatus] = useState('');
     const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [isPastDateAlertOpen, setIsPastDateAlertOpen] = useState(false);
@@ -41,7 +41,10 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     useEffect(() => {
         async function fetchStatusOptions() {
             const options = await getVisitStatusOptions();
-            setVisitStatus(options);
+            setVisitStatusOptions(options);
+            if (options.length > 0) {
+                setSelectedStatus(options[0].name);
+            }
         }
         fetchStatusOptions();
     }, []);
@@ -128,10 +131,12 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             </div>
             <div>
                 <Label htmlFor="status">Status</Label>
-                <Select name="status" defaultValue={visitStatus[0]?.name}>
-                    <SelectTrigger><SelectValue/></SelectTrigger>
+                <Select name="status" value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione um status..." />
+                    </SelectTrigger>
                     <SelectContent>
-                        {visitStatus.map(status => (
+                        {visitStatusOptions.map(status => (
                             <SelectItem key={status.id} value={status.name} className="capitalize">{status.name}</SelectItem>
                         ))}
                     </SelectContent>

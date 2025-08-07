@@ -5,19 +5,26 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import type { UserProfile } from "@/lib/definitions";
+import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import { getSettings, getCurrentProfile } from "@/lib/data";
 
-const navItems = [
+
+const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, role: ['administrador', 'usuario'] },
   { href: "/clients", label: "Clientes", icon: Users, role: ['administrador', 'usuario'] },
   { href: "/visits", label: "Visitas", icon: CalendarClock, role: ['administrador', 'usuario'] },
   { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
   { href: "/financeiro", label: "Financeiro", icon: Wallet, role: ['administrador', 'usuario'] },
   { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
-  { href: "/admin", label: "Administração", icon: Settings, role: ['administrador'] },
+];
+
+const adminNavItems = [
+  { href: "/settings", label: "Configurações", icon: Settings, role: ['administrador'] },
+  { href: "/admin", label: "Administração", icon: Building, role: ['administrador'] },
 ];
 
 
@@ -25,68 +32,82 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
   const pathname = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
 
   useEffect(() => {
-     const fetchProfile = async () => {
+     const fetchProfileAndSettings = async () => {
         if(!supabase) return;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            const { data: userProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-            setProfile(toCamelCase(userProfile));
+        
+        const currentProfile = await getCurrentProfile();
+        setProfile(currentProfile);
+
+        if (currentProfile?.companyId) {
+            // Pass the companyId to getSettings to ensure the correct settings are fetched
+            const companySettings = await getSettings(currentProfile.companyId);
+            setSettings(companySettings);
         }
      }
-     fetchProfile();
      
-     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if(session) {
-            fetchProfile();
+     const handleAuthChange = (_event: string, session: any) => {
+        if (session) {
+            fetchProfileAndSettings();
         } else {
             setProfile(null);
+            setSettings(null);
             router.push('/login');
         }
-     });
+     };
+
+     // Initial fetch
+     fetchProfileAndSettings();
+     
+     const { data: authListener } = supabase.auth.onAuthStateChange(handleAuthChange);
 
      return () => {
        authListener?.subscription.unsubscribe();
      };
   }, [router]);
   
-  const toCamelCase = (obj: any): any => {
-    if (!obj) return null;
-    return Object.keys(obj).reduce(
-        (result, key) => {
-            const camelKey = key.replace(/([-_][a-z])/g, g => g.toUpperCase().replace(/[-_]/, ''));
-            result[camelKey] = obj[key];
-            return result;
-        },
-        {} as any
-    );
-  };
+  const companyName = settings?.companyName || 'OrganizerFlow';
+  const logoUrl = settings?.logoUrl;
 
   return (
-    <aside className={cn("hidden md:flex flex-col w-64 h-full bg-card border-r", className)}>
+    <aside className={cn("hidden md:flex flex-col w-64 h-screen bg-card border-r", className)}>
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3">
-          <Shirt className="w-10 h-10 rounded-lg" />
+          {logoUrl ? (
+            <Image src={logoUrl} alt={`Logo de ${companyName}`} width={40} height={40} className="rounded-lg object-contain"/>
+          ) : (
+             <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                <Shirt className="w-6 h-6 text-muted-foreground" />
+             </div>
+          )}
 
           <div>
-            <h1 className="text-xl font-headline text-foreground leading-none">Amanda Martins</h1>
+            <h1 className="text-xl font-headline text-foreground leading-none">{companyName}</h1>
             <p className="text-xs text-muted-foreground">Organização personalizada</p>
           </div>
         </Link>
       </div>
-      <nav className="flex-1 px-4">
-        <ul className="space-y-2">
-          {navItems.map((item) => (
-            (profile && item.role.includes(profile.role)) && (
-               <NavItem key={item.href} item={item} isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')} onLinkClick={onLinkClick} />
-            )
-          ))}
-        </ul>
+       <nav className="flex-1 px-4 flex flex-col justify-between pb-4">
+        <div>
+          <ul className="space-y-2">
+            {mainNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
+        </div>
+        <div>
+          <ul className="space-y-2">
+             {adminNavItems.map((item) => (
+              (profile && item.role.includes(profile.role)) && (
+                 <NavItem key={item.href} item={item} isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))} onLinkClick={onLinkClick} />
+              )
+            ))}
+          </ul>
+        </div>
       </nav>
     </aside>
   );
@@ -120,3 +141,6 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
+
+
+    

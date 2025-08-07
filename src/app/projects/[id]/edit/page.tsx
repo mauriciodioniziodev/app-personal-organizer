@@ -303,88 +303,93 @@ export default function ProjectEditPage() {
   const handleGenericChange = (field: keyof Project, value: any) => {
     if (!project) return;
   
-    // Create a temporary updated project state
-    let updatedProjectState = { ...project, [field]: value };
-  
-    // If the changed field affects financial calculations, update them
-    if (['value', 'discountPercentage', 'paymentMethod'].includes(field)) {
-      const isVista = updatedProjectState.paymentMethod === 'vista';
-      const discountPerc = isVista ? (updatedProjectState.discountPercentage || 0) : 0;
-      
-      updatedProjectState.discountAmount = (updatedProjectState.value * discountPerc) / 100;
-      updatedProjectState.finalValue = updatedProjectState.value - updatedProjectState.discountAmount;
-    }
-  
-    // Now, update payments based on the potentially new finalValue or paymentMethod
-    if (updatedProjectState.paymentMethod === 'vista') {
-        updatedProjectState.payments = [{
-            ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
-            projectId: updatedProjectState.id,
-            amount: updatedProjectState.finalValue,
-            dueDate: updatedProjectState.endDate,
-            description: "Pagamento Único"
-        }];
-    } else { // parcelado
-        const firstInstallmentValue = (updatedProjectState.finalValue * firstInstallmentPercentage) / 100;
-        const secondInstallmentValue = updatedProjectState.finalValue - firstInstallmentValue;
-        updatedProjectState.payments = [
-            {
-                ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
-                projectId: updatedProjectState.id,
-                amount: firstInstallmentValue,
-                dueDate: updatedProjectState.startDate,
-                description: '1ª Parcela (Entrada)'
-            },
-            {
-                ...(updatedProjectState.payments?.[1] || { id: uuidv4(), status: 'pendente' }),
-                projectId: updatedProjectState.id,
-                amount: secondInstallmentValue,
-                dueDate: updatedProjectState.endDate,
-                description: '2ª Parcela (Conclusão)'
-            }
-        ];
-    }
-    
-    updatedProjectState.paymentStatus = getPaymentStatus(updatedProjectState.payments);
+    setProject(prev => {
+        if (!prev) return null;
 
-    setProject(updatedProjectState);
+        let updatedProjectState = { ...prev, [field]: value };
+      
+        // If the changed field affects financial calculations, update them
+        if (['value', 'discountPercentage', 'paymentMethod'].includes(field as string)) {
+          const isVista = updatedProjectState.paymentMethod === 'vista';
+          const discountPerc = isVista ? (updatedProjectState.discountPercentage || 0) : 0;
+          
+          updatedProjectState.discountAmount = (updatedProjectState.value * discountPerc) / 100;
+          updatedProjectState.finalValue = updatedProjectState.value - updatedProjectState.discountAmount;
+        }
+      
+        // Now, update payments based on the potentially new finalValue or paymentMethod
+        if (['value', 'discountPercentage', 'paymentMethod'].includes(field as string) || (field === 'startDate' || field === 'endDate')) {
+            if (updatedProjectState.paymentMethod === 'vista') {
+                updatedProjectState.payments = [{
+                    ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
+                    projectId: updatedProjectState.id,
+                    amount: updatedProjectState.finalValue,
+                    dueDate: updatedProjectState.endDate,
+                    description: "Pagamento Único"
+                }];
+            } else { // parcelado
+                const firstInstallmentValue = (updatedProjectState.finalValue * firstInstallmentPercentage) / 100;
+                const secondInstallmentValue = updatedProjectState.finalValue - firstInstallmentValue;
+                updatedProjectState.payments = [
+                    {
+                        ...(updatedProjectState.payments?.[0] || { id: uuidv4(), status: 'pendente' }),
+                        projectId: updatedProjectState.id,
+                        amount: firstInstallmentValue,
+                        dueDate: updatedProjectState.startDate,
+                        description: '1ª Parcela (Entrada)'
+                    },
+                    {
+                        ...(updatedProjectState.payments?.[1] || { id: uuidv4(), status: 'pendente' }),
+                        projectId: updatedProjectState.id,
+                        amount: secondInstallmentValue,
+                        dueDate: updatedProjectState.endDate,
+                        description: '2ª Parcela (Conclusão)'
+                    }
+                ];
+            }
+        }
+        
+        updatedProjectState.paymentStatus = getPaymentStatus(updatedProjectState.payments);
+    
+        return updatedProjectState;
+    });
   };
   
   // Effect to recalculate payments when firstInstallmentPercentage changes
   useEffect(() => {
     if (!project || project.paymentMethod !== 'parcelado') return;
-     handleGenericChange('paymentMethod', 'parcelado'); // A bit of a hack to trigger recalculation
+
+    setProject(prev => {
+        if (!prev) return null;
+        let updatedProjectState = { ...prev };
+        const firstInstallmentValue = (updatedProjectState.finalValue * firstInstallmentPercentage) / 100;
+        const secondInstallmentValue = updatedProjectState.finalValue - firstInstallmentValue;
+        updatedProjectState.payments = [
+            { ...updatedProjectState.payments[0], amount: firstInstallmentValue },
+            { ...updatedProjectState.payments[1], amount: secondInstallmentValue }
+        ];
+        return updatedProjectState;
+    });
      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstInstallmentPercentage]);
+  }, [firstInstallmentPercentage, project?.finalValue]);
 
 
- const handlePaymentStatusChange = async (paymentId: string, status: 'pago' | 'pendente') => {
+ const handlePaymentStatusChange = (paymentId: string, status: 'pago' | 'pendente') => {
     if (!project) return;
     
-    const updatedPayments = project.payments.map((p: Payment) => 
-        p.id === paymentId ? { ...p, status: status } : p
-    );
-    
-    const updatedProjectState = {
-        ...project,
-        payments: updatedPayments,
-        paymentStatus: getPaymentStatus(updatedPayments),
-    };
-
-    setProject(updatedProjectState); // Update UI optimistically
-    
-    try {
-        const updatedProject = await updateProject(updatedProjectState);
-        setProject(updatedProject); // Sync with server response
-        toast({ title: "Status do Pagamento Alterado!", description: "A alteração foi salva com sucesso." });
-    } catch (error) {
-        console.error("Failed to update payment status:", error);
-        toast({ variant: 'destructive', title: "Erro", description: "Não foi possível salvar a alteração."});
-        // Revert UI on failure - refetch from server to be safe
-        getProjectById(project.id).then(serverProject => {
-            if (serverProject) setProject(serverProject);
-        });
-    }
+    setProject(prev => {
+        if (!prev) return null;
+        const updatedPayments = prev.payments.map((p: Payment) => 
+            p.id === paymentId ? { ...p, status: status } : p
+        );
+        
+        const updatedProjectState = {
+            ...prev,
+            payments: updatedPayments,
+            paymentStatus: getPaymentStatus(updatedPayments),
+        };
+        return updatedProjectState;
+    });
   };
 
 

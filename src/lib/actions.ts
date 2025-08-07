@@ -1,17 +1,13 @@
 
 "use server";
 
+import 'dotenv/config';
 import { z } from "zod";
 import { addClient, addProject, addVisit, addPhotoToVisit } from "./data";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Visit } from "./definitions";
 
-
-// This file is largely deprecated as mutations are handled on the client-side
-// with optimistic UI updates, calling the data layer functions directly.
-// However, it's kept for potential future use with server-only forms.
-// For now, the actions defined here are not actively used.
 
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
@@ -21,7 +17,7 @@ const clientSchema = z.object({
   preferences: z.string().optional(),
 });
 
-export async function createClient(prevState: any, formData: FormData) {
+export async function createClientAction(prevState: any, formData: FormData) {
   const validatedFields = clientSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),

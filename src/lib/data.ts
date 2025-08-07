@@ -1,7 +1,10 @@
 
 
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile } from './definitions';
+import 'dotenv/config';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
+import { createSupabaseAdminClient } from './supabaseClient';
+
 
 // --- Helper Functions ---
 
@@ -21,6 +24,23 @@ const toCamelCase = (obj: any): any => {
     return obj;
 };
 
+const toSnakeCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce(
+            (result, key) => {
+                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                result[snakeKey] = toSnakeCase(obj[key]);
+                return result;
+            },
+            {} as any
+        );
+    }
+    return obj;
+};
+
+
 const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     if (!payments || payments.length === 0) {
         return 'pendente';
@@ -37,6 +57,7 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
         id: p_raw.id,
         createdAt: p_raw.created_at,
         clientId: p_raw.client_id,
+        companyId: p_raw.company_id,
         visitId: p_raw.visit_id,
         name: p_raw.name,
         description: p_raw.description,
@@ -57,37 +78,133 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 }
 
 
-// --- User Authentication and Management ---
+// --- User, Profile, and Company Management ---
 
-export const getProfiles = async (): Promise<UserProfile[]> => {
-    if (!supabase) return [];
+// Gets the profile of the currently logged-in user
+export const getCurrentProfile = async (): Promise<UserProfile | null> => {
+    if (!supabase) return null;
     
-    // Chama a função do banco de dados que busca perfis e e-mails de forma segura
-    const { data: profiles, error } = await supabase.rpc('get_all_user_profiles');
-
-    if (error) {
-        console.error("Error fetching profiles with RPC:", error);
-        return [];
-    }
-
-    if (!profiles) {
-        return [];
+    // Always fetch a fresh session to ensure the correct user identity
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user?.id) {
+        // This is not an error, it just means the user is not logged in.
+        return null;
     }
     
-    return profiles.map(profile => ({
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+            id,
+            company_id,
+            full_name,
+            role,
+            status,
+            organizations ( trade_name )
+        `)
+        .eq('id', session.user.id)
+        .single();
+    
+    if(profileError) {
+        console.error("Error fetching current profile data:", profileError);
+        return null;
+    }
+    
+    const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
+
+    return {
         id: profile.id,
+        companyId: profile.company_id,
         fullName: profile.full_name,
+        email: session.user.email || '',
         status: profile.status,
-        email: profile.email || 'E-mail não disponível',
-        role: profile.role || 'usuario'
-    }));
-};
+        role: profile.role,
+        companyName: companyDetails?.trade_name || 'Empresa não encontrada'
+    };
+}
 
+export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario' }): Promise<UserProfile> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
+    // First, get the current user's profile to know which company to query for
+    // This uses the standard client to respect RLS (user can only see their own profile)
+    const currentProfile = await getCurrentProfile();
+    if (!currentProfile) {
+        console.error("Could not determine current user.");
+        return [];
+    }
+
+    let profilesQuery;
+
+    // Super admin can see all users
+    if (currentProfile.email === 'mauriciodionizio@gmail.com') {
+        profilesQuery = supabaseAdmin
+            .from('profiles')
+            .select(`
+                id,
+                full_name,
+                role,
+                status,
+                company_id,
+                organizations ( trade_name )
+            `);
+    } else {
+        // Regular admins can see users from their own company
+        if (!currentProfile.companyId) {
+            console.error("Current admin user does not have a company ID.");
+            return [];
+        }
+        profilesQuery = supabaseAdmin
+            .from('profiles')
+            .select(`
+                id,
+                full_name,
+                role,
+                status,
+                company_id,
+                organizations ( trade_name )
+            `)
+            .eq('company_id', currentProfile.companyId);
+    }
+
+    const { data: profiles, error: profilesError } = await profilesQuery;
+
+    if (profilesError) {
+        console.error("Error fetching profiles with admin client:", profilesError);
+        return [];
+    }
+
+    // Now, fetch all auth users to map emails (this is a privileged operation)
+    const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
-    const { data, error } = await supabase
+    if (authError) {
+        console.error("Error fetching auth users:", authError);
+        return [];
+    }
+    
+    const emailMap = new Map(authUsers.map(u => [u.id, u.email]));
+
+    return profiles.map(p => {
+         const companyDetails = Array.isArray(p.organizations) ? p.organizations[0] : p.organizations;
+         return {
+            id: p.id,
+            fullName: p.full_name,
+            email: emailMap.get(p.id) || 'E-mail não encontrado',
+            role: p.role,
+            status: p.status,
+            companyId: p.company_id,
+            companyName: companyDetails?.trade_name || 'N/A',
+         }
+    });
+}
+
+
+
+export const updateProfile = async (userId: string, updates: { status?: 'authorized' | 'revoked', role?: 'administrador' | 'usuario', company_id?: string }): Promise<UserProfile> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+    
+    const { data, error } = await supabaseAdmin
         .from('profiles')
         .update(updates)
         .eq('id', userId)
@@ -102,31 +219,133 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
     return toCamelCase(data);
 };
 
+// Forces a sign-out for a specific user. For admin use.
+export const signOutUserById = async (userId: string): Promise<void> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-// --- Data Access Functions ---
+    const { error } = await supabaseAdmin.auth.admin.signOut(userId);
+    if (error) {
+        console.error(`Error signing out user ${userId}:`, error);
+        // Don't throw an error to the UI, just log it. The primary action (status change) was successful.
+    }
+};
+
+
+// --- Organization Management (Superadmin only) ---
+export const getOrganizations = async (): Promise<Company[]> => {
+    // This MUST use the admin client as only a superadmin can see all organizations
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    const { data, error } = await supabaseAdmin
+        .from('organizations')
+        .select('*')
+        .order('trade_name');
+    
+    if (error) {
+        console.error("Error fetching organizations:", error);
+        return [];
+    }
+    return toCamelCase(data);
+}
+export const getActiveOrganizations = async (): Promise<Company[]> => {
+    if (!supabase) return [];
+    // This now uses a secure RPC call that is invokable by anonymous users
+    // but only returns active organizations due to the function's definition.
+    const { data, error } = await supabase.rpc('get_active_organizations');
+    
+    if (error) {
+        console.error("Error fetching active organizations via RPC:", error);
+        return [];
+    }
+    return toCamelCase(data) as Company[];
+}
+
+
+export const addOrganization = async (name: string): Promise<Company> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+
+    // Insert the new organization
+    const { data: orgData, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .insert({ trade_name: name, is_active: true })
+        .select()
+        .single();
+
+    if (orgError) {
+        console.error("Error adding organization:", orgError);
+        throw new Error("Não foi possível adicionar a nova empresa.");
+    }
+    
+    // Explicitly create the settings entry for the new organization
+    const { error: settingsError } = await supabaseAdmin
+        .from('settings')
+        .insert({ company_id: orgData.id, company_name: orgData.trade_name });
+
+    if (settingsError) {
+        // Log the error but don't fail the whole operation
+        console.error("Error creating settings for new organization:", settingsError);
+    }
+
+    return toCamelCase(orgData);
+};
+
+export const updateOrganization = async (id: string, updates: Partial<Company>): Promise<Company> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+    
+    const { id: companyId, createdAt, ...updateData } = updates;
+
+    const { data, error } = await supabaseAdmin
+        .from('organizations')
+        .update(toSnakeCase(updateData))
+        .eq('id', id)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("Error updating organization:", error);
+        throw new Error("Não foi possível atualizar a empresa.");
+    }
+    return toCamelCase(data);
+}
+
+
+// --- Data Access Functions (RLS-secured) ---
 
 export const getClients = async (): Promise<Client[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('clients').select('*').order('name');
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+
+    let query = supabase.from('clients').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query.order('name');
     if (error) {
         console.error("Error fetching clients:", error);
         return [];
     }
-    return data.map(c => ({
-        id: c.id,
-        createdAt: c.created_at,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        address: c.address,
-        preferences: c.preferences,
-        cpf: c.cpf,
-        birthday: c.birthday
-    })) as Client[];
+    return data.map(c => toCamelCase(c)) as Client[];
 };
 export const getClientById = async (id: string): Promise<Client | null> => {
     if (!supabase || !id) return null;
-    const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile) return null;
+
+    let query = supabase.from('clients').select('*').eq('id', id);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.single();
     if (error) {
         console.error(`Error fetching client ${id}:`, error);
         return null;
@@ -136,7 +355,16 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 
 export const getProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
-    const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('start_date', { ascending: false });
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+
+    let projectsQuery = supabase.from('projects').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+         if (!profile.companyId) return [];
+        projectsQuery = projectsQuery.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectsData, error: projectsError } = await projectsQuery.order('start_date', { ascending: false });
     if (projectsError) {
         console.error("Error fetching projects:", projectsError);
         return [];
@@ -148,7 +376,6 @@ export const getProjects = async (): Promise<Project[]> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
-        // Still return projects, but they will have empty payments
         return projectsData.map(p_raw => projectFromSupabase(p_raw, []));
     }
 
@@ -157,7 +384,16 @@ export const getProjects = async (): Promise<Project[]> => {
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
     if (!supabase || !id) return null;
-    const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile) return null;
+
+    let query = supabase.from('projects').select('*').eq('id', id);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectData, error: projectError } = await query.single();
     if (projectError || !projectData) {
         console.error(`Error fetching project ${id}:`, projectError);
         return null;
@@ -175,7 +411,16 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
 
 export const getVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('visits').select('*').order('date', { ascending: false });
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+    
+    let query = supabase.from('visits').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: false });
     if (error) {
         console.error("Error fetching visits:", error);
         return [];
@@ -185,7 +430,16 @@ export const getVisits = async (): Promise<Visit[]> => {
 
 export const getVisitById = async (id: string): Promise<Visit | null> => {
     if (!supabase || !id) return null;
-    const { data, error } = await supabase.from('visits').select('*').eq('id', id).single();
+    const profile = await getCurrentProfile();
+    if (!profile) return null;
+
+    let query = supabase.from('visits').select('*').eq('id', id);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.single();
     if (error) {
         console.error(`Error fetching visit ${id}:`, error);
         return null;
@@ -198,12 +452,21 @@ export const getVisitById = async (id: string): Promise<Visit | null> => {
 
 export const getActiveProjects = async (): Promise<Project[]> => {
     if (!supabase) return [];
-    const { data: projectsData, error: projectsError } = await supabase
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+    
+    let query = supabase
         .from('projects')
         .select('*')
         .in('status', ['Em andamento', 'A iniciar', 'Pausado', 'Atrasado'])
-        .gte('end_date', new Date().toISOString())
-        .order('end_date', { ascending: true });
+        .gte('end_date', new Date().toISOString());
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data: projectsData, error: projectsError } = await query.order('end_date', { ascending: true });
         
     if (projectsError) {
         console.error("Error fetching active projects:", projectsError);
@@ -224,16 +487,20 @@ export const getActiveProjects = async (): Promise<Project[]> => {
 
 export const getUpcomingVisits = async (): Promise<Visit[]> => {
     if (!supabase) return [];
-    const today = new Date();
-    const future = new Date();
-    future.setDate(today.getDate() + 7);
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
     
-    const { data, error } = await supabase
+    let query = supabase
         .from('visits')
         .select('*')
-        .gte('date', today.toISOString())
-        .lte('date', future.toISOString())
-        .order('date', { ascending: true });
+        .eq('status', 'pendente');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: true });
         
     if (error) {
         console.error("Error fetching upcoming visits:", error);
@@ -244,7 +511,16 @@ export const getUpcomingVisits = async (): Promise<Visit[]> => {
 
 export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     if (!supabase) return {};
-    const { data, error } = await supabase.from('visits').select('status');
+    const profile = await getCurrentProfile();
+    if (!profile) return {};
+
+    let query = supabase.from('visits').select('status');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return {};
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query;
     if (error) {
         console.error("Error fetching visits summary:", error);
         return {};
@@ -259,23 +535,37 @@ export const getVisitsSummary = async (): Promise<VisitsSummary> => {
 
 export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
     
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    let visitsQuery = supabase.from('visits').select('*')
+        .gte('date', startOfDay.toISOString())
+        .lte('date', endOfDay.toISOString());
+    
+    let projectsQuery = supabase.from('projects').select('*')
+        .lt('start_date', endOfDay.toISOString())
+        .gt('end_date', startOfDay.toISOString())
+        .in('status', ['Em andamento', 'Atrasado']);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        visitsQuery = visitsQuery.eq('company_id', profile.companyId);
+        projectsQuery = projectsQuery.eq('company_id', profile.companyId);
+    }
 
     const [
         { data: visitsData, error: visitsError },
         { data: projectsData, error: projectsError },
         clients
     ] = await Promise.all([
-        supabase.from('visits').select('*')
-            .gte('date', startOfDay.toISOString())
-            .lte('date', endOfDay.toISOString()),
-        supabase.from('projects').select('*')
-            .lt('start_date', endOfDay.toISOString())
-            .gt('end_date', startOfDay.toISOString())
-            .in('status', ['Em andamento', 'Atrasado']),
+        visitsQuery,
+        projectsQuery,
         getClients()
     ]);
 
@@ -285,15 +575,23 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const schedule: ScheduleItem[] = [];
+    
+    const now = new Date();
+    now.setHours(now.getHours() - 3);
 
+    
     (visitsData || []).forEach(v => {
         const client = clientMap.get(v.client_id);
+        const visitDate = new Date(v.date);
+        
+        const isOverdue = visitDate < now && v.status === 'pendente';
+        
         if (client) {
             schedule.push({
                 id: `visit-${v.id}`,
                 type: 'visit',
                 date: v.date,
-                time: new Date(v.date).toLocaleTimeString('pt-BR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }),
+                time: v.date.substring(11, 16),
                 title: 'Visita Agendada',
                 clientName: client.name,
                 clientId: client.id,
@@ -301,19 +599,22 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
                 path: `/visits/${v.id}`,
                 clientPhone: client.phone,
                 clientAddress: client.address,
-                isOverdue: new Date(v.date) < now && v.status === 'pendente'
+                isOverdue: isOverdue,
             });
         }
     });
     
      (projectsData || []).forEach(p => {
         const client = clientMap.get(p.client_id);
-        const isOverdue = new Date(p.end_date) < now;
+        const projectEndDate = new Date(p.end_date);
+        projectEndDate.setHours(23, 59, 59, 999); 
+        const isOverdue = projectEndDate < now && !['Concluído', 'Cancelado'].includes(p.status);
+
         if (client) {
             schedule.push({
                 id: `project-${p.id}`,
                 type: 'project',
-                date: p.start_date, // For sorting purposes
+                date: p.start_date, 
                 title: p.name,
                 clientName: client.name,
                 clientId: client.id,
@@ -328,57 +629,104 @@ export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
         }
     });
 
-    return schedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return schedule.sort((a, b) => {
+        const timeA = a.time ? a.date.substring(11, 16) : '00:00';
+        const timeB = b.time ? b.date.substring(11, 16) : '00:00';
+        return timeA.localeCompare(timeB);
+    });
 };
 
 
 // --- Financial data functions ---
 
 export const getTotalRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
-     if (!supabase) return 0;
+    if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+
+    let query = supabase
+        .from('payments')
+        .select('amount, projects!inner(company_id)')
+        .eq('status', 'pago');
     
-    let query = supabase.from('payments').select('amount').eq('status', 'pago');
-    if (startDate && endDate) {
-        query = query.gte('due_date', startDate).lte('due_date', endDate);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('projects.company_id', profile.companyId);
     }
     
-    const { data, error } = await query;
+    if (startDate) {
+        query = query.gte('due_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('due_date', endDate);
+    }
 
+    const { data, error } = await query;
+    
     if (error) {
-        console.error("Error fetching total revenue:", error);
+        console.error("Error fetching total revenue from payments:", error.message);
         return 0;
     }
-    
+
     return data.reduce((sum, payment) => sum + payment.amount, 0);
 };
 
 export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+    
+    const now = new Date().toISOString();
 
-    let query = supabase.from('payments').select('amount').eq('status', 'pendente');
-    if (startDate && endDate) {
-        query = query.gte('due_date', startDate).lte('due_date', endDate);
+    let query = supabase
+        .from('payments')
+        .select('amount, projects!inner(company_id)')
+        .eq('status', 'pendente');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('projects.company_id', profile.companyId);
+    }
+
+    if (startDate) {
+        query = query.gte('due_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('due_date', endDate);
     }
 
     const { data, error } = await query;
+
     if (error) {
-        console.error("Error fetching pending revenue:", error);
+        console.error("Error fetching pending revenue from payments:", error.message);
         return 0;
     }
+    
     return data.reduce((sum, payment) => sum + payment.amount, 0);
 };
 
+
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
     
-    const { data, error } = await supabase.from('projects').select('*').eq('client_id', clientId);
+    let query = supabase.from('projects').select('*').eq('client_id', clientId);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query;
+
     if(error) {
         console.error("Error fetching projects by client:", error);
         return [];
     }
     
     const projectIds = data.map(p => p.id);
-    if(projectIds.length === 0) return [];
+    if(projectIds.length === 0) return data.map(p => projectFromSupabase(p, []));
     
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
@@ -390,8 +738,17 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
 
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
     if(!supabase || !clientId) return [];
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
     
-    const { data, error } = await supabase.from('visits').select('*').eq('client_id', clientId).order('date', {ascending: false});
+    let query = supabase.from('visits').select('*').eq('client_id', clientId);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.order('date', {ascending: false});
      if(error) {
         console.error("Error fetching visits by client:", error);
         return [];
@@ -410,7 +767,7 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
     const oneHourAfter = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString();
 
     let query = supabase.from('visits')
-        .select('*')
+        .select('id, summary, date')
         .eq('client_id', clientId)
         .gte('date', oneHourBefore)
         .lte('date', oneHourAfter);
@@ -426,24 +783,23 @@ export const checkForVisitConflict = async ({clientId, date, visitId}: {clientId
         return null;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    return data && data.length > 0 ? toCamelCase(data[0]) : null;
 }
 
 export const checkForProjectConflict = async ({clientId, startDate, endDate, projectId}: {clientId: string, startDate: string, endDate: string, projectId?: string}) => {
      if(!supabase || !clientId || !startDate || !endDate) return null;
      
-     // An overlap occurs if (StartA <= EndB) and (EndA >= StartB).
      let query = supabase.from('projects')
-        .select('*')
+        .select('id, name, start_date, end_date')
         .eq('client_id', clientId)
-        .lte('start_date', endDate) // Their start date must be before our end date
-        .gte('end_date', startDate);  // And their end date must be after our start date
+        .lte('start_date', endDate) 
+        .gte('end_date', startDate); 
         
      if (projectId) {
         query = query.not('id', 'eq', projectId);
     }
     
-    const { data, error } = await query.maybeSingle(); // We only care if at least one exists
+    const { data, error } = await query.maybeSingle(); 
     
      if (error) {
         console.error("Error checking for project conflict:", error);
@@ -455,18 +811,16 @@ export const checkForProjectConflict = async ({clientId, startDate, endDate, pro
 
 
 // --- Mutation Functions ---
-export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>): Promise<Client> => {
+export const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'companyId'>): Promise<Client> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
+
     const { data, error } = await supabase
         .from('clients')
         .insert({
-            name: client.name,
-            email: client.email,
-            phone: client.phone,
-            address: client.address,
-            preferences: client.preferences,
-            cpf: client.cpf,
-            birthday: client.birthday,
+            ...toSnakeCase(client),
+            company_id: profile.companyId
         })
         .select()
         .single();
@@ -477,8 +831,29 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>): Promi
     return toCamelCase(data);
 };
 
-export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId'>): Promise<Visit> => {
+export const updateClient = async (client: Client): Promise<Client> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { id, createdAt, companyId, ...updateData } = client;
+
+    const { data, error } = await supabase
+        .from('clients')
+        .update(toSnakeCase(updateData))
+        .eq('id', id)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error updating client:", error);
+        throw new Error("Não foi possível atualizar o cliente.");
+    }
+    return toCamelCase(data);
+}
+
+export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId' | 'companyId' | 'budgetAmount' | 'budgetPdfUrl'>): Promise<Visit> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
     
     const { data, error } = await supabase
         .from('visits')
@@ -487,7 +862,8 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
             date: visit.date,
             summary: visit.summary,
             status: visit.status,
-            photos: []
+            photos: [],
+            company_id: profile.companyId,
         })
         .select()
         .single();
@@ -578,8 +954,10 @@ export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: 
 }
 
 
-export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>): Promise<Project> => {
+export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId' | 'createdAt'>): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
 
     const { payments, ...projectDetails } = project;
     
@@ -597,6 +975,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>)
         payment_method: projectDetails.paymentMethod,
         payment_instrument: projectDetails.paymentInstrument,
         status: projectDetails.status,
+        company_id: profile.companyId
     };
     
     const { data: newProjectData, error: projectError } = await supabase
@@ -625,7 +1004,6 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus'>)
     const { error: paymentError } = await supabase.from('payments').insert(paymentsWithProjectId);
     if(paymentError) {
         console.error("Error adding payments:", paymentError);
-        // Rollback project creation? For now, we'll just log the error.
         throw new Error("Projeto criado, mas houve um erro ao salvar as parcelas.");
     }
 
@@ -667,24 +1045,39 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    // This is complex. For now, we assume payments are managed separately or don't change structure often.
-    // A more robust solution would diff and update/insert/delete payments.
-    // For this app's logic, we can just update them.
-    for (const payment of payments) {
-        const { error: paymentError } = await supabase.from('payments').update({
-            amount: payment.amount,
-            status: payment.status,
-            due_date: payment.dueDate
-        }).eq('id', payment.id);
+    // First, delete existing payments for the project to handle cases where payment structure changes (e.g., vista to parcelado)
+    const { error: deleteError } = await supabase.from('payments').delete().eq('project_id', project.id);
+    if (deleteError) {
+        console.error("Error deleting old payments:", deleteError);
+        throw new Error("Não foi possível atualizar as parcelas do projeto.");
+    }
 
-        if (paymentError) {
-            console.error("Error updating payment:", paymentError);
-            // Decide on error handling strategy, for now continue
+    // Now, insert the new/updated payments
+    if (payments && payments.length > 0) {
+        const paymentsToInsert = payments.map(p => ({
+            project_id: project.id,
+            amount: p.amount,
+            status: p.status,
+            due_date: p.dueDate,
+            description: p.description,
+            // We need to decide if we keep the old id or generate new ones. 
+            // For simplicity in upsert-like logic, let's treat them as new if the structure can change.
+            // However, if we want to preserve payment history, a more complex update logic is needed.
+            // For now, let's re-insert.
+        }));
+        const { error: insertError } = await supabase.from('payments').insert(paymentsToInsert);
+
+        if (insertError) {
+            console.error("Error inserting new payments:", insertError);
+            throw new Error("Não foi possível salvar as novas parcelas do projeto.");
         }
     }
     
-    return projectFromSupabase(updatedProjectData, payments);
+    const { data: finalPayments } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
+    
+    return projectFromSupabase(updatedProjectData, finalPayments || []);
 };
+
 
 export const addPhotoToProject = async (projectId: string, photoType: 'before' | 'after', photoData: Omit<Photo, 'id'>): Promise<Project> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
@@ -698,8 +1091,8 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
     };
     
     const updatedPhotos = photoType === 'before'
-        ? [...project.photosBefore, newPhoto]
-        : [...project.photosAfter, newPhoto];
+        ? [...(project.photosBefore || []), newPhoto]
+        : [...(project.photosAfter || []), newPhoto];
         
     const fieldToUpdate = photoType === 'before' ? 'photos_before' : 'photos_after';
     
@@ -723,93 +1116,220 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 // --- Master Data Functions ---
 
-export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'pendente', created_at: '' }, { id: '2', name: 'realizada', created_at: '' }, { id: '3', name: 'cancelada', created_at: '' }];
-    const { data, error } = await supabase.from('master_visit_status').select('*');
+// Master data is global, so it doesn't need company_id filtering.
+const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase.from(tableName).select('*');
     if (error) {
-        console.error("Error fetching visit status options:", error);
+        console.error(`Error fetching ${tableName}:`, error);
         return [];
     }
     return data;
+}
+
+const addMasterDataItem = async (tableName: string, name: string): Promise<MasterDataItem> => {
+    const profile = await getCurrentProfile();
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o superadministrador pode adicionar novos itens.");
+    }
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // company_id is no longer added, as this is global data.
+    const { data, error } = await supabase.from(tableName).insert({ name }).select().single();
+    if (error) {
+        console.error(`Error adding item to ${tableName}:`, error);
+        throw new Error("Não foi possível adicionar a opção.");
+    }
+    return data;
+};
+
+const deleteMasterDataItem = async (tableName: string, id: string): Promise<void> => {
+    const profile = await getCurrentProfile();
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o superadministrador pode remover itens.");
+    }
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { error } = await supabase.from(tableName).delete().eq('id', id);
+    if (error) {
+        console.error(`Error deleting item from ${tableName}:`, error);
+        throw new Error("Não foi possível remover a opção.");
+    }
+};
+
+
+export const getVisitStatusOptions = async (): Promise<MasterDataItem[]> => {
+    return getMasterData('master_visit_status');
 }
 
 export const addVisitStatusOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_visit_status').insert({ name }).select().single();
-    if (error) {
-        console.error("Error adding visit status option:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_visit_status', name);
 }
 
 export const deleteVisitStatusOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_visit_status').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting visit status option:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_visit_status', id);
 }
 
 export const getPaymentInstrumentsOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'PIX', created_at: '' }, { id: '2', name: 'Dinheiro', created_at: '' }];
-    const { data, error } = await supabase.from('master_payment_instruments').select('*');
-    if (error) {
-        console.error("Error fetching payment instruments:", error);
-        return [];
-    }
-    return data;
+    return getMasterData('master_payment_instruments');
 }
 
 export const addPaymentInstrumentOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_payment_instruments').insert({ name }).select().single();
-    if (error) {
-        console.error("Error adding payment instrument:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_payment_instruments', name);
 }
 
 export const deletePaymentInstrumentOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_payment_instruments').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting payment instrument:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_payment_instruments', id);
 }
 
 export const getProjectStatusOptions = async (): Promise<MasterDataItem[]> => {
-    if (!supabase) return [{ id: '1', name: 'A iniciar', created_at: '' }];
-    const { data, error } = await supabase.from('master_project_status').select('*');
-    if (error) {
-        console.error("Error fetching project status options:", error);
-        return [];
-    }
-    return data;
+    return getMasterData('master_project_status');
 }
 
 export const addProjectStatusOption = async (name: string): Promise<MasterDataItem> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('master_project_status').insert({ name }).select().single();
-    if (error) {
-        console.error("Error adding project status option:", error);
-        throw new Error("Não foi possível adicionar a opção.");
-    }
-    return data;
+    return addMasterDataItem('master_project_status', name);
 }
 
 export const deleteProjectStatusOption = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await supabase.from('master_project_status').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting project status option:", error);
-        throw new Error("Não foi possível remover a opção.");
-    }
+    return deleteMasterDataItem('master_project_status', id);
 }
 
+// --- Company Settings Functions ---
+
+export const getSettings = async (companyId: string): Promise<CompanySettings | null> => {
+    if (!supabase) return null;
+    if (!companyId) {
+        console.error("getSettings requires a companyId.");
+        return null;
+    }
+
+    const { data: settingsData, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('company_id', companyId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Error fetching settings:", error);
+        return null;
+    }
+
+    // This handles the case where a company exists but has no settings row yet.
+    if (!settingsData) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) {
+            console.error("Admin client is required to create missing settings.");
+            return null;
+        }
+
+        const { data: orgData, error: orgError } = await supabaseAdmin
+            .from('organizations')
+            .select('trade_name')
+            .eq('id', companyId)
+            .single();
+        
+        if (orgError || !orgData) {
+            console.error("Could not fetch organization name to create settings:", orgError);
+            return null;
+        }
+
+        const { data: newSettings, error: insertError } = await supabaseAdmin
+            .from('settings')
+            .insert({
+                company_id: companyId,
+                company_name: orgData.trade_name,
+            })
+            .select()
+            .single();
+        
+        if (insertError) {
+            console.error("Error creating default settings:", insertError);
+            return null;
+        }
+        
+        return toCamelCase(newSettings);
+    }
+    
+    return toCamelCase(settingsData);
+};
+
+
+export const updateSettings = async ({ companyId, companyName, logoFile }: { companyId: string, companyName: string, logoFile: File | null }): Promise<void> => {
+     if (!supabase) throw new Error("Supabase client not initialized.");
+     if (!companyId) throw new Error("Company ID is required to update settings.");
+
+    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
+
+    if(fetchError && fetchError.code !== 'PGRST116') { // Ignore "exact one row" error if settings don't exist yet
+        console.error('Error fetching current settings:', fetchError);
+        throw new Error("Não foi possível buscar as configurações atuais.");
+    }
+
+
+    let logoUrl: string | undefined | null = currentSettings?.logo_url || undefined;
+
+    if (logoFile) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if(!supabaseAdmin) throw new Error("Admin client is required for file upload.");
+
+        const fileName = `${companyId}/logo_${Date.now()}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('assets')
+            .upload(fileName, logoFile, { upsert: true });
+
+        if (uploadError) {
+            console.error('Error uploading logo:', uploadError);
+            throw new Error("Não foi possível carregar a logomarca.");
+        }
+
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(fileName);
+        logoUrl = data.publicUrl;
+    }
+
+    const updates = {
+        company_id: companyId,
+        company_name: companyName,
+        logo_url: logoUrl,
+    };
+    
+    const { error } = await supabase
+        .from('settings')
+        .upsert(updates, { onConflict: 'company_id'})
+        .eq('company_id', companyId); 
+
+    if (error) {
+        console.error('Error saving settings:', error);
+        throw new Error("Não foi possível salvar as configurações.");
+    }
+}
     
 
     
+
+    
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

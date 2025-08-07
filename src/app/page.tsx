@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -11,7 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Project, Visit, Client, VisitsSummary, ScheduleItem } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
-import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -106,7 +105,9 @@ export default function Dashboard() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline text-xl">Agenda do Dia</CardTitle>
-                    <CardDescription>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</CardDescription>
+                    <CardDescription className='flex items-center justify-between'>
+                        <span>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}</span>
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {dailySchedule.length > 0 ? (
@@ -137,7 +138,7 @@ export default function Dashboard() {
                                                                 {item.status}
                                                             </Badge>
                                                         )}
-                                                        {item.time && <p className="text-sm font-bold shrink-0">{item.time}</p>}
+                                                        {item.time && <p className="text-sm font-bold shrink-0">{item.date.substring(11, 16)}</p>}
                                                     </div>
                                                 </div>
                                                 <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
@@ -196,13 +197,13 @@ export default function Dashboard() {
         <Link href="/visits" className="block">
           <Card className="hover:bg-muted/50 transition-colors h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Próximas Visitas</CardTitle>
+              <CardTitle className="text-sm font-medium">Visitas Pendentes</CardTitle>
               <CalendarClock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-headline">{upcomingVisits.length}</div>
               <p className="text-xs text-muted-foreground">
-                Visitas agendadas para os próximos 7 dias.
+                Total de visitas com status pendente.
               </p>
             </CardContent>
           </Card>
@@ -331,7 +332,7 @@ export default function Dashboard() {
                   <Info className="w-4 h-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>As 5 próximas visitas nos próximos 7 dias.</p>
+                  <p>As 5 próximas visitas com status pendente.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -346,7 +347,7 @@ export default function Dashboard() {
                         <li key={visit.id}>
                             <Link href={`/visits/${visit.id}`} className="block p-4 hover:bg-muted transition-colors">
                                 <div className="flex justify-between items-start mb-2">
-                                    <p className="font-semibold">{formatDateTime(visit.date)}</p>
+                                    <p className="font-semibold">{visit.date.substring(0, 16).replace('T', ' ')}</p>
                                     <Badge variant="outline" className={cn("capitalize", visitStatusColors[visit.status] ?? 'border-border')}>
                                         {visit.status}
                                     </Badge>
@@ -373,7 +374,7 @@ export default function Dashboard() {
                   })}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-center py-8 p-4">Nenhuma visita agendada.</p>
+                <p className="text-muted-foreground text-center py-8 p-4">Nenhuma visita pendente.</p>
               )}
             </CardContent>
           </Card>

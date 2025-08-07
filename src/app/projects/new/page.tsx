@@ -4,7 +4,7 @@
 
 import { useEffect, useState, FormEvent, Suspense, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getClients, getPaymentInstrumentsOptions, getVisitById, addProject, checkForProjectConflict } from "@/lib/data";
+import { getClients, getPaymentInstrumentsOptions, getVisitById, addProject, checkForProjectConflict, getProjectStatusOptions } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,7 +144,7 @@ function NewProjectPageContent() {
     const startDate = formData.get("startDate") as string;
     const endDate = formData.get("endDate") as string;
     
-    let payments: Omit<Payment, 'id' | 'createdAt' | 'project_id'>[] = [];
+    let payments: Omit<Payment, 'id' | 'createdAt' | 'projectId'>[] = [];
 
     if(paymentMethod === 'vista') {
         payments.push({
@@ -484,4 +484,5 @@ export default function NewProjectPage() {
 }
 
     
+
 

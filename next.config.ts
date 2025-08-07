@@ -1,15 +1,9 @@
 /** @type {import('next').NextConfig} */
 
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-});
-
-
 const nextConfig = {
-  /* config options here */
+  env: {
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -24,8 +18,14 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ijlrpyhldrrbetcskdvm.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/assets/**',
+      },
     ],
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

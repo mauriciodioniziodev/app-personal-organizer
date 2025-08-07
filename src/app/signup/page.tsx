@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -10,33 +11,53 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import Image from 'next/image';
 import { LoaderCircle } from 'lucide-react';
 import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
+import { getActiveOrganizations } from '@/lib/data';
+import type { Company } from '@/lib/definitions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SignUpPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [organizations, setOrganizations] = useState<Company[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
+
+  useEffect(() => {
+    async function fetchOrgs() {
+      setLoadingOrgs(true);
+      const orgs = await getActiveOrganizations();
+      setOrganizations(orgs);
+      setLoadingOrgs(false);
+    }
+    fetchOrgs();
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+    
+    if (!companyId) {
+        setError("Por favor, selecione a sua empresa.");
+        setLoading(false);
+        return;
+    }
 
-    // This simply creates the user in auth.users.
-    // A database trigger (`on_auth_user_created`) will then create the corresponding profile row.
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
+          company_id: companyId,
         }
       }
     });
@@ -57,14 +78,13 @@ export default function SignUpPage() {
         return;
     }
     
-    // Since the database trigger now handles profile creation, we just need to notify the admin.
     try {
-        await notifyAdminOfNewUser({ userName: fullName });
-        setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação pelo administrador. Você será notificado por e-mail quando seu acesso for liberado.');
+        const selectedCompany = organizations.find(o => o.id === companyId);
+        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${selectedCompany?.tradeName || 'N/A'})` });
+        setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso. Você será notificado por e-mail.');
     } catch (notificationError: any) {
         console.error("Failed to send notification:", notificationError);
-        // Even if notification fails, the user was created. Let them know.
-         setSuccess('Cadastro realizado com sucesso! Sua conta está pendente de aprovação. Ocorreu um erro ao notificar o administrador.');
+         setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso.');
     } finally {
         setLoading(false);
     }
@@ -75,8 +95,8 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Crie sua Conta</CardTitle>
-            <CardDescription>Preencha os campos para solicitar seu acesso.</CardDescription>
+            <CardTitle className="text-2xl font-headline">Criar sua Conta</CardTitle>
+            <CardDescription>Preencha os campos para criar seu acesso.</CardDescription>
           </CardHeader>
           <CardContent>
             {success ? (
@@ -92,18 +112,35 @@ export default function SignUpPage() {
             ) : (
                 <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="fullName">Nome Completo</Label>
+                        <Label htmlFor="companyId">Empresa</Label>
+                        <Select name="companyId" required value={companyId} onValueChange={setCompanyId}>
+                          <SelectTrigger disabled={loadingOrgs}>
+                            <SelectValue placeholder={loadingOrgs ? "Carregando empresas..." : "Selecione sua empresa"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizations.length > 0 ? (
+                              organizations.map(org => (
+                                <SelectItem key={org.id} value={org.id}>{org.tradeName}</SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-sm text-muted-foreground">Nenhuma empresa encontrada.</div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="fullName">Seu Nome Completo</Label>
                         <Input
                         id="fullName"
                         type="text"
-                        placeholder="Seu nome completo"
+                        placeholder="Ex: Ana de Souza"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         required
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email">E-mail</Label>
+                        <Label htmlFor="email">Seu E-mail</Label>
                         <Input
                         id="email"
                         type="email"
@@ -114,7 +151,7 @@ export default function SignUpPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password">Senha</Label>
+                        <Label htmlFor="password">Sua Senha</Label>
                         <Input
                         id="password"
                         type="password"
@@ -130,8 +167,8 @@ export default function SignUpPage() {
                         <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
-                    <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Conta'}
+                    <Button type="submit" className="w-full" disabled={loading || loadingOrgs}>
+                        {loading ? <LoaderCircle className="animate-spin" /> : 'Criar Minha Conta'}
                     </Button>
                 </form>
             )}

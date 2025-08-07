@@ -3,6 +3,7 @@
 export type Client = {
   id: string;
   createdAt: string;
+  companyId: string;
   name: string;
   phone: string;
   email:string;
@@ -26,6 +27,7 @@ export type Project = {
   id: string;
   createdAt?: string;
   clientId: string;
+  companyId: string;
   visitId: string | null;
   name: string;
   description: string | null;
@@ -47,8 +49,9 @@ export type Project = {
 export type Visit = {
   id: string;
   createdAt: string;
-  clientId: string; // Visita pertence a um cliente
-  projectId: string; // Projeto associado (pode ser vazio inicialmente)
+  clientId: string; 
+  companyId: string;
+  projectId: string; 
   date: string;
   status: string;
   summary: string;
@@ -90,12 +93,37 @@ export type MasterDataItem = {
     id: string;
     name: string;
     created_at: string;
+    company_id?: string; // Optional because some master data is global
 }
 
 export type UserProfile = {
     id: string;
+    companyId: string;
+    companyName?: string;
     fullName: string | null;
     email: string;
     status: 'pending' | 'authorized' | 'revoked';
     role: 'administrador' | 'usuario';
 }
+
+export type Company = {
+    id: string;
+    tradeName: string;
+    isActive: boolean;
+    createdAt: string;
+    legalName?: string;
+    cnpj?: string;
+    phone?: string;
+    address?: string;
+    contactPerson?: string;
+    notes?: string;
+}
+
+export type CompanySettings = {
+    companyId: string;
+    companyName: string;
+    logoUrl: string | null;
+    createdAt?: string;
+}
+
+    

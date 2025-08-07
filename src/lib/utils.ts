@@ -9,20 +9,20 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(dateString: string) {
   if (!dateString) return '';
-  // Force display in UTC to avoid local timezone shifts
+  // Force display in UTC to avoid local timezone shifts for dates without time
   return new Date(dateString).toLocaleDateString('pt-BR', {
-    timeZone: 'UTC'
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
 }
 
 export function formatDateTime(dateTimeString: string) {
     if (!dateTimeString) return '';
-    // Force display in UTC to avoid local timezone shifts
-    return new Date(dateTimeString).toLocaleString('pt-BR', {
-        timeZone: 'UTC',
-        dateStyle: 'long',
-        timeStyle: 'short'
-    });
+    // Display the date and time as it is stored, assuming it was input correctly.
+    // The 'T' separates date and time, so we replace it with a space.
+    return dateTimeString.substring(0, 16).replace('T', ' ');
 }
 
 export function formatDateTimeForInput(isoDate: string | null | undefined): string {
