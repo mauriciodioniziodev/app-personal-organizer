@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Metadata } from "next";
@@ -13,6 +14,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { LoaderCircle } from "lucide-react";
 import Header from "@/components/header";
 import type { Session, User } from "@supabase/supabase-js";
+import { getSettings } from "@/lib/data";
+import type { CompanySettings } from "@/lib/definitions";
 
 const belleza = Belleza({
   subsets: ["latin"],
@@ -36,8 +39,8 @@ async function checkAuthorization(user: User | null, router: ReturnType<typeof u
 
     if (profileError || !profile) {
       console.error("Error fetching profile for auth check:", profileError);
-      await supabase!.auth.signOut();
-      router.push(`/login?error=${encodeURIComponent("Seu perfil não foi encontrado. Por favor, faça login novamente.")}`);
+       await supabase!.auth.signOut();
+       router.push(`/login?error=${encodeURIComponent("Seu perfil não foi encontrado. Se você acabou de se cadastrar, aguarde a aprovação do administrador.")}`);
       return false;
     }
     
@@ -73,6 +76,7 @@ export default function RootLayout({
 }>) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<CompanySettings['theme']>('default');
   const router = useRouter();
   const pathname = usePathname();
 
@@ -85,12 +89,15 @@ export default function RootLayout({
       async (_event, session) => {
         setLoading(true); // Start loading on any auth change
         if (session?.user) {
-            // A session exists, now we verify authorization.
-            // This is a secondary check; the primary one happens on the login page.
-            // This handles cases like an admin revoking access while a user is already logged in.
             const isAuthorized = await checkAuthorization(session.user, router);
             if (isAuthorized) {
                 setSession(session);
+                // Fetch company theme settings after confirming authorization
+                const { data: profileData } = await supabase.from('profiles').select('company_id').eq('id', session.user.id).single();
+                if(profileData?.company_id) {
+                    const settings = await getSettings(profileData.company_id);
+                    setTheme(settings?.theme || 'default');
+                }
             } else {
                 setSession(null); // Ensure session is cleared if auth fails
             }
@@ -156,7 +163,7 @@ export default function RootLayout({
   // If there's no session and we're on an auth page, render the auth page.
   if (!session && isAuthPage) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en" suppressHydrationWarning className={theme === 'default' ? '' : theme}>
             <head>
                 <title>OrganizerFlow</title>
                 <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
@@ -177,7 +184,7 @@ export default function RootLayout({
   // The checkAuthorization handles kicking out users whose access has been revoked mid-session.
   if (session) {
     return (
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning className={theme === 'default' ? '' : theme}>
         <head>
           <title>OrganizerFlow</title>
           <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />

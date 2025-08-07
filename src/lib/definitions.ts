@@ -123,6 +123,7 @@ export type CompanySettings = {
     companyId: string;
     companyName: string;
     logoUrl: string | null;
+    theme: 'default' | 'light' | 'dark';
     createdAt?: string;
 }
 
