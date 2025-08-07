@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects } from "@/lib/data";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ServiceRecommender from '@/components/service-recommender';
+
 
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
@@ -32,12 +35,14 @@ export default function Dashboard() {
             visitsSummaryData, 
             dailyScheduleData,
             clientsData,
+            allProjectsData
         ] = await Promise.all([
             getActiveProjects(),
             getUpcomingVisits(),
             getVisitsSummary(),
             getTodaysSchedule(),
             getClients(),
+            getProjects()
         ]);
 
         setActiveProjects(activeProjectsData);
@@ -45,6 +50,7 @@ export default function Dashboard() {
         setVisitsSummary(visitsSummaryData);
         setDailySchedule(dailyScheduleData);
         setClients(clientsData);
+        setAllProjects(allProjectsData);
         setLoading(false);
     }
     fetchData();
@@ -237,6 +243,8 @@ export default function Dashboard() {
                 </Card>
             </Link>
         </div>
+        
+        <ServiceRecommender allClients={clients} allProjects={allProjects}/>
 
 
       <div className="grid gap-8 md:grid-cols-2">
@@ -341,7 +349,7 @@ export default function Dashboard() {
             <CardContent className="p-0">
               {upcomingVisits.length > 0 ? (
                 <ul className="divide-y divide-border">
-                  {upcomingVisits.slice(0, 5).map((visit) => {
+                  {upcomingVisits.map((visit) => {
                     const client = getClient(visit.clientId);
                     return (
                         <li key={visit.id}>
