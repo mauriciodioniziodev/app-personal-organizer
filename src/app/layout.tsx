@@ -28,45 +28,6 @@ const alegreya = Alegreya({
   variable: "--font-alegreya",
 });
 
-async function checkAuthorization(user: User | null, router: ReturnType<typeof useRouter>) {
-    if (!user) return true; 
-
-    const { data: profile, error: profileError } = await supabase!
-      .from('profiles')
-      .select('status, organizations ( is_active )')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      console.error("Error fetching profile for auth check:", profileError);
-       await supabase!.auth.signOut();
-       router.push(`/login?error=${encodeURIComponent("Seu perfil não foi encontrado. Se você acabou de se cadastrar, aguarde a aprovação do administrador.")}`);
-      return false;
-    }
-    
-    const company = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
-
-    if (!company?.is_active) {
-       await supabase!.auth.signOut();
-       router.push(`/login?error=${encodeURIComponent("O acesso da sua empresa ao sistema foi suspenso.")}`);
-       return false;
-    }
-
-    if (profile.status === 'revoked') {
-       await supabase!.auth.signOut();
-       router.push(`/login?error=${encodeURIComponent("Seu acesso foi revogado pelo administrador.")}`);
-       return false;
-    }
-
-     if (profile.status === 'pending') {
-       await supabase!.auth.signOut();
-       router.push(`/login?error=${encodeURIComponent("Sua conta aguarda aprovação do administrador.")}`);
-       return false;
-    }
-    
-    return true; // Authorized
-}
-
 
 export default function RootLayout({
   children,
@@ -90,21 +51,13 @@ export default function RootLayout({
       async (_event, session) => {
         setLoading(true); 
         if (session?.user) {
-            const isAuthorized = await checkAuthorization(session.user, router);
-            if (isAuthorized) {
-                setSession(session);
-                // Fetch profile and settings only once
-                const userProfile = await getCurrentProfile();
-                setProfile(userProfile);
-                if(userProfile?.companyId) {
-                    const companySettings = await getSettings(userProfile.companyId);
-                    setSettings(companySettings);
-                } else {
-                    setSettings(null);
-                }
+            setSession(session);
+            const userProfile = await getCurrentProfile();
+            setProfile(userProfile);
+            if(userProfile?.companyId) {
+                const companySettings = await getSettings(userProfile.companyId);
+                setSettings(companySettings);
             } else {
-                setSession(null);
-                setProfile(null);
                 setSettings(null);
             }
         } else {
@@ -119,7 +72,7 @@ export default function RootLayout({
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (loading) return;
