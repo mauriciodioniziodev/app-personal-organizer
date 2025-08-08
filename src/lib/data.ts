@@ -276,6 +276,7 @@ export const addOrganization = async (name: string): Promise<Company> => {
         .insert({ company_id: orgData.id, company_name: orgData.trade_name, theme: 'default' });
 
     if (settingsError) {
+        // Log the error but don't block the org creation
         console.error("Error creating settings for new organization:", settingsError);
     }
 
@@ -1195,42 +1196,6 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
     if (error) {
         console.error("Error fetching settings:", error);
         return null;
-    }
-
-    if (!settingsData) {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if (!supabaseAdmin) {
-            console.error("Admin client is required to create missing settings.");
-            return null;
-        }
-
-        const { data: orgData, error: orgError } = await supabaseAdmin
-            .from('organizations')
-            .select('trade_name')
-            .eq('id', companyId)
-            .single();
-        
-        if (orgError || !orgData) {
-            console.error("Could not fetch organization name to create settings:", orgError);
-            return null;
-        }
-
-        const { data: newSettings, error: insertError } = await supabaseAdmin
-            .from('settings')
-            .insert({
-                company_id: companyId,
-                company_name: orgData.trade_name,
-                theme: 'default'
-            })
-            .select()
-            .single();
-        
-        if (insertError) {
-            console.error("Error creating default settings:", insertError);
-            return null;
-        }
-        
-        return toCamelCase(newSettings);
     }
     
     return toCamelCase(settingsData);
