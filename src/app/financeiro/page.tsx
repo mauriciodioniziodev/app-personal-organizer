@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects } from "@/lib/data";
 import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle } from "lucide-react";
@@ -31,8 +31,7 @@ export default function FinanceiroPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    const refetch = async () => {
+  const refetch = useCallback(async () => {
         setLoading(true);
         const [clientsData, allProjectsData] = await Promise.all([
             getClients(),
@@ -57,12 +56,14 @@ export default function FinanceiroPage() {
         setFilteredPendingProjects(pendingProjects);
         setFilteredPaidProjects(paidProjects);
         setLoading(false);
-    }
+  }, [])
+
+  useEffect(() => {
     refetch();
 
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
-  }, []);
+  }, [refetch]);
 
   useEffect(() => {
     async function filterFinancialData() {
@@ -320,3 +321,5 @@ export default function FinanceiroPage() {
     </div>
   );
 }
+
+    

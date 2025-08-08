@@ -42,7 +42,6 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         setProfile(currentProfile);
 
         if (currentProfile?.companyId) {
-            // Pass the companyId to getSettings to ensure the correct settings are fetched
             const companySettings = await getSettings(currentProfile.companyId);
             setSettings(companySettings);
         }
@@ -54,7 +53,9 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
         } else {
             setProfile(null);
             setSettings(null);
-            router.push('/login');
+            if (!['/login', '/signup', '/forgot-password', '/reset-password'].some(p => pathname.startsWith(p))) {
+                 router.push('/login');
+            }
         }
      };
 
@@ -66,7 +67,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
      return () => {
        authListener?.subscription.unsubscribe();
      };
-  }, [router]);
+  }, [router, pathname]);
   
   const companyName = settings?.companyName || 'OrganizerFlow';
   const logoUrl = settings?.logoUrl;
@@ -141,6 +142,5 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
-
 
     

@@ -44,9 +44,10 @@ async function checkAuthorization(user: User | null, router: ReturnType<typeof u
       return false;
     }
     
+    // Supabase returns an array if the relationship is one-to-many, or an object if one-to-one.
+    // This handles both cases to be safe.
     const company = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
-    // This check is now a fallback. The primary check is done on the login page itself.
     if (!company?.is_active) {
        await supabase!.auth.signOut();
        router.push(`/login?error=${encodeURIComponent("O acesso da sua empresa ao sistema foi suspenso.")}`);
@@ -232,3 +233,5 @@ export default function RootLayout({
       </html>
     )
 }
+
+    

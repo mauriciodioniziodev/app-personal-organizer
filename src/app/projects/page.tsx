@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,9 +37,7 @@ export default function ProjectsPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
 
-
-  useEffect(() => {
-    const refetch = async () => {
+  const refetch = useCallback(async () => {
       setLoading(true);
       const [projectsData, clientsData, statusData] = await Promise.all([
           getProjects(), 
@@ -54,12 +52,14 @@ export default function ProjectsPage() {
       setFilteredProjects(sortedProjects);
       setProjectStatusOptions(statusData);
       setLoading(false);
-    };
+    }, []);
+
+  useEffect(() => {
     refetch();
 
     window.addEventListener('focus', refetch);
     return () => window.removeEventListener('focus', refetch);
-  }, []); 
+  }, [refetch]); 
 
    useEffect(() => {
     let results = allProjects.filter(project => {
@@ -263,3 +263,4 @@ export default function ProjectsPage() {
   );
 }
 
+    
