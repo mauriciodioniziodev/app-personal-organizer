@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
@@ -11,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
-import Image from 'next/image';
 
 function LoginPageContent() {
   const router = useRouter();
