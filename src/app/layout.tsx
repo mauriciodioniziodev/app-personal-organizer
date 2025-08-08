@@ -42,68 +42,76 @@ export default function RootLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
+   useEffect(() => {
     const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
     const isAuthPage = publicAuthPages.some(page => pathname.startsWith(page));
 
-    async function checkAuth() {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
+    const fetchSession = async () => {
+        if (!supabase) {
+            setLoading(false);
+            return;
+        }
 
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      
-      setSession(currentSession);
+        try {
+            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError) {
+                console.error("Session error:", sessionError.message);
+                setSession(null);
+                setProfile(null);
+                setSettings(null);
+            } else if (currentSession) {
+                setSession(currentSession);
+                const userProfile = await getCurrentProfile();
+                setProfile(userProfile);
 
-      if (sessionError) {
-        console.error("Session error:", sessionError);
-        setLoading(false);
-        return;
-      }
+                if (userProfile?.companyId) {
+                    const companySettings = await getSettings(userProfile.companyId);
+                    setSettings(companySettings);
+                } else {
+                    setSettings(null);
+                }
 
-      if (currentSession) {
-        const userProfile = await getCurrentProfile();
-        setProfile(userProfile);
-
-        if (userProfile?.companyId) {
-            const companySettings = await getSettings(userProfile.companyId);
-            setSettings(companySettings);
-        } else {
+                if (isAuthPage) {
+                    router.push('/');
+                }
+            } else {
+                setSession(null);
+                setProfile(null);
+                setSettings(null);
+                if (!isAuthPage) {
+                    router.push('/login');
+                }
+            }
+        } catch (e) {
+            console.error("An unexpected error occurred while fetching session:", e);
+            setSession(null);
+            setProfile(null);
             setSettings(null);
+        } finally {
+            setLoading(false);
         }
+    };
 
-        if (isAuthPage) {
-            router.push('/');
-        }
-      } else {
-        setProfile(null);
-        setSettings(null);
-        if (!isAuthPage) {
+    fetchSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+        if (event === 'SIGNED_OUT') {
+            setSession(null);
+            setProfile(null);
+            setSettings(null);
             router.push('/login');
+        } else if (event === 'SIGNED_IN') {
+             setSession(newSession);
+             fetchSession(); // Re-fetch all data on sign-in
         }
-      }
+    });
 
-      setLoading(false);
-    }
-    
-    checkAuth();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-          // This listener handles real-time changes (login/logout)
-          // without being the primary source of truth on initial load.
-          if (session?.access_token !== getSession()?.access_token) {
-              checkAuth();
-          }
-      }
-    );
-     
     return () => {
-        authListener?.subscription.unsubscribe();
+        authListener.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); // Rerun when path changes to handle navigation between public/private routes
+  }, [pathname]);
 
 
   if (loading) {
