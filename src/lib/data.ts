@@ -1205,14 +1205,19 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate, theme
     if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
     if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
 
-    const { data: currentSettings } = await supabaseAdmin.from('settings').select('logo_url').eq('company_id', companyId).single();
+    const { data: currentSettings, error: fetchError } = await supabaseAdmin.from('settings').select('logo_url').eq('company_id', companyId).maybeSingle();
+
+    if (fetchError) {
+        console.error('Error fetching current settings:', fetchError);
+        throw new Error("Não foi possível buscar as configurações atuais.");
+    }
+
     let logoUrl = currentSettings?.logo_url;
 
     if (logoUpdate) {
         const fileExt = logoUpdate.fileName.split('.').pop();
         const newFileName = `${companyId}/logo_${Date.now()}.${fileExt}`;
         
-        // Convert data URL to buffer
         const buffer = Buffer.from(logoUpdate.dataUrl.split(',')[1], 'base64');
         
         const { error: uploadError } = await supabaseAdmin.storage
@@ -1232,13 +1237,21 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate, theme
     }
 
     const updates = {
-        company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
         theme: theme,
     };
     
-    const { error } = await supabaseAdmin.from('settings').upsert(updates, { onConflict: 'company_id' });
+    let error;
+    if (currentSettings) {
+        // Update existing settings
+        const { error: updateError } = await supabaseAdmin.from('settings').update(updates).eq('company_id', companyId);
+        error = updateError;
+    } else {
+        // Insert new settings
+        const { error: insertError } = await supabaseAdmin.from('settings').insert({ ...updates, company_id: companyId });
+        error = insertError;
+    }
     
     if (error) {
         console.error('Error saving settings:', error);
