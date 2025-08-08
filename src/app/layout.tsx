@@ -49,16 +49,16 @@ export default function RootLayout({
     }
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setLoading(true);
-        const userProfile = await getCurrentProfile();
-        setProfile(userProfile);
         setSession(session);
-        
-        if (userProfile?.companyId) {
-            const companySettings = await getSettings(userProfile.companyId);
-            setSettings(companySettings);
-        } else {
-            setSettings(null);
+        if (session) {
+            const userProfile = await getCurrentProfile();
+            setProfile(userProfile);
+            if (userProfile?.companyId) {
+                const companySettings = await getSettings(userProfile.companyId);
+                setSettings(companySettings);
+            } else {
+                setSettings(null);
+            }
         }
         setLoading(false);
       }
