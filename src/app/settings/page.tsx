@@ -12,9 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LoaderCircle, UploadCloud, Save, Image as ImageIcon, Sun, Moon, Sparkles } from 'lucide-react';
+import { LoaderCircle, UploadCloud, Save, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type LogoUpdateData = {
     dataUrl: string;
@@ -92,7 +91,7 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
-            await updateSettings({ companyId: profile.companyId, companyName, logoUpdate, theme });
+            await updateSettings({ companyId: profile.companyId, companyName, logoUpdate });
             toast({
                 title: 'Sucesso!',
                 description: 'As configurações foram salvas.',
@@ -168,40 +167,6 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         )}
-                        
-                       
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline">Tema do Sistema</CardTitle>
-                        <CardDescription>Selecione o tema de cores que será aplicado para todos os usuários da sua empresa.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <RadioGroup value={theme} onValueChange={(value) => setTheme(value as CompanySettings['theme'])} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                                <RadioGroupItem value="default" id="default-theme" className="peer sr-only" />
-                                <Label htmlFor="default-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                    <Sparkles className="mb-3 h-6 w-6" />
-                                    Padrão
-                                </Label>
-                            </div>
-                             <div>
-                                <RadioGroupItem value="light" id="light-theme" className="peer sr-only" />
-                                <Label htmlFor="light-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                    <Sun className="mb-3 h-6 w-6" />
-                                    Claro
-                                </Label>
-                            </div>
-                             <div>
-                                <RadioGroupItem value="dark" id="dark-theme" className="peer sr-only" />
-                                <Label htmlFor="dark-theme" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                    <Moon className="mb-3 h-6 w-6" />
-                                    Escuro
-                                </Label>
-                            </div>
-                        </RadioGroup>
                     </CardContent>
                 </Card>
 

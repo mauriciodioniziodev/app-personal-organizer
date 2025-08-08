@@ -1200,7 +1200,7 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 };
 
 
-export const updateSettings = async ({ companyId, companyName, logoUpdate, theme }: { companyId: string, companyName: string, logoUpdate: LogoUpdateData, theme: CompanySettings['theme'] }): Promise<void> => {
+export const updateSettings = async ({ companyId, companyName, logoUpdate }: { companyId: string, companyName: string, logoUpdate: LogoUpdateData }): Promise<void> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
     if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
@@ -1239,7 +1239,6 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate, theme
     const updates = {
         company_name: companyName,
         logo_url: logoUrl,
-        theme: theme,
     };
     
     let error;
