@@ -43,44 +43,67 @@ export default function RootLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!supabase) {
-        setLoading(false);
-        return;
-    }
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        if (session) {
-            const userProfile = await getCurrentProfile();
-            setProfile(userProfile);
-            if (userProfile?.companyId) {
-                const companySettings = await getSettings(userProfile.companyId);
-                setSettings(companySettings);
-            } else {
-                setSettings(null);
-            }
-        }
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
-
     const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
     const isAuthPage = publicAuthPages.some(page => pathname.startsWith(page));
 
-    if (!session && !isAuthPage) {
-      router.push('/login');
-    } else if (session && isAuthPage) {
-      router.push('/');
+    async function checkAuth() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      setSession(currentSession);
+
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        setLoading(false);
+        return;
+      }
+
+      if (currentSession) {
+        const userProfile = await getCurrentProfile();
+        setProfile(userProfile);
+
+        if (userProfile?.companyId) {
+            const companySettings = await getSettings(userProfile.companyId);
+            setSettings(companySettings);
+        } else {
+            setSettings(null);
+        }
+
+        if (isAuthPage) {
+            router.push('/');
+        }
+      } else {
+        setProfile(null);
+        setSettings(null);
+        if (!isAuthPage) {
+            router.push('/login');
+        }
+      }
+
+      setLoading(false);
     }
-  }, [session, pathname, loading, router]);
+    
+    checkAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+          // This listener handles real-time changes (login/logout)
+          // without being the primary source of truth on initial load.
+          if (session?.access_token !== getSession()?.access_token) {
+              checkAuth();
+          }
+      }
+    );
+     
+    return () => {
+        authListener?.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]); // Rerun when path changes to handle navigation between public/private routes
 
 
   if (loading) {
@@ -99,20 +122,6 @@ export default function RootLayout({
   
   const publicAuthPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
   const isAuthPage = publicAuthPages.some(page => pathname.startsWith(page));
-
-  if (!session && !isAuthPage) {
-      return (
-        <html lang="en" suppressHydrationWarning>
-             <head>
-                <title>OrganizerFlow</title>
-                <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
-            </head>
-            <body className="flex items-center justify-center h-screen bg-background">
-                <LoaderCircle className="w-8 h-8 animate-spin" />
-            </body>
-        </html>
-     )
-  }
   
   const theme = settings?.theme || 'default';
 
@@ -135,7 +144,7 @@ export default function RootLayout({
     )
   }
 
-  if (session && profile) {
+  if (session && profile && !isAuthPage) {
     return (
       <html lang="en" suppressHydrationWarning className={theme}>
         <head>
@@ -179,7 +188,7 @@ export default function RootLayout({
               <meta name="description" content="Sistema de gerenciamento para Personal Organizer." />
           </head>
           <body className="flex items-center justify-center h-screen bg-background">
-              <LoaderCircle className="w-8 h-8 animate-spin" />
+               <LoaderCircle className="w-8 h-8 animate-spin" />
           </body>
       </html>
     )
