@@ -16,6 +16,12 @@ import { LoaderCircle, UploadCloud, Save, Image as ImageIcon, Sun, Moon, Sparkle
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
+type LogoUpdateData = {
+    dataUrl: string;
+    fileName: string;
+    fileType: string;
+} | null;
+
 export default function SettingsPage() {
     const { toast } = useToast();
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,7 +29,7 @@ export default function SettingsPage() {
     const [isSaving, setIsSaving] = useState(false);
 
     const [companyName, setCompanyName] = useState('');
-    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoUpdate, setLogoUpdate] = useState<LogoUpdateData>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [theme, setTheme] = useState<CompanySettings['theme']>('default');
 
@@ -35,7 +41,6 @@ export default function SettingsPage() {
 
             if (currentProfile?.companyId) {
                 const currentSettings = await getSettings(currentProfile.companyId);
-                // Set default values if settings are null
                 setCompanyName(currentSettings?.companyName || currentProfile?.companyName || '');
                 setLogoPreview(currentSettings?.logoUrl || null);
                 setTheme(currentSettings?.theme || 'default');
@@ -54,8 +59,17 @@ export default function SettingsPage() {
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
         if (file) {
-            setLogoFile(file);
-            setLogoPreview(URL.createObjectURL(file));
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                setLogoPreview(dataUrl);
+                setLogoUpdate({
+                    dataUrl: dataUrl,
+                    fileName: file.name,
+                    fileType: file.type
+                });
+            }
+            reader.readAsDataURL(file);
         }
     }, []);
 
@@ -78,12 +92,11 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
-            await updateSettings({ companyId: profile.companyId, companyName, logoFile, theme });
+            await updateSettings({ companyId: profile.companyId, companyName, logoUpdate, theme });
             toast({
                 title: 'Sucesso!',
                 description: 'As configurações foram salvas.',
             });
-            // Force reload to reflect changes globally
             window.location.reload();
         } catch (error) {
             console.error(error);
