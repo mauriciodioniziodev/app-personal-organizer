@@ -127,4 +127,9 @@ export type CompanySettings = {
     createdAt?: string;
 }
 
+export type LogoUpdateData = {
+    dataUrl: string;
+    fileName: string;
+    fileType: string;
+} | null;
     

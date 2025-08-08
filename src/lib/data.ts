@@ -1,7 +1,7 @@
 
 
 import 'dotenv/config';
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
 import { cache } from 'react';
@@ -1200,26 +1200,34 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 };
 
 
-export const updateSettings = async ({ companyId, companyName, logoFile, theme }: { companyId: string, companyName: string, logoFile: File | null, theme: CompanySettings['theme'] }): Promise<void> => {
+export const updateSettings = async ({ companyId, companyName, logoUpdate, theme }: { companyId: string, companyName: string, logoUpdate: LogoUpdateData, theme: CompanySettings['theme'] }): Promise<void> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
     if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
 
     const { data: currentSettings } = await supabaseAdmin.from('settings').select('logo_url').eq('company_id', companyId).single();
-    let logoUrl: string | undefined | null = currentSettings?.logo_url;
+    let logoUrl = currentSettings?.logo_url;
 
-    if (logoFile) {
-        const fileName = `${companyId}/logo_${Date.now()}`;
+    if (logoUpdate) {
+        const fileExt = logoUpdate.fileName.split('.').pop();
+        const newFileName = `${companyId}/logo_${Date.now()}.${fileExt}`;
+        
+        // Convert data URL to buffer
+        const buffer = Buffer.from(logoUpdate.dataUrl.split(',')[1], 'base64');
+        
         const { error: uploadError } = await supabaseAdmin.storage
             .from('assets')
-            .upload(fileName, logoFile, { upsert: true });
+            .upload(newFileName, buffer, { 
+                upsert: true,
+                contentType: logoUpdate.fileType,
+            });
 
         if (uploadError) {
             console.error('Error uploading logo:', uploadError);
             throw new Error("Não foi possível carregar a logomarca.");
         }
 
-        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(fileName);
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(newFileName);
         logoUrl = data.publicUrl;
     }
 
@@ -1230,7 +1238,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
         theme: theme,
     };
     
-    const { error } = await supabaseAdmin.from('settings').upsert(updates);
+    const { error } = await supabaseAdmin.from('settings').upsert(updates, { onConflict: 'company_id' });
     
     if (error) {
         console.error('Error saving settings:', error);
