@@ -509,8 +509,9 @@ export default function AdminPage() {
 
     useEffect(() => {
         fetchData();
-        window.addEventListener('focus', fetchData);
-        return () => window.removeEventListener('focus', fetchData);
+        const handleFocus = () => fetchData();
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
     }, [fetchData]);
 
     const handleDataChange = () => {

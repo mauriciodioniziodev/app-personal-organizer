@@ -57,8 +57,9 @@ export default function ProjectsPage() {
   useEffect(() => {
     refetch();
 
-    window.addEventListener('focus', refetch);
-    return () => window.removeEventListener('focus', refetch);
+    const handleFocus = () => refetch();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [refetch]); 
 
    useEffect(() => {
