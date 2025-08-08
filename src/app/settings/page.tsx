@@ -35,11 +35,10 @@ export default function SettingsPage() {
 
             if (currentProfile?.companyId) {
                 const currentSettings = await getSettings(currentProfile.companyId);
-                if (currentSettings) {
-                    setCompanyName(currentSettings.companyName || '');
-                    setLogoPreview(currentSettings.logoUrl || null);
-                    setTheme(currentSettings.theme || 'default');
-                }
+                // Set default values if settings are null
+                setCompanyName(currentSettings?.companyName || currentProfile?.companyName || '');
+                setLogoPreview(currentSettings?.logoUrl || null);
+                setTheme(currentSettings?.theme || 'default');
             } else {
                  toast({
                     variant: 'destructive',
