@@ -1206,15 +1206,8 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
      if (!supabase) throw new Error("Supabase client not initialized.");
      if (!companyId) throw new Error("Company ID is required to update settings.");
 
-    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).maybeSingle();
-
-    if(fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching current settings:', fetchError);
-        throw new Error("Não foi possível buscar as configurações atuais.");
-    }
-
-
-    let logoUrl: string | undefined | null = currentSettings?.logo_url || undefined;
+    const currentSettings = await getSettings(companyId);
+    let logoUrl: string | undefined | null = currentSettings?.logoUrl || undefined;
 
     if (logoFile) {
         const supabaseAdmin = createSupabaseAdminClient();
@@ -1235,20 +1228,28 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
     }
 
     const updates = {
-        company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
         theme: theme,
     };
-    
-    const { error } = await supabase
-        .from('settings')
-        .upsert(updates, { onConflict: 'company_id'});
 
+    let error;
+    if (currentSettings) {
+        // Update existing settings
+        ({ error } = await supabase
+            .from('settings')
+            .update(updates)
+            .eq('company_id', companyId));
+    } else {
+        // Insert new settings
+         ({ error } = await supabase
+            .from('settings')
+            .insert({ ...updates, company_id: companyId }));
+    }
+    
     if (error) {
         console.error('Error saving settings:', error);
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
-
     
