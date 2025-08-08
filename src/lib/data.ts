@@ -1201,16 +1201,14 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 
 
 export const updateSettings = async ({ companyId, companyName, logoFile, theme }: { companyId: string, companyName: string, logoFile: File | null, theme: CompanySettings['theme'] }): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    if (!companyId) throw new Error("Company ID is required to update settings.");
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
+    if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
 
-    const currentSettings = await getSettings(companyId);
-    let logoUrl: string | undefined | null = currentSettings?.logoUrl;
+    const { data: currentSettings } = await supabaseAdmin.from('settings').select('logo_url').eq('company_id', companyId).single();
+    let logoUrl: string | undefined | null = currentSettings?.logo_url;
 
     if (logoFile) {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if(!supabaseAdmin) throw new Error("Admin client is required for file upload.");
-
         const fileName = `${companyId}/logo_${Date.now()}`;
         const { error: uploadError } = await supabaseAdmin.storage
             .from('assets')
@@ -1226,15 +1224,13 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
     }
 
     const updates = {
-        company_id: companyId, // for upsert
+        company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
         theme: theme,
     };
     
-    const { error } = await supabase.from('settings').upsert(updates, {
-        onConflict: 'company_id'
-    });
+    const { error } = await supabaseAdmin.from('settings').upsert(updates);
     
     if (error) {
         console.error('Error saving settings:', error);
