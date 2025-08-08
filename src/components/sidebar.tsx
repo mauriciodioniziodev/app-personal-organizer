@@ -70,7 +70,7 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
      };
   }, [router, pathname]);
   
-  const companyName = settings?.companyName || 'OrganizerFlow';
+  const companyName = settings?.companyName || profile?.companyName || 'OrganizerFlow';
   const logoUrl = settings?.logoUrl;
 
   return (
@@ -143,5 +143,3 @@ function NavItem({ item, isActive, onLinkClick }: NavItemProps) {
     </li>
   );
 }
-
-    
