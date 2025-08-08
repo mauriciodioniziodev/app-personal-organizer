@@ -80,54 +80,85 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 
 // --- User, Profile, and Company Management ---
 
-// Gets the profile of the currently logged-in user
+// This variable will act as a simple in-memory cache for the user profile.
+let userProfileCache: UserProfile | null = null;
+let profilePromise: Promise<UserProfile | null> | null = null;
+
+// Gets the profile of the currently logged-in user, with caching.
 export const getCurrentProfile = async (): Promise<UserProfile | null> => {
+    if (userProfileCache) {
+        return userProfileCache;
+    }
+    
+    // If a request is already in flight, wait for it to complete.
+    if (profilePromise) {
+        return profilePromise;
+    }
+
     if (!supabase) return null;
     
-    // Always fetch a fresh session to ensure the correct user identity
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.user?.id) {
-        // This is not an error, it just means the user is not logged in.
-        return null;
-    }
-    
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select(`
-            id,
-            company_id,
-            full_name,
-            role,
-            status,
-            organizations ( trade_name )
-        `)
-        .eq('id', session.user.id)
-        .single();
-    
-    if(profileError) {
-        console.error("Error fetching current profile data:", profileError);
-        return null;
-    }
-    
-    const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
+    // Create a new promise and store it.
+    profilePromise = new Promise(async (resolve) => {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.user?.id) {
+            profilePromise = null; // Reset promise
+            userProfileCache = null; // Clear cache
+            resolve(null);
+            return;
+        }
+        
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select(`
+                id,
+                company_id,
+                full_name,
+                role,
+                status,
+                organizations ( trade_name )
+            `)
+            .eq('id', session.user.id)
+            .single();
+        
+        if(profileError) {
+            console.error("Error fetching current profile data:", profileError);
+            profilePromise = null; // Reset promise
+            userProfileCache = null; // Clear cache
+            resolve(null);
+            return;
+        }
+        
+        const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
-    return {
-        id: profile.id,
-        companyId: profile.company_id,
-        fullName: profile.full_name,
-        email: session.user.email || '',
-        status: profile.status,
-        role: profile.role,
-        companyName: companyDetails?.trade_name || 'Empresa não encontrada'
-    };
+        const result: UserProfile = {
+            id: profile.id,
+            companyId: profile.company_id,
+            fullName: profile.full_name,
+            email: session.user.email || '',
+            status: profile.status,
+            role: profile.role,
+            companyName: companyDetails?.trade_name || 'Empresa não encontrada'
+        };
+
+        userProfileCache = result; // Cache the result
+        profilePromise = null; // Clear the promise
+        resolve(result);
+    });
+    
+    return profilePromise;
 }
+
+// Function to clear the profile cache, e.g., on logout.
+export const clearProfileCache = () => {
+    userProfileCache = null;
+    profilePromise = null;
+};
+
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-    // First, get the current user's profile to know which company to query for
-    // This uses the standard client to respect RLS (user can only see their own profile)
     const currentProfile = await getCurrentProfile();
     if (!currentProfile) {
         console.error("Could not determine current user.");
@@ -136,7 +167,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
 
     let profilesQuery;
 
-    // Super admin can see all users
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
         profilesQuery = supabaseAdmin
             .from('profiles')
@@ -149,7 +179,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
                 organizations ( trade_name )
             `);
     } else {
-        // Regular admins can see users from their own company
         if (!currentProfile.companyId) {
             console.error("Current admin user does not have a company ID.");
             return [];
@@ -174,7 +203,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
 
-    // Now, fetch all auth users to map emails (this is a privileged operation)
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError) {
@@ -219,7 +247,6 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
     return toCamelCase(data);
 };
 
-// Forces a sign-out for a specific user. For admin use.
 export const signOutUserById = async (userId: string): Promise<void> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
@@ -227,14 +254,12 @@ export const signOutUserById = async (userId: string): Promise<void> => {
     const { error } = await supabaseAdmin.auth.admin.signOut(userId);
     if (error) {
         console.error(`Error signing out user ${userId}:`, error);
-        // Don't throw an error to the UI, just log it. The primary action (status change) was successful.
     }
 };
 
 
 // --- Organization Management (Superadmin only) ---
 export const getOrganizations = async (): Promise<Company[]> => {
-    // This MUST use the admin client as only a superadmin can see all organizations
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
@@ -251,8 +276,6 @@ export const getOrganizations = async (): Promise<Company[]> => {
 }
 export const getActiveOrganizations = async (): Promise<Company[]> => {
     if (!supabase) return [];
-    // This now uses a secure RPC call that is invokable by anonymous users
-    // but only returns active organizations due to the function's definition.
     const { data, error } = await supabase.rpc('get_active_organizations');
     
     if (error) {
@@ -267,7 +290,6 @@ export const addOrganization = async (name: string): Promise<Company> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-    // Insert the new organization
     const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .insert({ trade_name: name, is_active: true })
@@ -279,13 +301,11 @@ export const addOrganization = async (name: string): Promise<Company> => {
         throw new Error("Não foi possível adicionar a nova empresa.");
     }
     
-    // Explicitly create the settings entry for the new organization
     const { error: settingsError } = await supabaseAdmin
         .from('settings')
         .insert({ company_id: orgData.id, company_name: orgData.trade_name, theme: 'default' });
 
     if (settingsError) {
-        // Log the error but don't fail the whole operation
         console.error("Error creating settings for new organization:", settingsError);
     }
 
@@ -1045,14 +1065,12 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    // First, delete existing payments for the project to handle cases where payment structure changes (e.g., vista to parcelado)
     const { error: deleteError } = await supabase.from('payments').delete().eq('project_id', project.id);
     if (deleteError) {
         console.error("Error deleting old payments:", deleteError);
         throw new Error("Não foi possível atualizar as parcelas do projeto.");
     }
 
-    // Now, insert the new/updated payments
     if (payments && payments.length > 0) {
         const paymentsToInsert = payments.map(p => ({
             project_id: project.id,
@@ -1060,10 +1078,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
             status: p.status,
             due_date: p.dueDate,
             description: p.description,
-            // We need to decide if we keep the old id or generate new ones. 
-            // For simplicity in upsert-like logic, let's treat them as new if the structure can change.
-            // However, if we want to preserve payment history, a more complex update logic is needed.
-            // For now, let's re-insert.
         }));
         const { error: insertError } = await supabase.from('payments').insert(paymentsToInsert);
 
@@ -1116,7 +1130,6 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 // --- Master Data Functions ---
 
-// Master data is global, so it doesn't need company_id filtering.
 const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
     
@@ -1135,7 +1148,6 @@ const addMasterDataItem = async (tableName: string, name: string): Promise<Maste
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // company_id is no longer added, as this is global data.
     const { data, error } = await supabase.from(tableName).insert({ name }).select().single();
     if (error) {
         console.error(`Error adding item to ${tableName}:`, error);
@@ -1215,7 +1227,6 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         return null;
     }
 
-    // This handles the case where a company exists but has no settings row yet.
     if (!settingsData) {
         const supabaseAdmin = createSupabaseAdminClient();
         if (!supabaseAdmin) {
@@ -1262,7 +1273,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
 
     const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).maybeSingle();
 
-    if(fetchError && fetchError.code !== 'PGRST116') { // Ignore "exact one row" error if settings don't exist yet
+    if(fetchError && fetchError.code !== 'PGRST116') {
         console.error('Error fetching current settings:', fetchError);
         throw new Error("Não foi possível buscar as configurações atuais.");
     }
@@ -1305,34 +1316,5 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
-    
 
     
-
-    
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

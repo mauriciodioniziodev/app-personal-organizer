@@ -509,6 +509,8 @@ export default function AdminPage() {
 
     useEffect(() => {
         fetchData();
+        window.addEventListener('focus', fetchData);
+        return () => window.removeEventListener('focus', fetchData);
     }, [fetchData]);
 
     const handleDataChange = () => {
@@ -561,3 +563,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    
