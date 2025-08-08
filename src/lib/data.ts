@@ -4,6 +4,7 @@ import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
+import { cache } from 'react';
 
 
 // --- Helper Functions ---
@@ -80,79 +81,46 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 
 // --- User, Profile, and Company Management ---
 
-// This variable will act as a simple in-memory cache for the user profile.
-let userProfileCache: UserProfile | null = null;
-let profilePromise: Promise<UserProfile | null> | null = null;
-
-// Gets the profile of the currently logged-in user, with caching.
-export const getCurrentProfile = async (): Promise<UserProfile | null> => {
-    if (userProfileCache) {
-        return userProfileCache;
-    }
-    
-    // If a request is already in flight, wait for it to complete.
-    if (profilePromise) {
-        return profilePromise;
-    }
-
+export const getCurrentProfile = cache(async (): Promise<UserProfile | null> => {
     if (!supabase) return null;
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user?.id) {
+        return null;
+    }
     
-    // Create a new promise and store it.
-    profilePromise = new Promise(async (resolve) => {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session?.user?.id) {
-            profilePromise = null; // Reset promise
-            userProfileCache = null; // Clear cache
-            resolve(null);
-            return;
-        }
-        
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select(`
-                id,
-                company_id,
-                full_name,
-                role,
-                status,
-                organizations ( trade_name )
-            `)
-            .eq('id', session.user.id)
-            .single();
-        
-        if(profileError) {
-            console.error("Error fetching current profile data:", profileError);
-            profilePromise = null; // Reset promise
-            userProfileCache = null; // Clear cache
-            resolve(null);
-            return;
-        }
-        
-        const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
-
-        const result: UserProfile = {
-            id: profile.id,
-            companyId: profile.company_id,
-            fullName: profile.full_name,
-            email: session.user.email || '',
-            status: profile.status,
-            role: profile.role,
-            companyName: companyDetails?.trade_name || 'Empresa não encontrada'
-        };
-
-        userProfileCache = result; // Cache the result
-        profilePromise = null; // Clear the promise
-        resolve(result);
-    });
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+            id,
+            company_id,
+            full_name,
+            role,
+            status,
+            organizations ( trade_name )
+        `)
+        .eq('id', session.user.id)
+        .single();
     
-    return profilePromise;
-}
+    if(profileError) {
+        console.error("Error fetching current profile data:", profileError);
+        return null;
+    }
+    
+    const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
-// Function to clear the profile cache, e.g., on logout.
-export const clearProfileCache = () => {
-    userProfileCache = null;
-    profilePromise = null;
-};
+    const result: UserProfile = {
+        id: profile.id,
+        companyId: profile.company_id,
+        fullName: profile.full_name,
+        email: session.user.email || '',
+        status: profile.status,
+        role: profile.role,
+        companyName: companyDetails?.trade_name || 'Empresa não encontrada'
+    };
+
+    return result;
+});
 
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {

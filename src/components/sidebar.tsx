@@ -33,10 +33,15 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
      const fetchProfileAndSettings = async () => {
-        if(!supabase) return;
+        setLoading(true);
+        if(!supabase) {
+          setLoading(false);
+          return;
+        }
         
         const currentProfile = await getCurrentProfile();
         setProfile(currentProfile);
@@ -45,24 +50,20 @@ export default function Sidebar({ className, onLinkClick }: { className?: string
             const companySettings = await getSettings(currentProfile.companyId);
             setSettings(companySettings);
         }
+        setLoading(false);
      }
      
-     const handleAuthChange = (_event: string, session: any) => {
-        if (session) {
-            fetchProfileAndSettings();
-        } else {
-            setProfile(null);
-            setSettings(null);
-            if (!['/login', '/signup', '/forgot-password', '/reset-password'].some(p => pathname.startsWith(p))) {
-                 router.push('/login');
-            }
-        }
-     };
-
-     // Initial fetch
      fetchProfileAndSettings();
      
-     const { data: authListener } = supabase.auth.onAuthStateChange(handleAuthChange);
+     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session && !['/login', '/signup', '/forgot-password', '/reset-password'].some(p => pathname.startsWith(p))) {
+           setProfile(null);
+           setSettings(null);
+           router.push('/login');
+        } else if (session) {
+           fetchProfileAndSettings();
+        }
+     });
 
      return () => {
        authListener?.subscription.unsubscribe();
