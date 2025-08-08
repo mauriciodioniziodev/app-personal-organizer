@@ -107,6 +107,8 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile | null> => 
         return null;
     }
     
+    // Supabase returns an array if the relationship is one-to-many, or an object if one-to-one.
+    // This handles both cases to be safe.
     const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
     const result: UserProfile = {
@@ -1276,8 +1278,7 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
     
     const { error } = await supabase
         .from('settings')
-        .upsert(updates, { onConflict: 'company_id'})
-        .eq('company_id', companyId); 
+        .upsert(updates, { onConflict: 'company_id'});
 
     if (error) {
         console.error('Error saving settings:', error);
