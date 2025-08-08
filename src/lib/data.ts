@@ -107,8 +107,6 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile | null> => 
         return null;
     }
     
-    // Supabase returns an array if the relationship is one-to-many, or an object if one-to-one.
-    // This handles both cases to be safe.
     const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
     const result: UserProfile = {
@@ -1203,11 +1201,11 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
 
 
 export const updateSettings = async ({ companyId, companyName, logoFile, theme }: { companyId: string, companyName: string, logoFile: File | null, theme: CompanySettings['theme'] }): Promise<void> => {
-     if (!supabase) throw new Error("Supabase client not initialized.");
-     if (!companyId) throw new Error("Company ID is required to update settings.");
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    if (!companyId) throw new Error("Company ID is required to update settings.");
 
     const currentSettings = await getSettings(companyId);
-    let logoUrl: string | undefined | null = currentSettings?.logoUrl || undefined;
+    let logoUrl: string | undefined | null = currentSettings?.logoUrl;
 
     if (logoFile) {
         const supabaseAdmin = createSupabaseAdminClient();
@@ -1228,24 +1226,15 @@ export const updateSettings = async ({ companyId, companyName, logoFile, theme }
     }
 
     const updates = {
+        company_id: companyId, // for upsert
         company_name: companyName,
         logo_url: logoUrl,
         theme: theme,
     };
-
-    let error;
-    if (currentSettings) {
-        // Update existing settings
-        ({ error } = await supabase
-            .from('settings')
-            .update(updates)
-            .eq('company_id', companyId));
-    } else {
-        // Insert new settings
-         ({ error } = await supabase
-            .from('settings')
-            .insert({ ...updates, company_id: companyId }));
-    }
+    
+    const { error } = await supabase.from('settings').upsert(updates, {
+        onConflict: 'company_id'
+    });
     
     if (error) {
         console.error('Error saving settings:', error);
