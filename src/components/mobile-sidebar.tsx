@@ -6,8 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import Sidebar from "./sidebar";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import type { UserProfile, CompanySettings } from '@/lib/definitions';
 
-export function MobileSidebar() {
+
+type MobileSidebarProps = {
+  profile: UserProfile | null;
+  settings: CompanySettings | null;
+}
+
+export function MobileSidebar({ profile, settings }: MobileSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -25,8 +32,7 @@ export function MobileSidebar() {
          <VisuallyHidden asChild>
           <SheetDescription>Navegue pelas seções do aplicativo</SheetDescription>
         </VisuallyHidden>
-        {/* The Sidebar component is now rendered here, making the menu content appear */}
-        <Sidebar className="flex" onLinkClick={() => setIsOpen(false)} />
+        <Sidebar className="flex" onLinkClick={() => setIsOpen(false)} profile={profile} settings={settings} />
       </SheetContent>
     </Sheet>
   );

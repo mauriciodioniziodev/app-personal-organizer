@@ -3,14 +3,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { getSettings, getCurrentProfile } from "@/lib/data";
 
 
 const mainNavItems = [
@@ -27,48 +24,16 @@ const adminNavItems = [
   { href: "/admin", label: "Administração", icon: Building, role: ['administrador'] },
 ];
 
+type SidebarProps = {
+  className?: string, 
+  onLinkClick?: () => void,
+  profile: UserProfile | null,
+  settings: CompanySettings | null
+}
 
-export default function Sidebar({ className, onLinkClick }: { className?: string, onLinkClick?: () => void }) {
+
+export default function Sidebar({ className, onLinkClick, profile, settings }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-     const fetchProfileAndSettings = async () => {
-        setLoading(true);
-        if(!supabase) {
-          setLoading(false);
-          return;
-        }
-        
-        const currentProfile = await getCurrentProfile();
-        setProfile(currentProfile);
-
-        if (currentProfile?.companyId) {
-            const companySettings = await getSettings(currentProfile.companyId);
-            setSettings(companySettings);
-        }
-        setLoading(false);
-     }
-     
-     fetchProfileAndSettings();
-     
-     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (!session && !['/login', '/signup', '/forgot-password', '/reset-password'].some(p => pathname.startsWith(p))) {
-           setProfile(null);
-           setSettings(null);
-           router.push('/login');
-        } else if (session) {
-           fetchProfileAndSettings();
-        }
-     });
-
-     return () => {
-       authListener?.subscription.unsubscribe();
-     };
-  }, [router, pathname]);
   
   const companyName = settings?.companyName || profile?.companyName || 'OrganizerFlow';
   const logoUrl = settings?.logoUrl;
