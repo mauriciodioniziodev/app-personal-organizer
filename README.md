@@ -1,5 +1,7 @@
-# Firebase Studio
+# Personal Organizer
 
-This is a NextJS starter in Firebase Studio.
+Sistema para gestão de clientes, visitas e projetos.
 
-To get started, take a look at src/app/page.tsx.
++Módulo de IA que avalia os projetos realizados e propoe novos produtos e serviços personalizados e individualizados.
+
+NextJS, to get started, take a look at src/app/page.tsx.
