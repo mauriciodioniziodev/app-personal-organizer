@@ -10,16 +10,27 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getClients, getVisits, getProjects } from '@/lib/data';
-import { FileDown } from 'lucide-react';
+import { FileDown, Cake } from 'lucide-react';
 import type { Client, Visit, Project } from '@/lib/definitions';
 import { exportToExcel, formatDate } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from "@/lib/utils";
 
 function ClientsReport() {
     const [clients, setClients] = useState<Client[]>([]);
 
     useEffect(() => {
-        getClients().then(setClients);
+        getClients().then(clients => {
+            const sortedClients = clients.sort((a,b) => {
+                if (!a.birthday) return 1;
+                if (!b.birthday) return -1;
+                const [dayA, monthA] = a.birthday.split('/').map(Number);
+                const [dayB, monthB] = b.birthday.split('/').map(Number);
+                if (monthA !== monthB) return monthA - monthB;
+                return dayA - dayB;
+            });
+            setClients(sortedClients);
+        });
     }, []);
 
     const handleExport = () => {
@@ -30,11 +41,12 @@ function ClientsReport() {
             'Endereço': c.address,
             'CPF': c.cpf,
             'Aniversário': c.birthday,
-            'Preferências': c.preferences,
             'Data de Cadastro': formatDate(c.createdAt),
         }));
         exportToExcel(dataToExport, 'relatorio_clientes');
     };
+
+    const currentMonth = new Date().getMonth() + 1;
 
     return (
         <Card>
@@ -53,18 +65,29 @@ function ClientsReport() {
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Telefone</TableHead>
+                                <TableHead>Aniversário</TableHead>
                                 <TableHead>Endereço</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {clients.map(client => (
-                                <TableRow key={client.id}>
+                            {clients.map(client => {
+                                const birthdayMonth = client.birthday ? parseInt(client.birthday.split('/')[1], 10) : null;
+                                const isBirthdayMonth = birthdayMonth === currentMonth;
+
+                                return (
+                                <TableRow key={client.id} className={cn(isBirthdayMonth && "bg-primary/10")}>
                                     <TableCell>{client.name}</TableCell>
                                     <TableCell>{client.email}</TableCell>
                                     <TableCell>{client.phone}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            {isBirthdayMonth && <Cake className="w-4 h-4 text-primary" />}
+                                            <span>{client.birthday || '-'}</span>
+                                        </div>
+                                    </TableCell>
                                     <TableCell>{client.address}</TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 </ScrollArea>
