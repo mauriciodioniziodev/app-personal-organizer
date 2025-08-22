@@ -271,7 +271,7 @@ export const addOrganization = async (name: string): Promise<Company> => {
     
     const { error: settingsError } = await supabaseAdmin
         .from('settings')
-        .insert({ company_id: orgData.id, company_name: orgData.trade_name, theme: 'default' });
+        .insert({ company_id: orgData.id, company_name: orgData.trade_name });
 
     if (settingsError) {
         // Log the error but don't block the org creation
@@ -692,6 +692,39 @@ export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate
     }
     
     return data.reduce((sum, payment) => sum + payment.amount, 0);
+};
+
+export const getTotalBudgetedRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
+    if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+
+    let query = supabase
+        .from('visits')
+        .select('budget_amount, company_id')
+        .eq('status', 'orçamento')
+        .not('budget_amount', 'is', null);
+    
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    if (startDate) {
+        query = query.gte('date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('date', endDate);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+        console.error("Error fetching total budgeted revenue from visits:", error.message);
+        return 0;
+    }
+
+    return data.reduce((sum, visit) => sum + (visit.budget_amount || 0), 0);
 };
 
 
@@ -1205,7 +1238,11 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
     if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
     if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
 
-    const { data: currentSettings, error: fetchError } = await supabaseAdmin.from('settings').select('logo_url').eq('company_id', companyId).maybeSingle();
+    const { data: currentSettings, error: fetchError } = await supabaseAdmin
+        .from('settings')
+        .select('logo_url')
+        .eq('company_id', companyId)
+        .maybeSingle();
 
     if (fetchError) {
         console.error('Error fetching current settings:', fetchError);
@@ -1217,7 +1254,6 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
     if (logoUpdate) {
         const fileExt = logoUpdate.fileName.split('.').pop();
         const newFileName = `${companyId}/logo_${Date.now()}.${fileExt}`;
-        
         const buffer = Buffer.from(logoUpdate.dataUrl.split(',')[1], 'base64');
         
         const { error: uploadError } = await supabaseAdmin.storage
@@ -1242,6 +1278,7 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
     };
     
     let error;
+
     if (currentSettings) {
         // Update existing settings
         const { error: updateError } = await supabaseAdmin.from('settings').update(updates).eq('company_id', companyId);
@@ -1251,7 +1288,7 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
         const { error: insertError } = await supabaseAdmin.from('settings').insert({ ...updates, company_id: companyId });
         error = insertError;
     }
-    
+
     if (error) {
         console.error('Error saving settings:', error);
         throw new Error("Não foi possível salvar as configurações.");

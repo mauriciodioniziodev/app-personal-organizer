@@ -4,8 +4,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects } from "@/lib/data";
-import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle } from "lucide-react";
+import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue } from "@/lib/data";
+import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle, FileText } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import type { Project, Client } from '@/lib/definitions';
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 export default function FinanceiroPage() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pendingRevenue, setPendingRevenue] = useState(0);
+  const [budgetedRevenue, setBudgetedRevenue] = useState(0);
   const [allPendingProjects, setAllPendingProjects] = useState<Project[]>([]);
   const [filteredPendingProjects, setFilteredPendingProjects] = useState<Project[]>([]);
   const [allPaidProjects, setAllPaidProjects] = useState<Project[]>([]);
@@ -27,6 +28,7 @@ export default function FinanceiroPage() {
 
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
+  const [showBudgetedRevenue, setShowBudgetedRevenue] = useState(false);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -46,12 +48,14 @@ export default function FinanceiroPage() {
         setClients(clientsData);
 
         // Fetch initial financial data without date filters
-        const [totalRevenueData, pendingRevenueData] = await Promise.all([
+        const [totalRevenueData, pendingRevenueData, budgetedRevenueData] = await Promise.all([
             getTotalRevenue(),
-            getTotalPendingRevenue()
+            getTotalPendingRevenue(),
+            getTotalBudgetedRevenue()
         ]);
         setTotalRevenue(totalRevenueData);
         setPendingRevenue(pendingRevenueData);
+        setBudgetedRevenue(budgetedRevenueData);
 
         setFilteredPendingProjects(pendingProjects);
         setFilteredPaidProjects(paidProjects);
@@ -68,12 +72,14 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     async function filterFinancialData() {
-        const [total, pending] = await Promise.all([
+        const [total, pending, budgeted] = await Promise.all([
             getTotalRevenue({ startDate, endDate }),
-            getTotalPendingRevenue({ startDate, endDate })
+            getTotalPendingRevenue({ startDate, endDate }),
+            getTotalBudgetedRevenue({ startDate, endDate })
         ]);
         setTotalRevenue(total);
         setPendingRevenue(pending);
+        setBudgetedRevenue(budgeted);
 
         // Filter projects lists based on date
          if (startDate && endDate) {
@@ -145,7 +151,7 @@ export default function FinanceiroPage() {
         </CardContent>
        </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Realizada</CardTitle>
@@ -197,6 +203,33 @@ export default function FinanceiroPage() {
             </div>
             <p className="text-xs text-muted-foreground">
                Soma de parcelas pendentes com vencimento no período.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Orçamentos em Aberto</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+             <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold font-headline">
+                {showBudgetedRevenue ? (
+                    new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                    }).format(budgetedRevenue)
+                ) : (
+                    'R$ ••••••'
+                )}
+                </div>
+                 <Button variant="ghost" size="icon" onClick={() => setShowBudgetedRevenue(!showBudgetedRevenue)}>
+                    {showBudgetedRevenue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="sr-only">Mostrar/Ocultar orçamentos</span>
+                </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+               Soma de visitas com status 'orçamento' no período.
             </p>
           </CardContent>
         </Card>
