@@ -28,11 +28,6 @@ const visitSchema = z.object({
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string(),
     type: z.enum(['presencial', 'digital']),
-    companyId: z.string(),
-    projectId: z.string().nullable(),
-    photos: z.array(z.any()),
-    budgetAmount: z.number().nullable().optional(),
-    budgetPdfUrl: z.string().nullable().optional(),
 });
 
 export default function EditVisitPage() {
@@ -93,19 +88,12 @@ export default function EditVisitPage() {
 
         const formData = new FormData(formRef.current);
         const visitData = {
-            // Build the object from scratch to avoid sending extra fields
             id: visit.id,
             clientId: formData.get("clientId") as string,
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
             status: formData.get("status") as string,
             type: formData.get("type") as Visit['type'],
-            // Carry over non-form fields
-            companyId: visit.companyId,
-            projectId: visit.projectId,
-            photos: visit.photos,
-            budgetAmount: visit.budgetAmount,
-            budgetPdfUrl: visit.budgetPdfUrl,
         };
         
         const validationResult = visitSchema.safeParse(visitData);
@@ -118,7 +106,7 @@ export default function EditVisitPage() {
         }
 
         try {
-            await updateVisit(validationResult.data as Visit);
+            await updateVisit(visit.id, validationResult.data);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
