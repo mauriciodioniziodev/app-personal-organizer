@@ -902,19 +902,11 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
 export const updateVisit = async (visit: Visit): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
      
+     const { createdAt, ...updateData } = visit;
+
      const { data, error } = await supabase
         .from('visits')
-        .update({
-            client_id: visit.clientId,
-            date: visit.date,
-            summary: visit.summary,
-            status: visit.status,
-            type: visit.type,
-            project_id: visit.projectId,
-            photos: visit.photos,
-            budget_amount: visit.budgetAmount,
-            budget_pdf_url: visit.budgetPdfUrl
-        })
+        .update(toSnakeCase(updateData))
         .eq('id', visit.id)
         .select()
         .single();
