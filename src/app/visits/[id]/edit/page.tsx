@@ -22,7 +22,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const visitSchema = z.object({
-    id: z.string(),
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
@@ -88,7 +87,6 @@ export default function EditVisitPage() {
 
         const formData = new FormData(formRef.current);
         const visitData = {
-            id: visit.id,
             clientId: formData.get("clientId") as string,
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
@@ -264,3 +262,5 @@ export default function EditVisitPage() {
         </div>
     );
 }
+
+    
