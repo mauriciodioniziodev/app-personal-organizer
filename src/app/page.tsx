@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb } from "lucide-react";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,8 @@ export default function Dashboard() {
         realizada: <CheckCircle className="w-4 h-4 text-green-600" />,
         cancelada: <XCircle className="w-4 h-4 text-red-600" />,
         orçamento: <FileText className="w-4 h-4 text-blue-600" />,
+        'Negócio não fechado': <XCircle className="w-4 h-4 text-purple-600" />,
+        'Negócio Fechado': <DollarSign className="w-4 h-4 text-green-600" />,
   };
   
   const visitStatusColors: { [key: string]: string } = {
