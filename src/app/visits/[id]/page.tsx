@@ -220,7 +220,7 @@ export default function VisitDetailsPage() {
 
                 for (const statusName of newStatuses) {
                     if (!existingNames.has(statusName)) {
-                        augmentedStatusOptions.push({ id: `new-${statusName}`, name: statusName, created_at: '' });
+                        augmentedStatusOptions.push({ id: `new-${statusName.replace(/\s+/g, '-')}`, name: statusName, created_at: '' });
                     }
                 }
                 setMasterVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
@@ -347,7 +347,7 @@ export default function VisitDetailsPage() {
     const handleStatusChange = async (newStatus: string) => {
         if (!visit) return;
         try {
-            const updatedVisit = await updateVisit({ ...visit, status: newStatus });
+            const updatedVisit = await updateVisit(visit.id, { status: newStatus });
             setVisit(updatedVisit);
             toast({
                 title: 'Status Atualizado!',
