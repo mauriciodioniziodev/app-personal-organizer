@@ -1,5 +1,4 @@
 
-
 export type Client = {
   id: string;
   createdAt: string;
@@ -55,6 +54,7 @@ export type Visit = {
   date: string;
   status: string;
   summary: string;
+  type: 'presencial' | 'digital';
   photos: Photo[];
   budgetAmount?: number;
   budgetPdfUrl?: string;
@@ -123,7 +123,6 @@ export type CompanySettings = {
     companyId: string;
     companyName: string;
     logoUrl: string | null;
-    theme: 'default' | 'light' | 'dark';
     createdAt?: string;
 }
 

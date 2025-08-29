@@ -19,6 +19,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatDateTimeForInput } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const visitSchema = z.object({
@@ -27,6 +28,7 @@ const visitSchema = z.object({
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string(),
+    type: z.enum(['presencial', 'digital']),
 });
 
 export default function EditVisitPage() {
@@ -63,7 +65,14 @@ export default function EditVisitPage() {
                 router.push('/visits');
             }
             setClients(clientsData);
-            setVisitStatus(statusOptions);
+            setVisitStatus(options => {
+                const followUpExists = statusOptions.some(o => o.name === 'Follow-up');
+                if(!followUpExists) {
+                    const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Follow-up', created_at: ''}];
+                    return newOptions.sort((a,b) => a.name.localeCompare(b.name));
+                }
+                return statusOptions.sort((a,b) => a.name.localeCompare(b.name));
+            });
             setLoading(false);
         }
         fetchData();
@@ -81,6 +90,7 @@ export default function EditVisitPage() {
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
             status: formData.get("status") as string,
+            type: formData.get("type") as Visit['type'],
         };
 
         const validationResult = visitSchema.safeParse(visitData);
@@ -175,6 +185,20 @@ export default function EditVisitPage() {
                             <Label htmlFor="date">Data e Hora</Label>
                             <Input id="date" name="date" type="datetime-local" required defaultValue={formatDateTimeForInput(visit.date)} />
                              {errors.date && <p className="text-sm text-destructive">{errors.date[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tipo de Visita</Label>
+                            <RadioGroup name="type" defaultValue={visit.type || "presencial"} className="flex items-center pt-2 gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="presencial" id="presencial" />
+                                    <Label htmlFor="presencial">Presencial</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="digital" id="digital" />
+                                    <Label htmlFor="digital">Digital</Label>
+                                </div>
+                            </RadioGroup>
+                            {errors.type && <p className="text-sm text-destructive">{errors.type[0]}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="summary">Resumo/Objetivo da Visita</Label>
