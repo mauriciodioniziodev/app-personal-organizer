@@ -884,6 +884,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
             date: visit.date,
             summary: visit.summary,
             status: visit.status,
+            type: visit.type,
             photos: [],
             company_id: profile.companyId,
         })
@@ -908,6 +909,7 @@ export const updateVisit = async (visit: Visit): Promise<Visit> => {
             date: visit.date,
             summary: visit.summary,
             status: visit.status,
+            type: visit.type,
             project_id: visit.projectId,
             photos: visit.photos,
             budget_amount: visit.budgetAmount,
@@ -957,12 +959,24 @@ export const addPhotoToVisit = async (photoData: { visitId: string, url: string,
 }
 
 
-export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: string): Promise<Visit> => {
+export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl?: string): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
+
+     const currentVisit = await getVisitById(visitId);
+     if (!currentVisit) throw new Error("Visita não encontrada.");
+     
+     const updateData: Partial<Visit> = {
+         budgetAmount: amount,
+         status: 'orçamento',
+     }
+
+     if (pdfUrl) {
+         updateData.budgetPdfUrl = pdfUrl;
+     }
      
      const { data, error } = await supabase
         .from('visits')
-        .update({ budget_amount: amount, budget_pdf_url: pdfUrl, status: 'orçamento' })
+        .update(toSnakeCase(updateData))
         .eq('id', visitId)
         .select()
         .single();
