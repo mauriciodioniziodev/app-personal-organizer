@@ -29,6 +29,11 @@ const visitSchema = z.object({
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string(),
     type: z.enum(['presencial', 'digital']),
+    companyId: z.string(),
+    projectId: z.string().nullable(),
+    photos: z.array(z.any()),
+    budgetAmount: z.number().nullable(),
+    budgetPdfUrl: z.string().nullable(),
 });
 
 export default function EditVisitPage() {
@@ -66,17 +71,16 @@ export default function EditVisitPage() {
             }
             setClients(clientsData);
 
-            // Safely add new statuses if they don't exist
+            const statusNames = new Set(statusOptions.map(o => o.name));
             const augmentedStatusOptions = [...statusOptions];
             const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
-            const existingNames = new Set(augmentedStatusOptions.map(o => o.name));
-            
-            for(const statusName of newStatuses) {
-                if(!existingNames.has(statusName)) {
-                    augmentedStatusOptions.push({id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: ''});
+
+            for (const statusName of newStatuses) {
+                if (!statusNames.has(statusName)) {
+                    augmentedStatusOptions.push({ id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: '' });
                 }
             }
-
+            
             setVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
             setLoading(false);
         }
@@ -97,19 +101,18 @@ export default function EditVisitPage() {
             status: formData.get("status") as string,
             type: formData.get("type") as Visit['type'],
         };
-
+        
         const validationResult = visitSchema.safeParse(visitData);
-
+        
         if (!validationResult.success) {
+            console.log(validationResult.error.flatten().fieldErrors);
             setErrors(validationResult.error.flatten().fieldErrors);
             setIsSubmitting(false);
             return;
         }
 
         try {
-            // Remove 'photos' from the object to be updated if it's not part of the form
-            const { photos, ...updateData } = validationResult.data;
-            await updateVisit(updateData as Visit);
+            await updateVisit(validationResult.data as Visit);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
