@@ -50,7 +50,7 @@ export type Visit = {
   createdAt: string;
   clientId: string; 
   companyId: string;
-  projectId: string; 
+  projectId: string | null; 
   date: string;
   status: string;
   summary: string;
@@ -131,4 +131,3 @@ export type LogoUpdateData = {
     fileName: string;
     fileType: string;
 } | null;
-    

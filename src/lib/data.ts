@@ -1,5 +1,4 @@
 
-
 import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData } from './definitions';
 import { supabase } from './supabaseClient';
@@ -1320,4 +1319,3 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
-    
