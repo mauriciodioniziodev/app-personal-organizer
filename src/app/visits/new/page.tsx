@@ -50,20 +50,26 @@ export default function NewVisitPage() {
                 getVisitStatusOptions()
             ]);
             setClients(clientsData);
-            setVisitStatusOptions(options => {
-                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
-                const existingNames = new Set(options.map(o => o.name));
-                
-                for(const statusName of newStatuses) {
-                    if(!existingNames.has(statusName)) {
-                        options.push({id: `new-${statusName}`, name: statusName, created_at: ''});
-                    }
-                }
 
-                return options.sort((a,b) => a.name.localeCompare(b.name));
-            });
-            if (statusOptions.length > 0) {
-                setSelectedStatus('pendente');
+            // Safely add new statuses if they don't exist
+            const augmentedStatusOptions = [...statusOptions];
+            const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+            const existingNames = new Set(augmentedStatusOptions.map(o => o.name));
+            
+            for(const statusName of newStatuses) {
+                if(!existingNames.has(statusName)) {
+                    augmentedStatusOptions.push({id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: ''});
+                }
+            }
+
+            const sortedOptions = augmentedStatusOptions.sort((a, b) => a.name.localeCompare(b.name));
+            setVisitStatusOptions(sortedOptions);
+
+            const pendingOption = sortedOptions.find(o => o.name === 'pendente');
+            if (pendingOption) {
+                setSelectedStatus(pendingOption.name);
+            } else if (sortedOptions.length > 0) {
+                 setSelectedStatus(sortedOptions[0].name);
             }
             setLoading(false);
         }
