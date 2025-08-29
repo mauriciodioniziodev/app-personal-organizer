@@ -60,6 +60,11 @@ function EditableBudgetSection({ visit, client, onBudgetUpdated }: { visit: Visi
         let pdfDataUrl: string | undefined = undefined;
 
         if (budgetFile) {
+            if (budgetFile.type !== "application/pdf") {
+                 setErrors("O arquivo deve ser um PDF.");
+                 setIsSubmitting(false);
+                 return;
+            }
             const reader = new FileReader();
             reader.readAsDataURL(budgetFile);
             reader.onload = async () => {
@@ -209,11 +214,15 @@ export default function VisitDetailsPage() {
                 
                 setVisit(visitData);
                 setMasterVisitStatus(options => {
-                    const followUpExists = statusOptions.some(o => o.name === 'Negócio não fechado');
-                    if(!followUpExists) {
-                        const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Negócio não fechado', created_at: ''}];
-                        return newOptions.sort((a,b) => a.name.localeCompare(b.name));
+                    const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+                    const existingNames = new Set(options.map(o => o.name));
+                    
+                    for(const statusName of newStatuses) {
+                        if(!existingNames.has(statusName)) {
+                            statusOptions.push({id: `new-${statusName}`, name: statusName, created_at: ''});
+                        }
                     }
+
                     return statusOptions.sort((a,b) => a.name.localeCompare(b.name));
                 });
 
@@ -374,6 +383,7 @@ export default function VisitDetailsPage() {
         'cancelada': <XCircle className="w-4 h-4 text-red-500" />,
         'orçamento': <FileText className="w-4 h-4 text-blue-500" />,
         'Negócio não fechado': <FileText className="w-4 h-4 text-purple-500" />,
+        'Negócio Fechado': <DollarSign className="w-4 h-4 text-green-600" />,
     };
 
      const visitTypeIcons: { [key: string]: React.ReactNode } = {
@@ -437,7 +447,7 @@ export default function VisitDetailsPage() {
                                         <User className="w-4 h-4 text-muted-foreground" />
                                         <Link href={`/clients/${client.id}`} className="font-medium text-primary hover:underline">{client.name}</Link>
                                     </div>
-                                </div>
+                                 </div>
                                  <div>
                                      <Label className="text-sm font-semibold">Data</Label>
                                      <div className="flex items-center gap-2 mt-2">
@@ -452,7 +462,7 @@ export default function VisitDetailsPage() {
                                 <p className="text-muted-foreground whitespace-pre-wrap">{visit.summary}</p>
                             </div>
                            
-                            {!project && visit.status !== 'cancelada' && (
+                            {!project && visit.status !== 'cancelada' && visit.status !== 'Negócio Fechado' && (
                                 <div className="pt-4">
                                      <Link href={`/projects/new?fromVisit=${visit.id}`}>
                                         <Button>
