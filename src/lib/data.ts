@@ -898,7 +898,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
     return toCamelCase(data) as Visit;
 }
 
-export const updateVisit = async (visitId: string, updateData: Partial<Visit>): Promise<Visit> => {
+export const updateVisit = async (visitId: string, updateData: Partial<Omit<Visit, 'id' | 'createdAt' | 'companyId' | 'photos' | 'budgetAmount' | 'budgetPdfUrl' | 'projectId'>>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
 
      const { data, error } = await supabase
