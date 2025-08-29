@@ -46,7 +46,18 @@ export default function VisitsPage() {
                 setFilteredVisits(sortedVisits);
                 setClients(clientsData);
                 setProjects(projectsData);
-                setMasterVisitStatus(statusOptions);
+                
+                const augmentedStatusOptions = [...statusOptions];
+                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+                const existingNames = new Set(statusOptions.map(o => o.name));
+
+                for (const statusName of newStatuses) {
+                    if (!existingNames.has(statusName)) {
+                        augmentedStatusOptions.push({ id: `new-${statusName}`, name: statusName, created_at: '' });
+                    }
+                }
+                setMasterVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
+
             } catch (error) {
                 console.error("Failed to fetch page data:", error);
             } finally {
@@ -90,6 +101,8 @@ export default function VisitsPage() {
       realizada: 'text-green-800 bg-green-100',
       cancelada: 'text-red-800 bg-red-100',
       orçamento: 'text-blue-800 bg-blue-100',
+      'Negócio não fechado': 'text-purple-800 bg-purple-100',
+      'Negócio Fechado': 'text-emerald-800 bg-emerald-100',
     }
     
     const totalPages = Math.ceil(filteredVisits.length / VISITS_PER_PAGE);
