@@ -30,7 +30,7 @@ const toSnakeCase = (obj: any): any => {
     } else if (obj !== null && obj.constructor === Object) {
         return Object.keys(obj).reduce(
             (result, key) => {
-                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
                 result[snakeKey] = toSnakeCase(obj[key]);
                 return result;
             },
@@ -1308,5 +1308,3 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
-
-    
