@@ -213,18 +213,17 @@ export default function VisitDetailsPage() {
                 }
                 
                 setVisit(visitData);
-                setMasterVisitStatus(options => {
-                    const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
-                    const existingNames = new Set(options.map(o => o.name));
-                    
-                    for(const statusName of newStatuses) {
-                        if(!existingNames.has(statusName)) {
-                            statusOptions.push({id: `new-${statusName}`, name: statusName, created_at: ''});
-                        }
-                    }
+                
+                const augmentedStatusOptions = [...statusOptions];
+                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+                const existingNames = new Set(statusOptions.map(o => o.name));
 
-                    return statusOptions.sort((a,b) => a.name.localeCompare(b.name));
-                });
+                for (const statusName of newStatuses) {
+                    if (!existingNames.has(statusName)) {
+                        augmentedStatusOptions.push({ id: `new-${statusName}`, name: statusName, created_at: '' });
+                    }
+                }
+                setMasterVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
 
                 const [clientData, projectData] = await Promise.all([
                     getClientById(visitData.clientId),
