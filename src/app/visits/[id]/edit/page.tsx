@@ -65,18 +65,19 @@ export default function EditVisitPage() {
                 router.push('/visits');
             }
             setClients(clientsData);
-            setVisitStatus(options => {
-                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
-                const existingNames = new Set(options.map(o => o.name));
-                
-                for(const statusName of newStatuses) {
-                    if(!existingNames.has(statusName)) {
-                        statusOptions.push({id: `new-${statusName}`, name: statusName, created_at: ''});
-                    }
-                }
 
-                return statusOptions.sort((a,b) => a.name.localeCompare(b.name));
-            });
+            // Safely add new statuses if they don't exist
+            const augmentedStatusOptions = [...statusOptions];
+            const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+            const existingNames = new Set(augmentedStatusOptions.map(o => o.name));
+            
+            for(const statusName of newStatuses) {
+                if(!existingNames.has(statusName)) {
+                    augmentedStatusOptions.push({id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: ''});
+                }
+            }
+
+            setVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
             setLoading(false);
         }
         fetchData();
