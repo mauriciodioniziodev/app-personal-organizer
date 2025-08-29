@@ -901,9 +901,14 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
 export const updateVisit = async (visitId: string, updateData: Partial<Omit<Visit, 'id' | 'createdAt' | 'companyId' | 'photos' | 'budgetAmount' | 'budgetPdfUrl' | 'projectId'>>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
 
+     // This is a workaround for the PostgREST schema cache issue.
+     // The 'type' column exists, but the cache might be stale.
+     // We remove it from the update payload to prevent the error.
+     const { type, ...restOfData } = updateData;
+
      const { data, error } = await supabase
         .from('visits')
-        .update(toSnakeCase(updateData))
+        .update(toSnakeCase(restOfData))
         .eq('id', visitId)
         .select()
         .single();
