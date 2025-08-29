@@ -66,9 +66,9 @@ export default function EditVisitPage() {
             }
             setClients(clientsData);
             setVisitStatus(options => {
-                const followUpExists = statusOptions.some(o => o.name === 'Follow-up');
+                const followUpExists = statusOptions.some(o => o.name === 'Negócio não fechado');
                 if(!followUpExists) {
-                    const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Follow-up', created_at: ''}];
+                    const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Negócio não fechado', created_at: ''}];
                     return newOptions.sort((a,b) => a.name.localeCompare(b.name));
                 }
                 return statusOptions.sort((a,b) => a.name.localeCompare(b.name));

@@ -209,9 +209,9 @@ export default function VisitDetailsPage() {
                 
                 setVisit(visitData);
                 setMasterVisitStatus(options => {
-                    const followUpExists = statusOptions.some(o => o.name === 'Follow-up');
+                    const followUpExists = statusOptions.some(o => o.name === 'Negócio não fechado');
                     if(!followUpExists) {
-                        const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Follow-up', created_at: ''}];
+                        const newOptions = [...statusOptions, {id: 'new-follow-up', name: 'Negócio não fechado', created_at: ''}];
                         return newOptions.sort((a,b) => a.name.localeCompare(b.name));
                     }
                     return statusOptions.sort((a,b) => a.name.localeCompare(b.name));
@@ -373,7 +373,7 @@ export default function VisitDetailsPage() {
         'realizada': <CheckCircle className="w-4 h-4 text-green-500" />,
         'cancelada': <XCircle className="w-4 h-4 text-red-500" />,
         'orçamento': <FileText className="w-4 h-4 text-blue-500" />,
-        'Follow-up': <FileText className="w-4 h-4 text-purple-500" />,
+        'Negócio não fechado': <FileText className="w-4 h-4 text-purple-500" />,
     };
 
      const visitTypeIcons: { [key: string]: React.ReactNode } = {
