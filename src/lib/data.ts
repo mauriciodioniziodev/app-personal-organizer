@@ -900,12 +900,10 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
 
 export const updateVisit = async (visitId: string, updateData: Partial<Visit>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
-     
-     const { id, createdAt, companyId, photos, projectId, budgetAmount, budgetPdfUrl, ...rest } = updateData;
 
      const { data, error } = await supabase
         .from('visits')
-        .update(toSnakeCase(rest))
+        .update(toSnakeCase(updateData))
         .eq('id', visitId)
         .select()
         .single();
@@ -1302,20 +1300,13 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
         logo_url: logoUrl,
     };
     
-    let error;
-
-    if (currentSettings) {
-        // Update existing settings
-        const { error: updateError } = await supabaseAdmin.from('settings').update(updates).eq('company_id', companyId);
-        error = updateError;
-    } else {
-        // Insert new settings
-        const { error: insertError } = await supabaseAdmin.from('settings').insert({ ...updates, company_id: companyId });
-        error = insertError;
-    }
+    const { error } = await supabaseAdmin.from('settings').update(updates).eq('company_id', companyId);
+    
 
     if (error) {
         console.error('Error saving settings:', error);
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
+
+    
