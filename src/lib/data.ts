@@ -898,20 +898,20 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
     return toCamelCase(data) as Visit;
 }
 
-export const updateVisit = async (visit: Visit): Promise<Visit> => {
+export const updateVisit = async (visitId: string, updateData: Partial<Visit>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
      
-     const { createdAt, ...updateData } = visit;
+     const { id, createdAt, companyId, photos, projectId, budgetAmount, budgetPdfUrl, ...rest } = updateData;
 
      const { data, error } = await supabase
         .from('visits')
-        .update(toSnakeCase(updateData))
-        .eq('id', visit.id)
+        .update(toSnakeCase(rest))
+        .eq('id', visitId)
         .select()
         .single();
         
     if(error) {
-        console.error(`Error updating visit ${visit.id}:`, error);
+        console.error(`Error updating visit ${visitId}:`, error);
         throw new Error("Não foi possível atualizar a visita.");
     }
     
