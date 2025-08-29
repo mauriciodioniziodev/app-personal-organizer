@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, FormEvent, useRef } from "react";
@@ -64,13 +65,13 @@ export default function EditVisitPage() {
             }
             setClients(clientsData);
 
-            const statusNames = new Set(statusOptions.map(o => o.name));
             const augmentedStatusOptions = [...statusOptions];
             const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+            const existingNames = new Set(statusOptions.map(o => o.name));
 
             for (const statusName of newStatuses) {
-                if (!statusNames.has(statusName)) {
-                    augmentedStatusOptions.push({ id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: '' });
+                if (!existingNames.has(statusName)) {
+                    augmentedStatusOptions.push({ id: `new-${statusName}`, name: statusName, created_at: '' });
                 }
             }
             
@@ -109,7 +110,7 @@ export default function EditVisitPage() {
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
             });
-            router.push(`/visits/${visit.id}`);
+            router.push(`/visits/${id}`);
         } catch (error) {
             toast({
                 variant: 'destructive',
