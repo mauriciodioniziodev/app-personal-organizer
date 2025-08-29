@@ -959,24 +959,44 @@ export const addPhotoToVisit = async (photoData: { visitId: string, url: string,
 }
 
 
-export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl?: string): Promise<Visit> => {
+export const addBudgetToVisit = async (visitId: string, amount: number, pdfDataUrl?: string): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
 
      const currentVisit = await getVisitById(visitId);
      if (!currentVisit) throw new Error("Visita não encontrada.");
      
-     const updateData: Partial<Visit> = {
-         budgetAmount: amount,
+      const updateData: Partial<any> = {
+         budget_amount: amount,
          status: 'orçamento',
      }
 
-     if (pdfUrl) {
-         updateData.budgetPdfUrl = pdfUrl;
+     if (pdfDataUrl) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+        
+        const fileExt = "pdf";
+        const newFileName = `${currentVisit.companyId}/budgets/${visitId}_${Date.now()}.${fileExt}`;
+        const buffer = Buffer.from(pdfDataUrl.split(',')[1], 'base64');
+        
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('assets')
+            .upload(newFileName, buffer, { 
+                upsert: true,
+                contentType: "application/pdf",
+            });
+
+        if (uploadError) {
+            console.error('Error uploading budget PDF:', uploadError);
+            throw new Error("Não foi possível carregar o arquivo do orçamento.");
+        }
+
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(newFileName);
+        updateData.budget_pdf_url = data.publicUrl;
      }
      
      const { data, error } = await supabase
         .from('visits')
-        .update(toSnakeCase(updateData))
+        .update(updateData)
         .eq('id', visitId)
         .select()
         .single();
@@ -1026,7 +1046,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' |
     }
     
     if (project.visitId) {
-        await supabase.from('visits').update({ project_id: newProjectData.id }).eq('id', project.visitId);
+        await supabase.from('visits').update({ project_id: newProjectData.id, status: 'Negócio Fechado' }).eq('id', project.visitId);
     }
     
     const paymentsWithProjectId = payments.map(p => ({

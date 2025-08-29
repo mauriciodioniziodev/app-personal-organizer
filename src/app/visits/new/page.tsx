@@ -51,11 +51,15 @@ export default function NewVisitPage() {
             ]);
             setClients(clientsData);
             setVisitStatusOptions(options => {
-                const followUpExists = options.some(o => o.name === 'Negócio não fechado');
-                if(!followUpExists) {
-                    const newOptions = [...options, {id: 'new-follow-up', name: 'Negócio não fechado', created_at: ''}];
-                    return newOptions.sort((a,b) => a.name.localeCompare(b.name));
+                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+                const existingNames = new Set(options.map(o => o.name));
+                
+                for(const statusName of newStatuses) {
+                    if(!existingNames.has(statusName)) {
+                        options.push({id: `new-${statusName}`, name: statusName, created_at: ''});
+                    }
                 }
+
                 return options.sort((a,b) => a.name.localeCompare(b.name));
             });
             if (statusOptions.length > 0) {
