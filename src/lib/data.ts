@@ -1,9 +1,10 @@
 
 
 import 'dotenv/config';
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
+import { cache } from 'react';
 
 
 // --- Helper Functions ---
@@ -30,7 +31,7 @@ const toSnakeCase = (obj: any): any => {
     } else if (obj !== null && obj.constructor === Object) {
         return Object.keys(obj).reduce(
             (result, key) => {
-                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
                 result[snakeKey] = toSnakeCase(obj[key]);
                 return result;
             },
@@ -80,14 +81,11 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
 
 // --- User, Profile, and Company Management ---
 
-// Gets the profile of the currently logged-in user
-export const getCurrentProfile = async (): Promise<UserProfile | null> => {
+export const getCurrentProfile = cache(async (): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    
-    // Always fetch a fresh session to ensure the correct user identity
+
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !session?.user?.id) {
-        // This is not an error, it just means the user is not logged in.
         return null;
     }
     
@@ -111,7 +109,7 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
     
     const companyDetails = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
 
-    return {
+    const result: UserProfile = {
         id: profile.id,
         companyId: profile.company_id,
         fullName: profile.full_name,
@@ -120,14 +118,15 @@ export const getCurrentProfile = async (): Promise<UserProfile | null> => {
         role: profile.role,
         companyName: companyDetails?.trade_name || 'Empresa não encontrada'
     };
-}
+
+    return result;
+});
+
 
 export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-    // First, get the current user's profile to know which company to query for
-    // This uses the standard client to respect RLS (user can only see their own profile)
     const currentProfile = await getCurrentProfile();
     if (!currentProfile) {
         console.error("Could not determine current user.");
@@ -136,7 +135,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
 
     let profilesQuery;
 
-    // Super admin can see all users
     if (currentProfile.email === 'mauriciodionizio@gmail.com') {
         profilesQuery = supabaseAdmin
             .from('profiles')
@@ -149,7 +147,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
                 organizations ( trade_name )
             `);
     } else {
-        // Regular admins can see users from their own company
         if (!currentProfile.companyId) {
             console.error("Current admin user does not have a company ID.");
             return [];
@@ -174,7 +171,6 @@ export const getMyCompanyUsers = async (): Promise<UserProfile[]> => {
         return [];
     }
 
-    // Now, fetch all auth users to map emails (this is a privileged operation)
     const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError) {
@@ -219,7 +215,6 @@ export const updateProfile = async (userId: string, updates: { status?: 'authori
     return toCamelCase(data);
 };
 
-// Forces a sign-out for a specific user. For admin use.
 export const signOutUserById = async (userId: string): Promise<void> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
@@ -227,14 +222,12 @@ export const signOutUserById = async (userId: string): Promise<void> => {
     const { error } = await supabaseAdmin.auth.admin.signOut(userId);
     if (error) {
         console.error(`Error signing out user ${userId}:`, error);
-        // Don't throw an error to the UI, just log it. The primary action (status change) was successful.
     }
 };
 
 
 // --- Organization Management (Superadmin only) ---
 export const getOrganizations = async (): Promise<Company[]> => {
-    // This MUST use the admin client as only a superadmin can see all organizations
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
@@ -251,8 +244,6 @@ export const getOrganizations = async (): Promise<Company[]> => {
 }
 export const getActiveOrganizations = async (): Promise<Company[]> => {
     if (!supabase) return [];
-    // This now uses a secure RPC call that is invokable by anonymous users
-    // but only returns active organizations due to the function's definition.
     const { data, error } = await supabase.rpc('get_active_organizations');
     
     if (error) {
@@ -267,7 +258,6 @@ export const addOrganization = async (name: string): Promise<Company> => {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
 
-    // Insert the new organization
     const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
         .insert({ trade_name: name, is_active: true })
@@ -279,13 +269,12 @@ export const addOrganization = async (name: string): Promise<Company> => {
         throw new Error("Não foi possível adicionar a nova empresa.");
     }
     
-    // Explicitly create the settings entry for the new organization
     const { error: settingsError } = await supabaseAdmin
         .from('settings')
         .insert({ company_id: orgData.id, company_name: orgData.trade_name });
 
     if (settingsError) {
-        // Log the error but don't fail the whole operation
+        // Log the error but don't block the org creation
         console.error("Error creating settings for new organization:", settingsError);
     }
 
@@ -705,6 +694,39 @@ export const getTotalPendingRevenue = async ({ startDate, endDate }: { startDate
     return data.reduce((sum, payment) => sum + payment.amount, 0);
 };
 
+export const getTotalBudgetedRevenue = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
+    if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+
+    let query = supabase
+        .from('visits')
+        .select('budget_amount, company_id')
+        .eq('status', 'orçamento')
+        .not('budget_amount', 'is', null);
+    
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return 0;
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    if (startDate) {
+        query = query.gte('date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('date', endDate);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+        console.error("Error fetching total budgeted revenue from visits:", error.message);
+        return 0;
+    }
+
+    return data.reduce((sum, visit) => sum + (visit.budget_amount || 0), 0);
+};
+
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
@@ -862,6 +884,7 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
             date: visit.date,
             summary: visit.summary,
             status: visit.status,
+            type: visit.type,
             photos: [],
             company_id: profile.companyId,
         })
@@ -876,27 +899,18 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
     return toCamelCase(data) as Visit;
 }
 
-export const updateVisit = async (visit: Visit): Promise<Visit> => {
+export const updateVisit = async (visitId: string, updateData: Partial<Omit<Visit, 'id' | 'createdAt' | 'companyId' | 'photos' | 'budgetAmount' | 'budgetPdfUrl' | 'projectId'>>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
      
      const { data, error } = await supabase
         .from('visits')
-        .update({
-            client_id: visit.clientId,
-            date: visit.date,
-            summary: visit.summary,
-            status: visit.status,
-            project_id: visit.projectId,
-            photos: visit.photos,
-            budget_amount: visit.budgetAmount,
-            budget_pdf_url: visit.budgetPdfUrl
-        })
-        .eq('id', visit.id)
+        .update(toSnakeCase(updateData))
+        .eq('id', visitId)
         .select()
         .single();
         
     if(error) {
-        console.error(`Error updating visit ${visit.id}:`, error);
+        console.error(`Error updating visit ${visitId}:`, error);
         throw new Error("Não foi possível atualizar a visita.");
     }
     
@@ -935,12 +949,44 @@ export const addPhotoToVisit = async (photoData: { visitId: string, url: string,
 }
 
 
-export const addBudgetToVisit = async (visitId: string, amount: number, pdfUrl: string): Promise<Visit> => {
+export const addBudgetToVisit = async (visitId: string, amount: number, pdfDataUrl?: string): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
+
+     const currentVisit = await getVisitById(visitId);
+     if (!currentVisit) throw new Error("Visita não encontrada.");
+     
+      const updateData: Partial<any> = {
+         budget_amount: amount,
+         status: 'orçamento',
+     }
+
+     if (pdfDataUrl) {
+        const supabaseAdmin = createSupabaseAdminClient();
+        if (!supabaseAdmin) throw new Error("Acesso de administrador não configurado.");
+        
+        const fileExt = "pdf";
+        const newFileName = `${currentVisit.companyId}/budgets/${visitId}_${Date.now()}.${fileExt}`;
+        const buffer = Buffer.from(pdfDataUrl.split(',')[1], 'base64');
+        
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('assets')
+            .upload(newFileName, buffer, { 
+                upsert: true,
+                contentType: "application/pdf",
+            });
+
+        if (uploadError) {
+            console.error('Error uploading budget PDF:', uploadError);
+            throw new Error("Não foi possível carregar o arquivo do orçamento.");
+        }
+
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(newFileName);
+        updateData.budget_pdf_url = data.publicUrl;
+     }
      
      const { data, error } = await supabase
         .from('visits')
-        .update({ budget_amount: amount, budget_pdf_url: pdfUrl, status: 'orçamento' })
+        .update(updateData)
         .eq('id', visitId)
         .select()
         .single();
@@ -990,7 +1036,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' |
     }
     
     if (project.visitId) {
-        await supabase.from('visits').update({ project_id: newProjectData.id }).eq('id', project.visitId);
+        await supabase.from('visits').update({ project_id: newProjectData.id, status: 'Negócio Fechado' }).eq('id', project.visitId);
     }
     
     const paymentsWithProjectId = payments.map(p => ({
@@ -1045,14 +1091,12 @@ export const updateProject = async (project: Project): Promise<Project> => {
         throw new Error("Falha ao atualizar o projeto.");
     }
     
-    // First, delete existing payments for the project to handle cases where payment structure changes (e.g., vista to parcelado)
     const { error: deleteError } = await supabase.from('payments').delete().eq('project_id', project.id);
     if (deleteError) {
         console.error("Error deleting old payments:", deleteError);
         throw new Error("Não foi possível atualizar as parcelas do projeto.");
     }
 
-    // Now, insert the new/updated payments
     if (payments && payments.length > 0) {
         const paymentsToInsert = payments.map(p => ({
             project_id: project.id,
@@ -1060,10 +1104,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
             status: p.status,
             due_date: p.dueDate,
             description: p.description,
-            // We need to decide if we keep the old id or generate new ones. 
-            // For simplicity in upsert-like logic, let's treat them as new if the structure can change.
-            // However, if we want to preserve payment history, a more complex update logic is needed.
-            // For now, let's re-insert.
         }));
         const { error: insertError } = await supabase.from('payments').insert(paymentsToInsert);
 
@@ -1116,7 +1156,6 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
 
 // --- Master Data Functions ---
 
-// Master data is global, so it doesn't need company_id filtering.
 const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
     if (!supabase) return [];
     
@@ -1135,7 +1174,6 @@ const addMasterDataItem = async (tableName: string, name: string): Promise<Maste
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // company_id is no longer added, as this is global data.
     const { data, error } = await supabase.from(tableName).insert({ name }).select().single();
     if (error) {
         console.error(`Error adding item to ${tableName}:`, error);
@@ -1214,122 +1252,60 @@ export const getSettings = async (companyId: string): Promise<CompanySettings | 
         console.error("Error fetching settings:", error);
         return null;
     }
-
-    // This handles the case where a company exists but has no settings row yet.
-    if (!settingsData) {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if (!supabaseAdmin) {
-            console.error("Admin client is required to create missing settings.");
-            return null;
-        }
-
-        const { data: orgData, error: orgError } = await supabaseAdmin
-            .from('organizations')
-            .select('trade_name')
-            .eq('id', companyId)
-            .single();
-        
-        if (orgError || !orgData) {
-            console.error("Could not fetch organization name to create settings:", orgError);
-            return null;
-        }
-
-        const { data: newSettings, error: insertError } = await supabaseAdmin
-            .from('settings')
-            .insert({
-                company_id: companyId,
-                company_name: orgData.trade_name,
-            })
-            .select()
-            .single();
-        
-        if (insertError) {
-            console.error("Error creating default settings:", insertError);
-            return null;
-        }
-        
-        return toCamelCase(newSettings);
-    }
     
     return toCamelCase(settingsData);
 };
 
 
-export const updateSettings = async ({ companyId, companyName, logoFile }: { companyId: string, companyName: string, logoFile: File | null }): Promise<void> => {
-     if (!supabase) throw new Error("Supabase client not initialized.");
-     if (!companyId) throw new Error("Company ID is required to update settings.");
+export const updateSettings = async ({ companyId, companyName, logoUpdate }: { companyId: string, companyName: string, logoUpdate: LogoUpdateData }): Promise<void> => {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) throw new Error("Cliente de administrador Supabase não inicializado.");
+    if (!companyId) throw new Error("ID da empresa é obrigatório para atualizar as configurações.");
 
-    const { data: currentSettings, error: fetchError } = await supabase.from('settings').select('logo_url').eq('company_id', companyId).single();
+    const { data: currentSettings, error: fetchError } = await supabaseAdmin
+        .from('settings')
+        .select('logo_url')
+        .eq('company_id', companyId)
+        .maybeSingle();
 
-    if(fetchError && fetchError.code !== 'PGRST116') { // Ignore "exact one row" error if settings don't exist yet
+    if (fetchError) {
         console.error('Error fetching current settings:', fetchError);
         throw new Error("Não foi possível buscar as configurações atuais.");
     }
 
+    let logoUrl = currentSettings?.logo_url;
 
-    let logoUrl: string | undefined | null = currentSettings?.logo_url || undefined;
-
-    if (logoFile) {
-        const supabaseAdmin = createSupabaseAdminClient();
-        if(!supabaseAdmin) throw new Error("Admin client is required for file upload.");
-
-        const fileName = `${companyId}/logo_${Date.now()}`;
+    if (logoUpdate) {
+        const fileExt = logoUpdate.fileName.split('.').pop();
+        const newFileName = `${companyId}/logo_${Date.now()}.${fileExt}`;
+        const buffer = Buffer.from(logoUpdate.dataUrl.split(',')[1], 'base64');
+        
         const { error: uploadError } = await supabaseAdmin.storage
             .from('assets')
-            .upload(fileName, logoFile, { upsert: true });
+            .upload(newFileName, buffer, { 
+                upsert: true,
+                contentType: logoUpdate.fileType,
+            });
 
         if (uploadError) {
             console.error('Error uploading logo:', uploadError);
             throw new Error("Não foi possível carregar a logomarca.");
         }
 
-        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(fileName);
+        const { data } = supabaseAdmin.storage.from('assets').getPublicUrl(newFileName);
         logoUrl = data.publicUrl;
     }
 
     const updates = {
-        company_id: companyId,
         company_name: companyName,
         logo_url: logoUrl,
     };
     
-    const { error } = await supabase
-        .from('settings')
-        .upsert(updates, { onConflict: 'company_id'})
-        .eq('company_id', companyId); 
+    const { error } = await supabaseAdmin.from('settings').update(updates).eq('company_id', companyId);
+    
 
     if (error) {
         console.error('Error saving settings:', error);
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
-    
-
-    
-
-    
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

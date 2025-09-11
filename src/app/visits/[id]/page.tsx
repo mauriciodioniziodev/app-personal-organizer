@@ -10,7 +10,7 @@ import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit, ArrowLeft } from 'lucide-react';
+import { Calendar, User, FileText, CheckCircle, Clock, XCircle, ArrowRight, Camera, Upload, Image as ImageIcon, LoaderCircle, X as XIcon, DollarSign, FileUp, Download, Edit, ArrowLeft, Laptop, PersonStanding } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -38,6 +38,133 @@ const photoSchema = z.object({
     type: z.string(),
 });
 
+function EditableBudgetSection({ visit, client, onBudgetUpdated }: { visit: Visit, client: Client, onBudgetUpdated: (visit: Visit) => void }) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [budgetAmount, setBudgetAmount] = useState(visit.budgetAmount || 0);
+    const [budgetFile, setBudgetFile] = useState<File | null>(null);
+    const [errors, setErrors] = useState<string | null>(null);
+    const { toast } = useToast();
+
+    const handleEditBudget = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setErrors(null);
+        setIsSubmitting(true);
+        
+        if (budgetAmount <= 0) {
+            setErrors("O valor do orçamento deve ser maior que zero.");
+            setIsSubmitting(false);
+            return;
+        }
+
+        let pdfDataUrl: string | undefined = undefined;
+
+        if (budgetFile) {
+            if (budgetFile.type !== "application/pdf") {
+                 setErrors("O arquivo deve ser um PDF.");
+                 setIsSubmitting(false);
+                 return;
+            }
+            const reader = new FileReader();
+            reader.readAsDataURL(budgetFile);
+            reader.onload = async () => {
+                pdfDataUrl = reader.result as string;
+                await submitBudget(pdfDataUrl);
+            }
+            reader.onerror = () => {
+                setErrors("Erro ao ler o arquivo PDF.");
+                setIsSubmitting(false);
+            }
+        } else {
+            // Submit without changing the PDF
+            await submitBudget();
+        }
+    };
+
+    const submitBudget = async (pdfDataUrl?: string) => {
+        try {
+            const updatedVisit = await addBudgetToVisit(visit.id, budgetAmount, pdfDataUrl);
+            onBudgetUpdated(updatedVisit);
+            toast({ title: 'Sucesso!', description: 'Orçamento atualizado com sucesso.' });
+            setIsEditing(false);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível salvar o orçamento.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+
+    if (isEditing) {
+        return (
+            <form onSubmit={handleEditBudget} className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                    <Label htmlFor="budgetAmount">Valor do Orçamento (R$)</Label>
+                    <Input id="budgetAmount" name="budgetAmount" type="number" step="0.01" value={budgetAmount} onChange={(e) => setBudgetAmount(Number(e.target.value))} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="budgetPdf">Substituir Orçamento (PDF)</Label>
+                    <Input id="budgetPdf" name="budgetPdf" type="file" accept="application/pdf" onChange={(e) => setBudgetFile(e.target.files?.[0] || null)}/>
+                    <p className="text-xs text-muted-foreground">Deixe em branco para manter o arquivo atual.</p>
+                </div>
+                {errors && <p className="text-sm text-destructive">{errors}</p>}
+                <div className="flex gap-2">
+                    <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? <LoaderCircle className="mr-2 animate-spin" /> : <FileUp className="mr-2" />}
+                        Salvar Orçamento
+                    </Button>
+                </div>
+            </form>
+        );
+    }
+
+    return (
+        <>
+            {visit.budgetPdfUrl && visit.budgetAmount ? (
+                <div className='space-y-4'>
+                    <div className="flex items-center gap-3">
+                        <DollarSign className="w-6 h-6 text-accent" />
+                        <div>
+                            <p className="text-sm font-semibold">Valor</p>
+                            <p className="text-lg font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(visit.budgetAmount)}</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <a href={visit.budgetPdfUrl} download={`orcamento-${client.name.replace(/\s/g, '_')}-${visit.id}.pdf`} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline">
+                                <Download className="mr-2" />
+                                Baixar PDF
+                            </Button>
+                        </a>
+                        <Button variant="secondary" onClick={() => setIsEditing(true)}>
+                            <Edit className="mr-2" />
+                            Editar
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <form onSubmit={handleEditBudget} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="budgetAmount">Valor do Orçamento (R$)</Label>
+                        <Input id="budgetAmount" name="budgetAmount" type="number" step="0.01" placeholder="1200.00" onChange={(e) => setBudgetAmount(Number(e.target.value))}/>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="budgetPdf">Arquivo do Orçamento (PDF)</Label>
+                        <Input id="budgetPdf" name="budgetPdf" type="file" accept="application/pdf" onChange={(e) => setBudgetFile(e.target.files?.[0] || null)} />
+                    </div>
+                    {errors && <p className="text-sm text-destructive">{errors}</p>}
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? <LoaderCircle className="mr-2 animate-spin" /> : <FileUp className="mr-2" />}
+                        Salvar Orçamento
+                    </Button>
+                </form>
+            )}
+        </>
+    );
+}
+
+
 export default function VisitDetailsPage() {
     const params = useParams();
     const id = params.id as string;
@@ -60,11 +187,6 @@ export default function VisitDetailsPage() {
     const photoFormRef = useRef<HTMLFormElement>(null);
     const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
     const [photoErrors, setPhotoErrors] = useState<Record<string, string[]>>({});
-
-    // Budget state
-    const [isSubmittingBudget, setIsSubmittingBudget] = useState(false);
-    const [budgetErrors, setBudgetErrors] = useState<string | null>(null);
-
 
     useEffect(() => {
         if (!id) {
@@ -91,7 +213,17 @@ export default function VisitDetailsPage() {
                 }
                 
                 setVisit(visitData);
-                setMasterVisitStatus(statusOptions);
+                
+                const augmentedStatusOptions = [...statusOptions];
+                const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+                const existingNames = new Set(statusOptions.map(o => o.name));
+
+                for (const statusName of newStatuses) {
+                    if (!existingNames.has(statusName)) {
+                        augmentedStatusOptions.push({ id: `new-${statusName.replace(/\s+/g, '-')}`, name: statusName, created_at: '' });
+                    }
+                }
+                setMasterVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
 
                 const [clientData, projectData] = await Promise.all([
                     getClientById(visitData.clientId),
@@ -215,7 +347,7 @@ export default function VisitDetailsPage() {
     const handleStatusChange = async (newStatus: string) => {
         if (!visit) return;
         try {
-            const updatedVisit = await updateVisit({ ...visit, status: newStatus });
+            const updatedVisit = await updateVisit(visit.id, { status: newStatus });
             setVisit(updatedVisit);
             toast({
                 title: 'Status Atualizado!',
@@ -230,48 +362,6 @@ export default function VisitDetailsPage() {
         }
     };
     
-    const handleBudgetSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!visit) return;
-        setBudgetErrors(null);
-        setIsSubmittingBudget(true);
-
-        const formData = new FormData(event.currentTarget);
-        const amount = formData.get('budgetAmount') as string;
-        const file = formData.get('budgetPdf') as File;
-
-        if (!amount || Number(amount) <= 0) {
-            setBudgetErrors("O valor do orçamento é obrigatório.");
-            setIsSubmittingBudget(false);
-            return;
-        }
-        if (!file || file.size === 0) {
-            setBudgetErrors("O arquivo PDF do orçamento é obrigatório.");
-            setIsSubmittingBudget(false);
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-            const pdfDataUrl = reader.result as string;
-            try {
-                const updatedVisit = await addBudgetToVisit(visit.id, Number(amount), pdfDataUrl);
-                setVisit(updatedVisit);
-                toast({ title: 'Sucesso!', description: 'Orçamento adicionado com sucesso.'});
-            } catch(e) {
-                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível salvar o orçamento.'});
-            } finally {
-                setIsSubmittingBudget(false);
-            }
-        }
-        reader.onerror = () => {
-            setBudgetErrors("Erro ao ler o arquivo PDF.");
-            setIsSubmittingBudget(false);
-        }
-    }
-
-
     if (loading) {
         return <div className="flex items-center justify-center h-full"><LoaderCircle className="w-8 h-8 animate-spin" /></div>;
     }
@@ -287,10 +377,17 @@ export default function VisitDetailsPage() {
     }
 
     const visitStatusIcons: { [key: string]: React.ReactNode } = {
-        pendente: <Clock className="w-4 h-4 text-yellow-500" />,
-        realizada: <CheckCircle className="w-4 h-4 text-green-500" />,
-        cancelada: <XCircle className="w-4 h-4 text-red-500" />,
-        orçamento: <FileText className="w-4 h-4 text-blue-500" />,
+        'pendente': <Clock className="w-4 h-4 text-yellow-500" />,
+        'realizada': <CheckCircle className="w-4 h-4 text-green-500" />,
+        'cancelada': <XCircle className="w-4 h-4 text-red-500" />,
+        'orçamento': <FileText className="w-4 h-4 text-blue-500" />,
+        'Negócio não fechado': <FileText className="w-4 h-4 text-purple-500" />,
+        'Negócio Fechado': <DollarSign className="w-4 h-4 text-green-600" />,
+    };
+
+     const visitTypeIcons: { [key: string]: React.ReactNode } = {
+        'presencial': <PersonStanding className="w-4 h-4 text-muted-foreground" />,
+        'digital': <Laptop className="w-4 h-4 text-muted-foreground" />,
     };
 
     return (
@@ -317,7 +414,7 @@ export default function VisitDetailsPage() {
                             <CardTitle className="font-headline">Detalhes da Visita</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <div>
                                     <Label className="text-sm font-semibold">Status</Label>
                                     <Select value={visit.status} onValueChange={handleStatusChange}>
@@ -336,13 +433,20 @@ export default function VisitDetailsPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                 <div>
+                                     <Label className="text-sm font-semibold">Tipo de Visita</Label>
+                                     <div className="flex items-center gap-2 mt-2">
+                                        {visitTypeIcons[visit.type] || <PersonStanding className="w-4 h-4 text-muted-foreground" />}
+                                        <p className='capitalize'>{visit.type}</p>
+                                    </div>
+                                 </div>
                                 <div>
                                      <Label className="text-sm font-semibold">Cliente</Label>
                                      <div className="flex items-center gap-2 mt-2">
                                         <User className="w-4 h-4 text-muted-foreground" />
                                         <Link href={`/clients/${client.id}`} className="font-medium text-primary hover:underline">{client.name}</Link>
                                     </div>
-                                </div>
+                                 </div>
                                  <div>
                                      <Label className="text-sm font-semibold">Data</Label>
                                      <div className="flex items-center gap-2 mt-2">
@@ -357,7 +461,7 @@ export default function VisitDetailsPage() {
                                 <p className="text-muted-foreground whitespace-pre-wrap">{visit.summary}</p>
                             </div>
                            
-                            {!project && visit.status !== 'cancelada' && (
+                            {!project && visit.status !== 'cancelada' && visit.status !== 'Negócio Fechado' && (
                                 <div className="pt-4">
                                      <Link href={`/projects/new?fromVisit=${visit.id}`}>
                                         <Button>
@@ -432,39 +536,7 @@ export default function VisitDetailsPage() {
                             <CardDescription>Anexe o orçamento em PDF e o valor proposto.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {visit.budgetPdfUrl && visit.budgetAmount ? (
-                                <div className='space-y-4'>
-                                    <div className="flex items-center gap-3">
-                                        <DollarSign className="w-6 h-6 text-accent" />
-                                        <div>
-                                            <p className="text-sm font-semibold">Valor</p>
-                                            <p className="text-lg font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(visit.budgetAmount)}</p>
-                                        </div>
-                                    </div>
-                                    <a href={visit.budgetPdfUrl} download={`orcamento-${client.name.replace(/\s/g, '_')}-${visit.id}.pdf`} target="_blank" rel="noopener noreferrer">
-                                        <Button variant="outline">
-                                            <Download className="mr-2" />
-                                            Baixar Orçamento em PDF
-                                        </Button>
-                                    </a>
-                                </div>
-                            ) : (
-                                <form onSubmit={handleBudgetSubmit} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="budgetAmount">Valor do Orçamento (R$)</Label>
-                                        <Input id="budgetAmount" name="budgetAmount" type="number" step="0.01" placeholder="1200.00" />
-                                    </div>
-                                     <div className="space-y-2">
-                                        <Label htmlFor="budgetPdf">Arquivo do Orçamento (PDF)</Label>
-                                        <Input id="budgetPdf" name="budgetPdf" type="file" accept="application/pdf" />
-                                    </div>
-                                    {budgetErrors && <p className="text-sm text-destructive">{budgetErrors}</p>}
-                                    <Button type="submit" disabled={isSubmittingBudget}>
-                                        {isSubmittingBudget ? <LoaderCircle className="mr-2 animate-spin" /> : <FileUp className="mr-2" />}
-                                        Salvar Orçamento
-                                    </Button>
-                                </form>
-                            )}
+                             <EditableBudgetSection visit={visit} client={client} onBudgetUpdated={(updatedVisit) => setVisit(updatedVisit)} />
                         </CardContent>
                     </Card>
                 </div>

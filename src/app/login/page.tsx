@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
@@ -11,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
-import Image from 'next/image';
 
 function LoginPageContent() {
   const router = useRouter();
@@ -23,7 +23,6 @@ function LoginPageContent() {
   const companyName = 'Bem-vindo(a) de volta!';
 
   useEffect(() => {
-    // Check for error messages passed via query params (e.g., from layout redirect on session check)
     const authError = searchParams.get('error');
     if (authError) {
       setError(decodeURIComponent(authError));
@@ -41,7 +40,6 @@ function LoginPageContent() {
         return;
     }
     
-    // 1. Attempt to sign in the user
     const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -63,7 +61,6 @@ function LoginPageContent() {
         return;
     }
 
-    // 2. If sign-in is successful, perform authorization checks before navigating
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('status, organizations ( is_active )')
@@ -72,7 +69,7 @@ function LoginPageContent() {
 
     if (profileError || !profile) {
       setError("Seu perfil não foi encontrado. Se você acabou de se cadastrar, aguarde a aprovação do administrador.");
-      await supabase.auth.signOut(); // Sign out to be safe
+      await supabase.auth.signOut();
       setLoading(false);
       return;
     }
@@ -100,7 +97,6 @@ function LoginPageContent() {
        return;
     }
     
-    // 3. If all checks pass, navigate to the dashboard
     router.push('/');
   };
 

@@ -1,5 +1,4 @@
 
-
 export type Client = {
   id: string;
   createdAt: string;
@@ -51,10 +50,11 @@ export type Visit = {
   createdAt: string;
   clientId: string; 
   companyId: string;
-  projectId: string; 
+  projectId: string | null; 
   date: string;
   status: string;
   summary: string;
+  type: 'presencial' | 'digital';
   photos: Photo[];
   budgetAmount?: number;
   budgetPdfUrl?: string;
@@ -126,4 +126,8 @@ export type CompanySettings = {
     createdAt?: string;
 }
 
-    
+export type LogoUpdateData = {
+    dataUrl: string;
+    fileName: string;
+    fileType: string;
+} | null;

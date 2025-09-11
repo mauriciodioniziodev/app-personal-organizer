@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects } from "@/lib/data";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,41 +14,51 @@ import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ServiceRecommender from '@/components/service-recommender';
+
 
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchData() {
-        setLoading(true);
-        const [
-            activeProjectsData, 
-            upcomingVisitsData, 
-            visitsSummaryData, 
-            dailyScheduleData,
-            clientsData,
-        ] = await Promise.all([
-            getActiveProjects(),
-            getUpcomingVisits(),
-            getVisitsSummary(),
-            getTodaysSchedule(),
-            getClients(),
-        ]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const [
+        activeProjectsData, 
+        upcomingVisitsData, 
+        visitsSummaryData, 
+        dailyScheduleData,
+        clientsData,
+        allProjectsData
+    ] = await Promise.all([
+        getActiveProjects(),
+        getUpcomingVisits(),
+        getVisitsSummary(),
+        getTodaysSchedule(),
+        getClients(),
+        getProjects()
+    ]);
 
-        setActiveProjects(activeProjectsData);
-        setUpcomingVisits(upcomingVisitsData);
-        setVisitsSummary(visitsSummaryData);
-        setDailySchedule(dailyScheduleData);
-        setClients(clientsData);
-        setLoading(false);
-    }
-    fetchData();
+    setActiveProjects(activeProjectsData);
+    setUpcomingVisits(upcomingVisitsData);
+    setVisitsSummary(visitsSummaryData);
+    setDailySchedule(dailyScheduleData);
+    setClients(clientsData);
+    setAllProjects(allProjectsData);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [fetchData]);
 
   const getClient = (clientId: string) => {
     return clients.find(c => c.id === clientId);
@@ -59,6 +69,8 @@ export default function Dashboard() {
         realizada: <CheckCircle className="w-4 h-4 text-green-600" />,
         cancelada: <XCircle className="w-4 h-4 text-red-600" />,
         orçamento: <FileText className="w-4 h-4 text-blue-600" />,
+        'Negócio não fechado': <XCircle className="w-4 h-4 text-purple-600" />,
+        'Negócio Fechado': <DollarSign className="w-4 h-4 text-green-600" />,
   };
   
   const visitStatusColors: { [key: string]: string } = {
@@ -237,6 +249,8 @@ export default function Dashboard() {
                 </Card>
             </Link>
         </div>
+        
+        <ServiceRecommender allClients={clients} allProjects={allProjects}/>
 
 
       <div className="grid gap-8 md:grid-cols-2">
@@ -383,3 +397,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+    

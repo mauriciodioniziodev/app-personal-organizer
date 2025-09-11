@@ -14,16 +14,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarPlus, LoaderCircle } from "lucide-react";
-import type { Client, MasterDataItem } from "@/lib/definitions";
+import type { Client, MasterDataItem, Visit } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const visitSchema = z.object({
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string().min(1, "O status é obrigatório."),
+    type: z.enum(['presencial', 'digital']),
 });
 
 export default function NewVisitPage() {
@@ -48,9 +50,26 @@ export default function NewVisitPage() {
                 getVisitStatusOptions()
             ]);
             setClients(clientsData);
-            setVisitStatusOptions(statusOptions);
-            if (statusOptions.length > 0) {
-                setSelectedStatus(statusOptions[0].name);
+
+            // Safely add new statuses if they don't exist
+            const augmentedStatusOptions = [...statusOptions];
+            const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+            const existingNames = new Set(augmentedStatusOptions.map(o => o.name));
+            
+            for(const statusName of newStatuses) {
+                if(!existingNames.has(statusName)) {
+                    augmentedStatusOptions.push({id: `hardcoded-${statusName.replace(/\s/g, '')}`, name: statusName, created_at: ''});
+                }
+            }
+
+            const sortedOptions = augmentedStatusOptions.sort((a, b) => a.name.localeCompare(b.name));
+            setVisitStatusOptions(sortedOptions);
+
+            const pendingOption = sortedOptions.find(o => o.name === 'pendente');
+            if (pendingOption) {
+                setSelectedStatus(pendingOption.name);
+            } else if (sortedOptions.length > 0) {
+                 setSelectedStatus(sortedOptions[0].name);
             }
             setLoading(false);
         }
@@ -67,6 +86,7 @@ export default function NewVisitPage() {
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
             status: formData.get("status") as string,
+            type: formData.get("type") as Visit['type'],
         };
 
         const validationResult = visitSchema.safeParse(visitData);
@@ -168,6 +188,20 @@ export default function NewVisitPage() {
                             <Label htmlFor="date">Data e Hora</Label>
                             <Input id="date" name="date" type="datetime-local" required />
                              {errors.date && <p className="text-sm text-destructive">{errors.date[0]}</p>}
+                        </div>
+                         <div className="space-y-2">
+                            <Label>Tipo de Visita</Label>
+                            <RadioGroup name="type" defaultValue="presencial" className="flex items-center pt-2 gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="presencial" id="presencial" />
+                                    <Label htmlFor="presencial">Presencial</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="digital" id="digital" />
+                                    <Label htmlFor="digital">Digital</Label>
+                                </div>
+                            </RadioGroup>
+                            {errors.type && <p className="text-sm text-destructive">{errors.type[0]}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="summary">Resumo/Objetivo da Visita</Label>

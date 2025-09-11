@@ -19,14 +19,15 @@ import Link from "next/link";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatDateTimeForInput } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const visitSchema = z.object({
-    id: z.string(),
     clientId: z.string().min(1, "Por favor, selecione um cliente."),
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string(),
+    type: z.enum(['presencial', 'digital']),
 });
 
 export default function EditVisitPage() {
@@ -63,7 +64,18 @@ export default function EditVisitPage() {
                 router.push('/visits');
             }
             setClients(clientsData);
-            setVisitStatus(statusOptions);
+
+            const augmentedStatusOptions = [...statusOptions];
+            const newStatuses = ["Negócio não fechado", "Negócio Fechado"];
+            const existingNames = new Set(statusOptions.map(o => o.name));
+
+            for (const statusName of newStatuses) {
+                if (!existingNames.has(statusName)) {
+                    augmentedStatusOptions.push({ id: `new-${statusName}`, name: statusName, created_at: '' });
+                }
+            }
+            
+            setVisitStatus(augmentedStatusOptions.sort((a,b) => a.name.localeCompare(b.name)));
             setLoading(false);
         }
         fetchData();
@@ -76,30 +88,29 @@ export default function EditVisitPage() {
 
         const formData = new FormData(formRef.current);
         const visitData = {
-            ...visit,
             clientId: formData.get("clientId") as string,
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
             status: formData.get("status") as string,
+            type: formData.get("type") as Visit['type'],
         };
-
+        
         const validationResult = visitSchema.safeParse(visitData);
-
+        
         if (!validationResult.success) {
+            console.log(validationResult.error.flatten().fieldErrors);
             setErrors(validationResult.error.flatten().fieldErrors);
             setIsSubmitting(false);
             return;
         }
 
         try {
-            // Remove 'photos' from the object to be updated if it's not part of the form
-            const { photos, ...updateData } = validationResult.data;
-            await updateVisit(updateData as Visit);
+            await updateVisit(visit.id, validationResult.data);
             toast({
                 title: "Visita Atualizada!",
                 description: "As alterações foram salvas com sucesso.",
             });
-            router.push(`/visits/${visit.id}`);
+            router.push(`/visits/${id}`);
         } catch (error) {
             toast({
                 variant: 'destructive',
@@ -177,6 +188,20 @@ export default function EditVisitPage() {
                              {errors.date && <p className="text-sm text-destructive">{errors.date[0]}</p>}
                         </div>
                         <div className="space-y-2">
+                            <Label>Tipo de Visita</Label>
+                            <RadioGroup name="type" defaultValue={visit.type || "presencial"} className="flex items-center pt-2 gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="presencial" id="presencial" />
+                                    <Label htmlFor="presencial">Presencial</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="digital" id="digital" />
+                                    <Label htmlFor="digital">Digital</Label>
+                                </div>
+                            </RadioGroup>
+                            {errors.type && <p className="text-sm text-destructive">{errors.type[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="summary">Resumo/Objetivo da Visita</Label>
                             <Textarea id="summary" name="summary" placeholder="Ex: Avaliação inicial do ambiente, levantamento de necessidades." required defaultValue={visit.summary} />
                              {errors.summary && <p className="text-sm text-destructive">{errors.summary[0]}</p>}
@@ -238,3 +263,5 @@ export default function EditVisitPage() {
         </div>
     );
 }
+
+    

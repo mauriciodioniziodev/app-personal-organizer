@@ -14,6 +14,7 @@ import type { Visit, MasterDataItem } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 type VisitFormProps = {
     clientId: string;
@@ -25,6 +26,7 @@ const visitSchema = z.object({
     date: z.string().min(1, "Data e hora são obrigatórios."),
     summary: z.string().min(3, "O resumo deve ter pelo menos 3 caracteres."),
     status: z.string().min(1, "O status é obrigatório."),
+    type: z.enum(['presencial', 'digital']),
 });
 
 export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
@@ -41,9 +43,13 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
     useEffect(() => {
         async function fetchStatusOptions() {
             const options = await getVisitStatusOptions();
-            setVisitStatusOptions(options);
-            if (options.length > 0) {
-                setSelectedStatus(options[0].name);
+            const sortedOptions = options.sort((a,b) => a.name.localeCompare(b.name));
+            setVisitStatusOptions(sortedOptions);
+            const pendingOption = sortedOptions.find(o => o.name === 'pendente');
+            if (pendingOption) {
+                setSelectedStatus(pendingOption.name);
+            } else if (sortedOptions.length > 0) {
+                 setSelectedStatus(sortedOptions[0].name);
             }
         }
         fetchStatusOptions();
@@ -61,6 +67,7 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
             date: formData.get("date") as string,
             summary: formData.get("summary") as string,
             status: formData.get("status") as string,
+            type: formData.get("type") as Visit['type'],
         };
 
         const validationResult = visitSchema.safeParse(visitData);
@@ -123,6 +130,20 @@ export function VisitForm({ clientId, onVisitCreated }: VisitFormProps) {
                 <Label htmlFor="date">Data e Hora</Label>
                 <Input id="date" name="date" type="datetime-local" />
                 {errors.date && <p className="text-sm text-destructive mt-1">{errors.date[0]}</p>}
+            </div>
+            <div>
+                <Label>Tipo de Visita</Label>
+                 <RadioGroup name="type" defaultValue="presencial" className="flex items-center pt-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="presencial" id="form-presencial" />
+                        <Label htmlFor="form-presencial">Presencial</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="digital" id="form-digital" />
+                        <Label htmlFor="form-digital">Digital</Label>
+                    </div>
+                </RadioGroup>
+                {errors.type && <p className="text-sm text-destructive mt-1">{errors.type[0]}</p>}
             </div>
             <div>
                 <Label htmlFor="summary">Resumo/Objetivo da Visita</Label>
