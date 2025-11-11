@@ -371,7 +371,7 @@ export const getProjects = async (): Promise<Project[]> => {
         // Continue with empty payments
     }
     
-    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').in('project_id', projectIds);
     if (costsError) {
         console.error("Error fetching costs:", costsError);
         // Continue with empty costs
@@ -402,7 +402,7 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
         console.error(`Error fetching payments for project ${id}:`, paymentsError);
     }
     
-    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').eq('project_id', id);
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').eq('project_id', id);
     if (costsError) {
         console.error(`Error fetching costs for project ${id}:`, costsError);
     }
@@ -483,7 +483,7 @@ export const getActiveProjects = async (): Promise<Project[]> => {
         return projectsData.map(p_raw => projectFromSupabase(p_raw, [], []));
     }
     
-    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').in('project_id', projectIds);
 
     return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || [], costsData || []));
 };
@@ -770,7 +770,7 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
         return data.map(p_raw => projectFromSupabase(p_raw, [], []));
     }
     
-    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').in('project_id', projectIds);
 
     return data.map(p_raw => projectFromSupabase(p_raw, paymentsData || [], costsData || []));
 };
@@ -916,23 +916,23 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
     return toCamelCase(data) as Visit;
 }
 
-export const updateVisit = async (visitId: string, updateData: Partial<Visit>): Promise<Visit> => {
-     if (!supabase) throw new Error("Supabase client not initialized.");
+export const updateVisit = async (visitId: string, updateData: Partial<Omit<Visit, 'id' | 'createdAt' | 'photos' | 'projectId'>>): Promise<Visit> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
 
-     const { data, error } = await supabase
+    const { data, error } = await supabase
         .from('visits')
         .update(toSnakeCase(updateData))
         .eq('id', visitId)
         .select()
         .single();
-        
-    if(error) {
+
+    if (error) {
         console.error(`Error updating visit ${visitId}:`, error);
         throw new Error("Não foi possível atualizar a visita.");
     }
-    
+
     return toCamelCase(data) as Visit;
-}
+};
 
 
 export const addPhotoToVisit = async (photoData: { visitId: string, url: string, description: string, type: string }): Promise<Visit> => {
@@ -1131,7 +1131,7 @@ export const updateProject = async (project: Project): Promise<Project> => {
     }
     
     const { data: finalPayments } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
-    const { data: finalCosts } = await supabase.from('project_organizer_costs').select('*').eq('project_id', updatedProjectData.id);
+    const { data: finalCosts } = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').eq('project_id', updatedProjectData.id);
     
     return projectFromSupabase(updatedProjectData, finalPayments || [], finalCosts || []);
 };
@@ -1167,7 +1167,7 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
     }
     
     const allPayments = await supabase.from('payments').select('*').eq('project_id', data.id);
-    const allCosts = await supabase.from('project_organizer_costs').select('*').eq('project_id', data.id);
+    const allCosts = await supabase.from('project_organizer_costs').select('*, organizer_partners(name)').eq('project_id', data.id);
     
     return projectFromSupabase(data, allPayments.data || [], allCosts.data || []);
 }
@@ -1456,3 +1456,6 @@ export const deleteProjectOrganizerCost = async (costId: string): Promise<void> 
     }
 };
 
+
+
+    
