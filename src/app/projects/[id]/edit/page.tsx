@@ -265,8 +265,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
         });
     }, []);
 
-    const handleAddCost = async (e: FormEvent) => {
-        e.preventDefault();
+    const handleAddCost = async () => {
         if (!newCost.partnerId || newCost.costAmount <= 0) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Selecione um parceiro e insira um valor de custo válido.' });
             return;
@@ -275,11 +274,15 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
         try {
             const addedCost = await addProjectOrganizerCost({
                 projectId: project.id,
-                ...newCost,
+                partnerId: newCost.partnerId,
+                costAmount: newCost.costAmount,
+                commissionPercentage: newCost.commissionPercentage,
                 commissionStatus: 'em aberto'
             });
-            const updatedCosts = [...project.organizerCosts, addedCost];
-            onCostsUpdated({ ...project, organizerCosts: updatedCosts });
+            const updatedProject = await getProjectById(project.id);
+            if (updatedProject) {
+              onCostsUpdated(updatedProject);
+            }
             setNewCost({ partnerId: '', costAmount: 0, commissionPercentage: 0 });
             toast({ title: 'Sucesso', description: 'Custo adicionado.' });
         } catch (error) {
@@ -293,8 +296,10 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
         if (!confirm('Tem certeza que deseja remover este custo?')) return;
         try {
             await deleteProjectOrganizerCost(costId);
-            const updatedCosts = project.organizerCosts.filter(c => c.id !== costId);
-            onCostsUpdated({ ...project, organizerCosts: updatedCosts });
+            const updatedProject = await getProjectById(project.id);
+             if (updatedProject) {
+              onCostsUpdated(updatedProject);
+            }
             toast({ title: 'Sucesso', description: 'Custo removido.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
@@ -304,15 +309,17 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
     const handleStatusChange = async (costId: string, currentStatus: 'em aberto' | 'pago') => {
         const newStatus = currentStatus === 'pago' ? 'em aberto' : 'pago';
         try {
-            const updatedCost = await updateProjectOrganizerCost(costId, { commissionStatus: newStatus });
-            const updatedCosts = project.organizerCosts.map(c => c.id === costId ? updatedCost : c);
-            onCostsUpdated({ ...project, organizerCosts: updatedCosts });
+            await updateProjectOrganizerCost(costId, { commissionStatus: newStatus });
+            const updatedProject = await getProjectById(project.id);
+             if (updatedProject) {
+              onCostsUpdated(updatedProject);
+            }
             toast({ title: 'Sucesso', description: 'Status da comissão atualizado.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
         }
     };
-
+    
     const getPartnerName = (partnerId: string) => partners.find(p => p.id === partnerId)?.name || 'Parceiro não encontrado';
 
     return (
@@ -322,7 +329,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                 <CardDescription>Gerencie os custos com produtos de parceiros e suas comissões.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                {project.organizerCosts.length > 0 && (
+                {(project.organizerCosts || []).length > 0 && (
                      <div className="border rounded-lg overflow-hidden">
                     <Table>
                         <TableHeader>
@@ -363,7 +370,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                      </div>
                 )}
 
-                <form onSubmit={handleAddCost} className="p-4 border-dashed border-2 rounded-lg space-y-4">
+                <div className="p-4 border-dashed border-2 rounded-lg space-y-4">
                     <h4 className="font-semibold">Adicionar Novo Custo</h4>
                      <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
@@ -387,11 +394,11 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                              <Input id="commissionPercentage" type="number" step="0.1" value={newCost.commissionPercentage} onChange={(e) => setNewCost(prev => ({...prev, commissionPercentage: parseFloat(e.target.value) || 0}))} />
                         </div>
                     </div>
-                    <Button type="submit" disabled={isAdding}>
+                    <Button type="button" onClick={handleAddCost} disabled={isAdding}>
                         {isAdding ? <LoaderCircle className="animate-spin" /> : <Plus />}
                         Adicionar Custo
                     </Button>
-                </form>
+                </div>
             </CardContent>
         </Card>
     );
@@ -837,3 +844,5 @@ export default function ProjectEditPage() {
   );
 }
 
+
+    
