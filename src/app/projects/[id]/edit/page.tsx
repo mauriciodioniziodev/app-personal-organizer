@@ -359,8 +359,8 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                                             checked={cost.commissionStatus === 'pago'}
                                             onCheckedChange={() => handleStatusChange(cost.id, cost.commissionStatus)}
                                         />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteCost(cost.id)}>
-                                            <Trash className="w-4 h-4 text-destructive" />
+										<Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteCost(cost.id)}>
+                                            <Trash className="w-4 h-4 text-destructive cursor-pointer"/>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -843,3 +843,5 @@ export default function ProjectEditPage() {
     </div>
   );
 }
+
+    
