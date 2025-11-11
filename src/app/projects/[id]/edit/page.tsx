@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
@@ -321,6 +322,11 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
     
     const getPartnerName = (partnerId: string) => partners.find(p => p.id === partnerId)?.name || 'Parceiro não encontrado';
 
+    const commissionStatusColors: { [key: string]: string } = {
+        'em aberto': 'text-yellow-800 bg-yellow-100',
+        'pago': 'text-green-800 bg-green-100',
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -349,7 +355,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                                     <TableCell>{cost.commissionPercentage}</TableCell>
                                     <TableCell>{cost.commissionValue.toFixed(2)}</TableCell>
                                     <TableCell>
-                                        <Badge variant={cost.commissionStatus === 'pago' ? 'default' : 'secondary'} className={cost.commissionStatus === 'pago' ? 'bg-green-100 text-green-800' : ''}>
+                                        <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
                                             {cost.commissionStatus}
                                         </Badge>
                                     </TableCell>
@@ -842,4 +848,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
