@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, FormEvent, useCallback, ChangeEvent } from "react";
-import { LoaderCircle, Trash, Plus, Users, Check, X, Building, Save, Power, PowerOff, Edit } from "lucide-react";
+import { LoaderCircle, Trash, Plus, Users, Check, X, Building, Save, Power, PowerOff, Edit, Handshake } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { 
     addPaymentInstrumentOption, addVisitStatusOption, deletePaymentInstrumentOption, 
     deleteVisitStatusOption, getPaymentInstrumentsOptions, getVisitStatusOptions, 
     getProjectStatusOptions, addProjectStatusOption, deleteProjectStatusOption,
     updateProfile, getMyCompanyUsers, getOrganizations, addOrganization, updateOrganization,
-    signOutUserById
+    signOutUserById,
+    getOrganizerPartners,
+    addOrganizerPartner,
+    deleteOrganizerPartner
 } from "@/lib/data";
 import { getCurrentProfile } from "@/lib/data";
-import type { MasterDataItem, UserProfile, Company } from "@/lib/definitions";
+import type { MasterDataItem, UserProfile, Company, OrganizerPartner } from "@/lib/definitions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -32,13 +35,15 @@ function MasterDataCard<T extends MasterDataItem>({
     description,
     items,
     onAdd,
-    onDelete
+    onDelete,
+    icon: Icon
 }: {
     title: string;
     description: string;
     items: T[];
     onAdd: (name: string) => Promise<any>;
     onDelete: (id: string) => Promise<any>;
+    icon: React.ElementType
 }) {
     const { toast } = useToast();
     const [newItemName, setNewItemName] = useState("");
@@ -73,7 +78,10 @@ function MasterDataCard<T extends MasterDataItem>({
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="font-headline">{title}</CardTitle>
+                 <CardTitle className="font-headline flex items-center gap-2">
+                    {Icon && <Icon className="w-5 h-5"/>}
+                    {title}
+                </CardTitle>
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -483,23 +491,44 @@ export default function AdminPage() {
     const [visitStatusOptions, setVisitStatusOptions] = useState<MasterDataItem[]>([]);
     const [paymentInstrumentOptions, setPaymentInstrumentOptions] = useState<MasterDataItem[]>([]);
     const [projectStatusOptions, setProjectStatusOptions] = useState<MasterDataItem[]>([]);
+    const [organizerPartners, setOrganizerPartners] = useState<OrganizerPartner[]>([]);
+
     const [loading, setLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [visitStatus, paymentInstruments, projectStatus, currentUser] = await Promise.all([
-                getVisitStatusOptions(),
-                getPaymentInstrumentsOptions(),
-                getProjectStatusOptions(),
-                getCurrentProfile(),
-            ]);
-            setVisitStatusOptions(visitStatus);
-            setPaymentInstrumentOptions(paymentInstruments);
-            setProjectStatusOptions(projectStatus);
+            const currentUser = await getCurrentProfile();
+            setIsAdmin(currentUser?.role === 'administrador');
             setIsSuperAdmin(currentUser?.email === 'mauriciodionizio@gmail.com');
+
+            const dataPromises: Promise<any>[] = [
+                getOrganizerPartners(),
+            ];
+
+            if (currentUser?.email === 'mauriciodionizio@gmail.com') {
+                dataPromises.push(
+                    getVisitStatusOptions(),
+                    getPaymentInstrumentsOptions(),
+                    getProjectStatusOptions()
+                );
+            }
+            
+            const [
+                partnersData,
+                visitStatus, 
+                paymentInstruments, 
+                projectStatus
+            ] = await Promise.all(dataPromises);
+
+            setOrganizerPartners(partnersData);
+            if(visitStatus) setVisitStatusOptions(visitStatus);
+            if(paymentInstruments) setPaymentInstrumentOptions(paymentInstruments);
+            if(projectStatus) setProjectStatusOptions(projectStatus);
+            
         } catch(e) {
             console.error("Failed to fetch admin data", e);
         } finally {
@@ -533,7 +562,18 @@ export default function AdminPage() {
 
             <div className="space-y-8">
                 {isSuperAdmin && <OrganizationManagementCard onDataChange={handleDataChange} />}
-                <UserManagementCard refreshTrigger={refreshTrigger} />
+                {isAdmin && <UserManagementCard refreshTrigger={refreshTrigger} />}
+                
+                 {isAdmin && (
+                    <MasterDataCard
+                        title="Empresas Parceiras"
+                        description="Gerencie as empresas parceiras para comissões."
+                        items={organizerPartners}
+                        onAdd={(name) => addOrganizerPartner(name).then(handleDataChange)}
+                        onDelete={(id) => deleteOrganizerPartner(id).then(handleDataChange)}
+                        icon={Handshake}
+                    />
+                 )}
                 
                 {isSuperAdmin && (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -543,6 +583,7 @@ export default function AdminPage() {
                             items={visitStatusOptions}
                             onAdd={(name) => addVisitStatusOption(name).then(handleDataChange)}
                             onDelete={(id) => deleteVisitStatusOption(id).then(handleDataChange)}
+                            icon={Edit}
                         />
                         <MasterDataCard
                             title="Meios de Pagamento"
@@ -550,6 +591,7 @@ export default function AdminPage() {
                             items={paymentInstrumentOptions}
                             onAdd={(name) => addPaymentInstrumentOption(name).then(handleDataChange)}
                             onDelete={(id) => deletePaymentInstrumentOption(id).then(handleDataChange)}
+                            icon={Edit}
                         />
                         <MasterDataCard
                             title="Status de Execução do Projeto"
@@ -557,6 +599,7 @@ export default function AdminPage() {
                             items={projectStatusOptions}
                             onAdd={(name) => addProjectStatusOption(name).then(handleDataChange)}
                             onDelete={(id) => deleteProjectStatusOption(id).then(handleDataChange)}
+                             icon={Edit}
                         />
                     </div>
                 )}
@@ -564,5 +607,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    

@@ -3,7 +3,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { getClientById, updateClient } from "@/lib/data";
+import { getClientById, updateClient, getClientSources } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LoaderCircle, Save } from "lucide-react";
-import type { Client } from "@/lib/definitions";
+import type { Client, ClientSource } from "@/lib/definitions";
 import Link from "next/link";
 import { z } from "zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 const clientSchema = z.object({
   id: z.string(),
@@ -25,6 +27,8 @@ const clientSchema = z.object({
   cpf: z.string().optional(),
   birthday: z.string().optional(),
   preferences: z.string().optional(),
+  source: z.string().optional(),
+  sourceDetails: z.string().optional(),
 });
 
 export default function EditClientPage() {
@@ -34,6 +38,7 @@ export default function EditClientPage() {
     const { toast } = useToast();
 
     const [client, setClient] = useState<Partial<Client> | null>(null);
+    const [sources, setSources] = useState<ClientSource[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -42,13 +47,18 @@ export default function EditClientPage() {
         if (!id) return;
         async function fetchClient() {
             setLoading(true);
-            const clientData = await getClientById(id);
+            const [clientData, sourcesData] = await Promise.all([
+                getClientById(id),
+                getClientSources()
+            ]);
+            
             if (clientData) {
                 setClient(clientData);
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
                 router.push('/clients');
             }
+            setSources(sourcesData);
             setLoading(false);
         }
         fetchClient();
@@ -59,6 +69,11 @@ export default function EditClientPage() {
         const { name, value } = e.target;
         setClient(prev => ({ ...prev, [name]: value }));
     };
+
+    const handleSourceChange = (value: string) => {
+        if (!client) return;
+        setClient(prev => ({ ...prev, source: value, sourceDetails: value !== 'Outros' ? '' : prev?.sourceDetails }));
+    }
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -140,6 +155,23 @@ export default function EditClientPage() {
                                 <Input id="birthday" name="birthday" value={client.birthday || ''} onChange={handleInputChange} />
                                 {errors?.birthday && <p className="text-sm text-destructive">{errors.birthday[0]}</p>}
                             </div>
+                        </div>
+                         <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="source">Origem do Cliente</Label>
+                                <Select name="source" value={client.source || ''} onValueChange={handleSourceChange}>
+                                    <SelectTrigger><SelectValue placeholder="Selecione a origem"/></SelectTrigger>
+                                    <SelectContent>
+                                        {sources.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {client.source === 'Outros' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="sourceDetails">Especifique a Origem</Label>
+                                    <Input id="sourceDetails" name="sourceDetails" value={client.sourceDetails || ''} onChange={handleInputChange} />
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="preferences">Preferências e Observações</Label>
