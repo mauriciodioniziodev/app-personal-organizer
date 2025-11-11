@@ -113,6 +113,11 @@ export default function ProjectDetailsPage() {
       'Cancelado': 'text-gray-800 bg-gray-100',
   }
 
+  const commissionStatusColors: { [key: string]: string } = {
+      'em aberto': 'text-yellow-800 bg-yellow-100',
+      'pago': 'text-green-800 bg-green-100',
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={project.name}>
@@ -264,7 +269,7 @@ export default function ProjectDetailsPage() {
                                         <TableCell>{cost.partnerName}</TableCell>
                                         <TableCell>{cost.commissionValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                         <TableCell>
-                                            <Badge variant={cost.commissionStatus === 'pago' ? 'default' : 'outline'} className={cost.commissionStatus === 'pago' ? 'bg-green-100 text-green-800' : ''}>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
                                                 {cost.commissionStatus}
                                             </Badge>
                                         </TableCell>
