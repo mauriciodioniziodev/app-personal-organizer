@@ -272,7 +272,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
         }
         setIsAdding(true);
         try {
-            const addedCost = await addProjectOrganizerCost({
+            await addProjectOrganizerCost({
                 projectId: project.id,
                 partnerId: newCost.partnerId,
                 costAmount: newCost.costAmount,
@@ -359,7 +359,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                                             checked={cost.commissionStatus === 'pago'}
                                             onCheckedChange={() => handleStatusChange(cost.id, cost.commissionStatus)}
                                         />
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteCost(cost.id)}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteCost(cost.id)}>
                                             <Trash className="w-4 h-4 text-destructive" />
                                         </Button>
                                     </TableCell>
@@ -843,5 +843,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
-    
