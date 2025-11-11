@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -237,7 +236,7 @@ function OrganizationManagementCard({ onDataChange }: { onDataChange: () => void
                                             onCheckedChange={() => handleToggleActive(org)}
                                             aria-label="Ativar/Desativar Empresa"
                                         />
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(org)}>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => handleEditClick(org)}>
                                             <Edit className="w-4 h-4"/>
                                         </Button>
                                     </div>
@@ -607,3 +606,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    
