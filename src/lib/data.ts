@@ -52,9 +52,12 @@ const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     return 'parcialmente pago';
 }
 
-const projectFromSupabase = (p_raw: any, allPayments: any[], allCosts: ProjectOrganizerCost[]): Project => {
+const projectFromSupabase = (p_raw: any, allPayments: any[], allCosts: any[]): Project => {
     const payments = toCamelCase(allPayments.filter(payment => payment.project_id === p_raw.id)) as Payment[];
-    const costs = toCamelCase(allCosts.filter(cost => cost.project_id === p_raw.id)) as ProjectOrganizerCost[];
+    const costs = toCamelCase(allCosts.filter(cost => cost.project_id === p_raw.id).map(c => ({
+        ...c,
+        partnerName: c.organizer_partners?.name || 'Parceiro não encontrado'
+    }))) as ProjectOrganizerCost[];
     
     return {
         id: p_raw.id,
