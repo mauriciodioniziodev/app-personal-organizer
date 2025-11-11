@@ -5,12 +5,15 @@ import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getClients } from "@/lib/data";
-import { PlusCircle, Mail, Phone, Search, LoaderCircle } from "lucide-react";
+import { getClients, getClientSources } from "@/lib/data";
+import { PlusCircle, Mail, Phone, Search, LoaderCircle, Share2 } from "lucide-react";
 import PageHeader from "@/components/page-header";
-import type { Client } from "@/lib/definitions";
+import type { Client, ClientSource } from "@/lib/definitions";
 import { Input } from '@/components/ui/input';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardBody } from 'react-bootstrap';
 
 
 const CLIENTS_PER_PAGE = 20;
@@ -18,17 +21,23 @@ const CLIENTS_PER_PAGE = 20;
 export default function ClientsPage() {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [clientSources, setClientSources] = useState<ClientSource[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     async function fetchClients() {
         setLoading(true);
-        const clientsData = await getClients();
+        const [clientsData, sourcesData] = await Promise.all([
+          getClients(),
+          getClientSources()
+        ]);
         const sortedClients = clientsData.sort((a, b) => a.name.localeCompare(b.name));
         setAllClients(sortedClients);
         setFilteredClients(sortedClients);
+        setClientSources(sourcesData);
         setLoading(false);
     }
     fetchClients();
@@ -36,12 +45,14 @@ export default function ClientsPage() {
 
 
   useEffect(() => {
-    const results = allClients.filter(client =>
-      client.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let results = allClients.filter(client => {
+      const searchMatch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const sourceMatch = sourceFilter === 'all' || (client.source || 'Não especificado') === sourceFilter;
+      return searchMatch && sourceMatch;
+    });
     setFilteredClients(results);
     setCurrentPage(1); // Reset to first page on search
-  }, [searchTerm, allClients]);
+  }, [searchTerm, sourceFilter, allClients]);
 
   const totalPages = Math.ceil(filteredClients.length / CLIENTS_PER_PAGE);
   const paginatedClients = filteredClients.slice(
@@ -74,18 +85,42 @@ export default function ClientsPage() {
         </Link>
       </PageHeader>
       
-      <div className="flex justify-start">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Filtrar por nome do cliente..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      <Card>
+          <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-4">
+            <div className="w-full space-y-2">
+              <Label htmlFor='search-term'>Nome do Cliente</Label>
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search-term"
+                  type="text"
+                  placeholder="Filtrar por nome..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="w-full space-y-2">
+                <Label htmlFor='source-filter'>Origem do Cliente</Label>
+                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                    <SelectTrigger id="source-filter">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas as Origens</SelectItem>
+                        {clientSources.map(source => (
+                            <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
+                        ))}
+                         <SelectItem value="Não especificado">Não especificado</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+          </CardContent>
+      </Card>
       
       {paginatedClients.length > 0 ? (
         <>
@@ -94,7 +129,7 @@ export default function ClientsPage() {
               <Card key={client.id} className="flex flex-col">
                 <CardHeader>
                   <CardTitle className="font-headline">{client.name}</CardTitle>
-                  <CardDescription>
+                  <CardDescription className='space-y-2'>
                       <div className="flex items-center gap-2 mt-2">
                           <Mail className="w-4 h-4 text-muted-foreground" />
                           <span>{client.email}</span>
@@ -103,6 +138,12 @@ export default function ClientsPage() {
                           <Phone className="w-4 h-4 text-muted-foreground" />
                           <span>{client.phone}</span>
                       </div>
+                       {client.source && (
+                        <div className="flex items-center gap-2 pt-1 text-xs">
+                          <Share2 className="w-3 h-3 text-muted-foreground"/>
+                          <span className="text-muted-foreground font-medium">{client.source}</span>
+                        </div>
+                      )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
