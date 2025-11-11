@@ -539,6 +539,32 @@ export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     }, {} as VisitsSummary);
 };
 
+export const getClientSourcesSummary = async (): Promise<{[source: string]: number}> => {
+    if (!supabase) return {};
+    const profile = await getCurrentProfile();
+    if (!profile) return {};
+
+    let query = supabase.from('clients').select('source');
+    
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return {};
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query;
+
+    if (error) {
+        console.error("Error fetching clients by source:", error);
+        return {};
+    }
+
+    return data.reduce((acc, client) => {
+        const source = client.source || 'Não especificado';
+        acc[source] = (acc[source] || 0) + 1;
+        return acc;
+    }, {} as {[source: string]: number});
+};
+
 
 export const getTodaysSchedule = async (): Promise<ScheduleItem[]> => {
     if (!supabase) return [];
@@ -1384,15 +1410,11 @@ export const addOrganizerPartner = async (name: string): Promise<OrganizerPartne
 };
 
 export const deleteOrganizerPartner = async (id: string): Promise<void> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
-    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
-
-    // Check if it's superadmin or admin of the correct company
-    const { data: partner } = await supabase.from('organizer_partners').select('company_id').eq('id', id).single();
-    if (profile.email !== 'mauriciodionizio@gmail.com' && partner?.company_id !== profile.companyId) {
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
         throw new Error("Permissão negada.");
     }
+    if (!supabase) throw new Error("Supabase client not initialized.");
 
     const { error } = await supabase.from('organizer_partners').delete().eq('id', id);
     if (error) {
