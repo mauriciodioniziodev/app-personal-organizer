@@ -344,7 +344,7 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                         <TableBody>
                             {project.organizerCosts.map(cost => (
                                 <TableRow key={cost.id}>
-                                    <TableCell>{cost.partnerName || getPartnerName(cost.partnerId)}</TableCell>
+                                    <TableCell>{cost.partnerName}</TableCell>
                                     <TableCell>{cost.costAmount.toFixed(2)}</TableCell>
                                     <TableCell>{cost.commissionPercentage}</TableCell>
                                     <TableCell>{cost.commissionValue.toFixed(2)}</TableCell>
@@ -842,3 +842,4 @@ export default function ProjectEditPage() {
     </div>
   );
 }
+
