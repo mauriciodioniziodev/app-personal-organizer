@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
@@ -31,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 
 const paymentSchema = z.object({
@@ -843,6 +843,5 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
 
     
