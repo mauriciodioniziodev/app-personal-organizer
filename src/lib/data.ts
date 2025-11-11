@@ -1,7 +1,7 @@
 
 
 import 'dotenv/config';
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
 import { cache } from 'react';
@@ -52,8 +52,10 @@ const getProjectPaymentStatus = (payments: Payment[] | undefined): string => {
     return 'parcialmente pago';
 }
 
-const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
+const projectFromSupabase = (p_raw: any, allPayments: any[], allCosts: ProjectOrganizerCost[]): Project => {
     const payments = toCamelCase(allPayments.filter(payment => payment.project_id === p_raw.id)) as Payment[];
+    const costs = toCamelCase(allCosts.filter(cost => cost.project_id === p_raw.id)) as ProjectOrganizerCost[];
+    
     return {
         id: p_raw.id,
         createdAt: p_raw.created_at,
@@ -74,6 +76,7 @@ const projectFromSupabase = (p_raw: any, allPayments: any[]): Project => {
         photosBefore: p_raw.photos_before || [],
         photosAfter: p_raw.photos_after || [],
         payments: payments,
+        organizerCosts: costs,
         paymentStatus: getProjectPaymentStatus(payments)
     };
 }
@@ -365,10 +368,16 @@ export const getProjects = async (): Promise<Project[]> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
         console.error("Error fetching payments:", paymentsError);
-        return projectsData.map(p_raw => projectFromSupabase(p_raw, []));
+        // Continue with empty payments
+    }
+    
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
+    if (costsError) {
+        console.error("Error fetching costs:", costsError);
+        // Continue with empty costs
     }
 
-    return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || []));
+    return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || [], costsData || []));
 };
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
@@ -391,10 +400,14 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('project_id', id);
     if (paymentsError) {
         console.error(`Error fetching payments for project ${id}:`, paymentsError);
-        return projectFromSupabase(projectData, []);
     }
     
-    return projectFromSupabase(projectData, paymentsData || []);
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').eq('project_id', id);
+    if (costsError) {
+        console.error(`Error fetching costs for project ${id}:`, costsError);
+    }
+    
+    return projectFromSupabase(projectData, paymentsData || [], costsData || []);
 };
 
 
@@ -467,10 +480,12 @@ export const getActiveProjects = async (): Promise<Project[]> => {
     
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
-        return projectsData.map(p_raw => projectFromSupabase(p_raw, []));
+        return projectsData.map(p_raw => projectFromSupabase(p_raw, [], []));
     }
+    
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
 
-    return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || []));
+    return projectsData.map(p_raw => projectFromSupabase(p_raw, paymentsData || [], costsData || []));
 };
 
 
@@ -748,14 +763,16 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
     }
     
     const projectIds = data.map(p => p.id);
-    if(projectIds.length === 0) return data.map(p => projectFromSupabase(p, []));
+    if(projectIds.length === 0) return data.map(p => projectFromSupabase(p, [], []));
     
     const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').in('project_id', projectIds);
      if (paymentsError) {
-        return data.map(p_raw => projectFromSupabase(p_raw, []));
+        return data.map(p_raw => projectFromSupabase(p_raw, [], []));
     }
     
-    return data.map(p_raw => projectFromSupabase(p_raw, paymentsData || []));
+    const { data: costsData, error: costsError } = await supabase.from('project_organizer_costs').select('*').in('project_id', projectIds);
+
+    return data.map(p_raw => projectFromSupabase(p_raw, paymentsData || [], costsData || []));
 };
 
 export const getVisitsByClientId = async (clientId: string): Promise<Visit[]> => {
@@ -899,9 +916,9 @@ export const addVisit = async (visit: Omit<Visit, 'id' | 'createdAt' | 'photos' 
     return toCamelCase(data) as Visit;
 }
 
-export const updateVisit = async (visitId: string, updateData: Partial<Omit<Visit, 'id' | 'createdAt' | 'companyId' | 'photos' | 'budgetAmount' | 'budgetPdfUrl' | 'projectId'>>): Promise<Visit> => {
+export const updateVisit = async (visitId: string, updateData: Partial<Visit>): Promise<Visit> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
-     
+
      const { data, error } = await supabase
         .from('visits')
         .update(toSnakeCase(updateData))
@@ -1000,7 +1017,7 @@ export const addBudgetToVisit = async (visitId: string, amount: number, pdfDataU
 }
 
 
-export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId' | 'createdAt'>): Promise<Project> => {
+export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' | 'companyId' | 'createdAt' | 'organizerCosts'>): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const profile = await getCurrentProfile();
     if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
@@ -1053,13 +1070,13 @@ export const addProject = async (project: Omit<Project, 'id' | 'paymentStatus' |
         throw new Error("Projeto criado, mas houve um erro ao salvar as parcelas.");
     }
 
-    return projectFromSupabase(newProjectData, paymentsWithProjectId);
+    return projectFromSupabase(newProjectData, paymentsWithProjectId, []);
 };
 
 export const updateProject = async (project: Project): Promise<Project> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    const { payments, ...projectDetails } = project;
+    const { payments, organizerCosts, ...projectDetails } = project;
     
      const dbProjectData = {
         client_id: projectDetails.clientId,
@@ -1114,8 +1131,9 @@ export const updateProject = async (project: Project): Promise<Project> => {
     }
     
     const { data: finalPayments } = await supabase.from('payments').select('*').eq('project_id', updatedProjectData.id);
+    const { data: finalCosts } = await supabase.from('project_organizer_costs').select('*').eq('project_id', updatedProjectData.id);
     
-    return projectFromSupabase(updatedProjectData, finalPayments || []);
+    return projectFromSupabase(updatedProjectData, finalPayments || [], finalCosts || []);
 };
 
 
@@ -1149,8 +1167,9 @@ export const addPhotoToProject = async (projectId: string, photoType: 'before' |
     }
     
     const allPayments = await supabase.from('payments').select('*').eq('project_id', data.id);
+    const allCosts = await supabase.from('project_organizer_costs').select('*').eq('project_id', data.id);
     
-    return projectFromSupabase(data, allPayments.data || []);
+    return projectFromSupabase(data, allPayments.data || [], allCosts.data || []);
 }
 
 
@@ -1233,6 +1252,19 @@ export const deleteProjectStatusOption = async (id: string): Promise<void> => {
     return deleteMasterDataItem('master_project_status', id);
 }
 
+export const getClientSources = async (): Promise<MasterDataItem[]> => {
+    return getMasterData('master_client_sources');
+}
+
+export const addClientSource = async (name: string): Promise<MasterDataItem> => {
+    return addMasterDataItem('master_client_sources', name);
+}
+
+export const deleteClientSource = async (id: string): Promise<void> => {
+    return deleteMasterDataItem('master_client_sources', id);
+}
+
+
 // --- Company Settings Functions ---
 
 export const getSettings = async (companyId: string): Promise<CompanySettings | null> => {
@@ -1309,3 +1341,118 @@ export const updateSettings = async ({ companyId, companyName, logoUpdate }: { c
         throw new Error("Não foi possível salvar as configurações.");
     }
 }
+
+
+// --- Organizer Partner and Cost Functions ---
+
+export const getOrganizerPartners = async (): Promise<OrganizerPartner[]> => {
+    if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) return [];
+
+    const { data, error } = await supabase
+        .from('organizer_partners')
+        .select('*')
+        .eq('company_id', profile.companyId);
+
+    if (error) {
+        console.error("Error fetching organizer partners:", error);
+        return [];
+    }
+    return toCamelCase(data);
+};
+
+export const addOrganizerPartner = async (name: string): Promise<OrganizerPartner> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
+
+    const { data, error } = await supabase
+        .from('organizer_partners')
+        .insert({ name, company_id: profile.companyId })
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("Error adding organizer partner:", error);
+        throw new Error("Não foi possível adicionar o parceiro.");
+    }
+    return toCamelCase(data);
+};
+
+export const deleteOrganizerPartner = async (id: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
+
+    // Check if it's superadmin or admin of the correct company
+    const { data: partner } = await supabase.from('organizer_partners').select('company_id').eq('id', id).single();
+    if (profile.email !== 'mauriciodionizio@gmail.com' && partner?.company_id !== profile.companyId) {
+        throw new Error("Permissão negada.");
+    }
+
+    const { error } = await supabase.from('organizer_partners').delete().eq('id', id);
+    if (error) {
+        console.error(`Error deleting organizer partner ${id}:`, error);
+        throw new Error("Não foi possível remover o parceiro.");
+    }
+};
+
+
+export const getProjectOrganizerCosts = async (projectId: string): Promise<ProjectOrganizerCost[]> => {
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase.rpc('get_costs_for_project', { p_project_id: projectId });
+
+    if (error) {
+        console.error("Error fetching project organizer costs:", error);
+        return [];
+    }
+    return toCamelCase(data);
+}
+
+
+export const addProjectOrganizerCost = async (costData: Omit<ProjectOrganizerCost, 'id' | 'createdAt' | 'commissionValue'>): Promise<ProjectOrganizerCost> => {
+     if (!supabase) throw new Error("Supabase client not initialized.");
+     
+    const { data, error } = await supabase
+        .from('project_organizer_costs')
+        .insert(toSnakeCase(costData))
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error adding project cost:", error);
+        throw new Error("Não foi possível adicionar o custo do organizador.");
+    }
+    return toCamelCase(data);
+};
+
+export const updateProjectOrganizerCost = async (costId: string, updates: Partial<ProjectOrganizerCost>): Promise<ProjectOrganizerCost> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { id, projectId, partnerId, partnerName, createdAt, commissionValue, ...updateData } = updates;
+
+    const { data, error } = await supabase
+        .from('project_organizer_costs')
+        .update(toSnakeCase(updateData))
+        .eq('id', costId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating project cost:", error);
+        throw new Error("Não foi possível atualizar o custo.");
+    }
+    return toCamelCase(data);
+};
+
+export const deleteProjectOrganizerCost = async (costId: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await supabase.from('project_organizer_costs').delete().eq('id', costId);
+    if (error) {
+        console.error("Error deleting project cost:", error);
+        throw new Error("Não foi possível remover o custo.");
+    }
+};
+
