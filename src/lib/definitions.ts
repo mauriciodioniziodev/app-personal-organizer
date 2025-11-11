@@ -10,6 +10,8 @@ export type Client = {
   preferences: string;
   cpf: string;
   birthday: string;
+  source?: string;
+  sourceDetails?: string;
 };
 
 export type Payment = {
@@ -43,6 +45,7 @@ export type Project = {
   payments: Payment[];
   photosBefore: Photo[];
   photosAfter: Photo[];
+  organizerCosts: ProjectOrganizerCost[];
 };
 
 export type Visit = {
@@ -124,6 +127,7 @@ export type CompanySettings = {
     companyName: string;
     logoUrl: string | null;
     createdAt?: string;
+    theme?: 'default' | 'dark';
 }
 
 export type LogoUpdateData = {
@@ -131,3 +135,24 @@ export type LogoUpdateData = {
     fileName: string;
     fileType: string;
 } | null;
+
+export type ClientSource = MasterDataItem;
+
+export type OrganizerPartner = {
+    id: string;
+    companyId: string;
+    name: string;
+    createdAt: string;
+}
+
+export type ProjectOrganizerCost = {
+    id: string;
+    projectId: string;
+    partnerId: string;
+    partnerName?: string; // Joined from organizer_partners
+    costAmount: number;
+    commissionPercentage: number;
+    commissionValue: number;
+    commissionStatus: 'em aberto' | 'pago';
+    createdAt: string;
+}

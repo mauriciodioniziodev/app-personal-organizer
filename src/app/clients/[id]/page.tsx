@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getClientById, getProjectsByClientId, getVisitsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo, Edit } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo, Edit, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import PreferenceAnalyzer from "@/components/client-preference-analyzer";
@@ -149,6 +149,12 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                             <span>Aniversário: {client.birthday}</span>
                         </div>
                      )}
+                     {client.source && (
+                        <div className="flex items-center gap-3">
+                            <Share2 className="w-5 h-5 text-muted-foreground" />
+                            <span>Origem: {client.source}{client.sourceDetails ? ` (${client.sourceDetails})` : ''}</span>
+                        </div>
+                     )}
                 </CardContent>
             </Card>
 
@@ -208,7 +214,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     ) : (
                         <p className="text-muted-foreground text-center py-4">Nenhum projeto para este cliente.</p>
                     )}
-                     <Link href="/projects/new" className="w-full">
+                     <Link href={`/projects/new?clientId=${client.id}`} className="w-full">
                         <Button variant="outline" className="w-full mt-4">
                             Novo Projeto
                         </Button>

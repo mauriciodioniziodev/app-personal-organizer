@@ -1,7 +1,7 @@
 
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,11 @@ import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { addClient } from "@/lib/data";
-
+import { addClient, getClientSources } from "@/lib/data";
 import { z } from "zod";
+import type { ClientSource } from "@/lib/definitions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 const clientSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   email: z.string().email("E-mail inválido.").or(z.literal('')),
@@ -23,6 +25,8 @@ const clientSchema = z.object({
   cpf: z.string().optional(),
   birthday: z.string().optional(),
   preferences: z.string().optional(),
+  source: z.string().optional(),
+  sourceDetails: z.string().optional(),
 });
 
 
@@ -31,6 +35,12 @@ export default function NewClientPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [sources, setSources] = useState<ClientSource[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    getClientSources().then(setSources);
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,6 +56,8 @@ export default function NewClientPage() {
         cpf: formData.get("cpf") as string,
         birthday: formData.get("birthday") as string,
         preferences: formData.get("preferences") as string,
+        source: formData.get("source") as string,
+        sourceDetails: formData.get("sourceDetails") as string,
     }
 
     const validationResult = clientSchema.safeParse(clientData);
@@ -119,6 +131,23 @@ export default function NewClientPage() {
                 <Input id="birthday" name="birthday" placeholder="DD/MM" />
                 {errors?.birthday && <p className="text-sm text-destructive">{errors.birthday[0]}</p>}
               </div>
+            </div>
+             <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="source">Origem do Cliente</Label>
+                    <Select name="source" value={selectedSource} onValueChange={setSelectedSource}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a origem"/></SelectTrigger>
+                        <SelectContent>
+                            {sources.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                {selectedSource === 'Outros' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="sourceDetails">Especifique a Origem</Label>
+                        <Input id="sourceDetails" name="sourceDetails" placeholder="Ex: Indicação de Maria" />
+                    </div>
+                )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="preferences">Preferências e Observações</Label>
