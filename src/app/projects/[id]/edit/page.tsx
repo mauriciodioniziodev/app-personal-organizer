@@ -293,26 +293,14 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
     };
 
     const handleDeleteCost = async (costId: string) => {
-        console.log(`[DEBUG] handleDeleteCost triggered for costId: ${costId}`);
-        if (!confirm('Tem certeza que deseja remover este custo?')) {
-            console.log('[DEBUG] User cancelled deletion.');
-            return;
-        }
         try {
-            console.log(`[DEBUG] Attempting to call deleteProjectOrganizerCost for costId: ${costId}`);
             await deleteProjectOrganizerCost(costId);
-            console.log(`[DEBUG] deleteProjectOrganizerCost successful. Fetching updated project...`);
-            
             const updatedProject = await getProjectById(project.id);
             if (updatedProject) {
-                console.log('[DEBUG] Project updated successfully. Calling onCostsUpdated.');
                 onCostsUpdated(updatedProject);
-            } else {
-                 console.log('[DEBUG] getProjectById returned null after deletion.');
             }
             toast({ title: 'Sucesso', description: 'Custo removido.' });
         } catch (error) {
-            console.error('[DEBUG] Error during cost deletion:', error);
             toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
         }
     };
@@ -370,9 +358,9 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                                             checked={cost.commissionStatus === 'pago'}
                                             onCheckedChange={() => handleStatusChange(cost.id, cost.commissionStatus)}
                                         />
-										<Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteCost(cost.id)}>
-                                            <Trash className="w-4 h-4 text-destructive cursor-pointer"/>
-                                        </Button>
+                                        <div onClick={() => handleDeleteCost(cost.id)} className="cursor-pointer p-2 hover:bg-muted rounded-md">
+										    <Trash className="w-4 h-4 text-destructive"/>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -854,7 +842,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
-    
-
-    
