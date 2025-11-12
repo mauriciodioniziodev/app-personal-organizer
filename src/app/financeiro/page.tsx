@@ -254,7 +254,7 @@ export default function FinanceiroPage() {
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
+                <CardTitle className="text-sm font-medium">Comissões Recebidas</CardTitle>
                 <Handshake className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -268,17 +268,17 @@ export default function FinanceiroPage() {
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => setShowCommissionsPaid(!showCommissionsPaid)}>
                         {showCommissionsPaid ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        <span className="sr-only">Mostrar/Ocultar comissões pagas</span>
+                        <span className="sr-only">Mostrar/Ocultar comissões recebidas</span>
                     </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                Soma de comissões de parceiros pagas no período.
+                Soma de comissões de parceiros recebidas no período.
                 </p>
             </CardContent>
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Comissões a Pagar</CardTitle>
+                <CardTitle className="text-sm font-medium">Comissões a Receber</CardTitle>
                 <Handshake className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -292,11 +292,11 @@ export default function FinanceiroPage() {
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => setShowCommissionsPending(!showCommissionsPending)}>
                         {showCommissionsPending ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        <span className="sr-only">Mostrar/Ocultar comissões em aberto</span>
+                        <span className="sr-only">Mostrar/Ocultar comissões a receber</span>
                     </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                Soma de comissões de parceiros em aberto no período.
+                Soma de comissões de parceiros em aberto a serem recebidas no período.
                 </p>
             </CardContent>
         </Card>
