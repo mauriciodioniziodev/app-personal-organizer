@@ -59,7 +59,7 @@ function MasterDataCard<T extends MasterDataItem>({
     }
 
     const handleDelete = async (item: T) => {
-        if(disabled || !confirm(`Tem certeza que deseja remover "${item.name}"?`)) return;
+        if(disabled) return;
         try {
             await onDelete(item.id);
             toast({ title: "Sucesso!", description: `"${item.name}" foi removido.`});
