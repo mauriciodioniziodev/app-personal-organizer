@@ -73,7 +73,7 @@ export default function InsightsPage() {
         <div className="flex flex-col gap-8">
             <PageHeader title="Insights com IA" />
             
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  <InsightCard
                     title="Recomendação de Serviços"
                     description="Selecione um cliente para receber sugestões de upsell e novos serviços com base no seu histórico e em padrões de outros clientes."
