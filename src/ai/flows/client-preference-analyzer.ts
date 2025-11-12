@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -38,7 +39,7 @@ const prompt = ai.definePrompt({
   Nome do Cliente: {{{clientName}}}
   Detalhes do Cliente: {{{clientDetails}}}
 
-  Preferências Resumidas:`, // No Handlebars in strings.
+  Preferências Resumidas:`,
 });
 
 const analyzeClientPreferencesFlow = ai.defineFlow(
