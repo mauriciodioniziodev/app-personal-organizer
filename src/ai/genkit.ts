@@ -13,7 +13,7 @@ export const ai = genkit({
   enableTracingAndMetrics: true,
 });
 
-export function isGenkitError(error: any): error is GenkitError {
+export async function isGenkitError(error: any): Promise<error is GenkitError> {
   return (
     error instanceof Error &&
     '__isGenkitError' in error &&
