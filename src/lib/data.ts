@@ -1280,8 +1280,8 @@ const getMasterData = async (tableName: string): Promise<MasterDataItem[]> => {
 
 const addMasterDataItem = async (tableName: string, name: string): Promise<MasterDataItem> => {
     const profile = await getCurrentProfile();
-    if (profile?.email !== 'mauriciodionizio@gmail.com') {
-        throw new Error("Apenas o superadministrador pode adicionar novos itens.");
+    if (profile?.role !== 'administrador') {
+        throw new Error("Apenas administradores podem adicionar novos itens.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 
@@ -1295,8 +1295,8 @@ const addMasterDataItem = async (tableName: string, name: string): Promise<Maste
 
 const deleteMasterDataItem = async (tableName: string, id: string): Promise<void> => {
     const profile = await getCurrentProfile();
-    if (profile?.email !== 'mauriciodionizio@gmail.com') {
-        throw new Error("Apenas o superadministrador pode remover itens.");
+    if (profile?.role !== 'administrador') {
+        throw new Error("Apenas administradores podem remover itens.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
     
@@ -1474,8 +1474,8 @@ export const addOrganizerPartner = async (name: string): Promise<OrganizerPartne
 
 export const deleteOrganizerPartner = async (id: string): Promise<void> => {
     const profile = await getCurrentProfile();
-    if (!profile) {
-        throw new Error("Usuário não autenticado.");
+    if (!profile || profile.role !== 'administrador') {
+        throw new Error("Apenas administradores podem remover parceiros.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 

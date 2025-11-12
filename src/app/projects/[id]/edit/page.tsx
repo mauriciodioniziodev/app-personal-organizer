@@ -6,7 +6,8 @@ import { useRouter, useParams } from "next/navigation";
 import { 
     getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, 
     getPaymentInstrumentsOptions, getProjectStatusOptions, getOrganizerPartners, 
-    addProjectOrganizerCost, updateProjectOrganizerCost, deleteProjectOrganizerCost
+    addProjectOrganizerCost, updateProjectOrganizerCost, deleteProjectOrganizerCost,
+    addOrganizerPartner
 } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -252,6 +253,70 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
     );
 }
 
+function AddPartnerModal({ onPartnerAdded }: { onPartnerAdded: (newPartner: OrganizerPartner) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [newPartnerName, setNewPartnerName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    const handleAddPartner = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!newPartnerName.trim()) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'O nome do parceiro não pode estar vazio.' });
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const newPartner = await addOrganizerPartner(newPartnerName);
+            onPartnerAdded(newPartner);
+            toast({ title: 'Sucesso!', description: `Parceiro "${newPartnerName}" adicionado.` });
+            setNewPartnerName('');
+            setIsOpen(false);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Novo</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Adicionar Novo Parceiro</DialogTitle>
+                    <DialogDescription>
+                        Cadastre uma nova empresa parceira para associar a este projeto.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddPartner}>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-partner-name">Nome do Parceiro</Label>
+                            <Input
+                                id="new-partner-name"
+                                value={newPartnerName}
+                                onChange={(e) => setNewPartnerName(e.target.value)}
+                                placeholder="Ex: Loja de Organização & Cia"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? <LoaderCircle className="animate-spin" /> : 'Salvar Parceiro'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
 function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, onCostsUpdated: (project: Project) => void }) {
     const [partners, setPartners] = useState<OrganizerPartner[]>([]);
     const [newCost, setNewCost] = useState({ partnerId: '', costAmount: 0, commissionPercentage: 0 });
@@ -259,12 +324,22 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
     const [isAdding, setIsAdding] = useState(false);
     const { toast } = useToast();
 
-    useEffect(() => {
+    const fetchPartners = async () => {
+        setLoading(true);
         getOrganizerPartners().then(data => {
             setPartners(data);
             setLoading(false);
         });
+    }
+
+    useEffect(() => {
+        fetchPartners();
     }, []);
+
+    const handlePartnerAdded = (newPartner: OrganizerPartner) => {
+        setPartners(prev => [...prev, newPartner].sort((a, b) => a.name.localeCompare(b.name)));
+        setNewCost(prev => ({ ...prev, partnerId: newPartner.id }));
+    };
 
     const handleAddCost = async () => {
         if (!newCost.partnerId || newCost.costAmount <= 0) {
@@ -379,7 +454,10 @@ function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, 
                     <h4 className="font-semibold">Adicionar Novo Custo</h4>
                      <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="partnerId">Parceiro</Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="partnerId">Parceiro</Label>
+                                <AddPartnerModal onPartnerAdded={handlePartnerAdded} />
+                            </div>
                             <Select value={newCost.partnerId} onValueChange={(v) => setNewCost(prev => ({...prev, partnerId: v}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione..." />
