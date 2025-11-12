@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -24,9 +25,9 @@ const statusTitles: Record<Lead['status'], string> = {
 };
 
 const temperatureColors: Record<Lead['temperature'], string> = {
-    quente: 'bg-red-500',
-    morno: 'bg-yellow-500',
-    frio: 'bg-blue-500',
+    quente: 'text-red-500',
+    morno: 'text-yellow-500',
+    frio: 'text-gray-400',
 }
 
 function LeadCard({ lead, onDragStart }: { lead: Lead; onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void }) {
@@ -42,7 +43,7 @@ function LeadCard({ lead, onDragStart }: { lead: Lead; onDragStart: (e: React.Dr
             <CardHeader className='pb-4'>
                 <div className='flex justify-between items-start'>
                     <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", temperatureColors[lead.temperature])} />
+                        <Flame className={cn("h-5 w-5", temperatureColors[lead.temperature])} />
                         {lead.name}
                     </CardTitle>
                     <div className="flex items-center gap-1">
@@ -140,12 +141,19 @@ export default function LeadsPage() {
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Funil de Leads">
-                <Link href="/leads/new">
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Adicionar Lead
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-4 text-sm text-muted-foreground border p-2 rounded-lg">
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-red-500" /> Quente</div>
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-yellow-500" /> Morno</div>
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-gray-400" /> Frio</div>
+                    </div>
+                    <Link href="/leads/new">
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Adicionar Lead
+                        </Button>
+                    </Link>
+                </div>
             </PageHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-start">
                 {leadStatuses.map(status => (
