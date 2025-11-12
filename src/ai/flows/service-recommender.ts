@@ -2,8 +2,9 @@
 'use server';
 import {ai} from '@/ai/genkit';
 import type {Client, Project, Visit} from '@/lib/definitions';
-import {z, type ZodError} from 'zod';
+import {z} from 'zod';
 import type {GenkitError} from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 function isGenkitError(error: any): error is GenkitError {
   return (
@@ -46,25 +47,10 @@ export type ServiceRecommenderOutput = z.infer<
   typeof ServiceRecommenderOutputSchema
 >;
 
-export async function recommendServices(
-  input: ServiceRecommenderInput
-): Promise<ServiceRecommenderOutput> {
-  try {
-    return await serviceRecommenderFlow(input);
-  } catch (e) {
-    if (isGenkitError(e)) {
-      console.error(`Genkit Error (${e.code}): ${e.message}`);
-    } else {
-      console.error('An unexpected error occurred:', e);
-    }
-    // Re-throw the error to be caught by the client
-    throw e;
-  }
-}
-
 const recommendationPrompt = ai.definePrompt(
   {
     name: 'serviceRecommenderPrompt',
+    model: googleAI('gemini-pro'),
     input: {schema: ServiceRecommenderInputSchema},
     output: {schema: ServiceRecommenderOutputSchema},
     prompt: `
@@ -93,14 +79,22 @@ const recommendationPrompt = ai.definePrompt(
   },
 );
 
-const serviceRecommenderFlow = ai.defineFlow(
-  {
-    name: 'serviceRecommenderFlow',
-    inputSchema: ServiceRecommenderInputSchema,
-    outputSchema: ServiceRecommenderOutputSchema,
-  },
-  async (input) => {
+export async function recommendServices(
+  input: ServiceRecommenderInput
+): Promise<ServiceRecommenderOutput> {
+  try {
     const {output} = await recommendationPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('No output from AI service.');
+    }
+    return output;
+  } catch (e) {
+    if (isGenkitError(e)) {
+      console.error(`Genkit Error (${e.code}): ${e.message}`);
+    } else {
+      console.error('An unexpected error occurred:', e);
+    }
+    // Re-throw the error to be caught by the client
+    throw e;
   }
-);
+}
