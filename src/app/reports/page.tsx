@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -9,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getClients, getVisits, getProjects } from '@/lib/data';
-import { FileDown, Cake } from 'lucide-react';
-import type { Client, Visit, Project } from '@/lib/definitions';
+import { getClients, getVisits, getProjects, getAllOrganizerCosts } from '@/lib/data';
+import { FileDown, Cake, Handshake } from 'lucide-react';
+import type { Client, Visit, Project, ProjectOrganizerCost } from '@/lib/definitions';
 import { exportToExcel, formatDate } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 function ClientsReport() {
     const [clients, setClients] = useState<Client[]>([]);
@@ -41,6 +44,7 @@ function ClientsReport() {
             'Endereço': c.address,
             'CPF': c.cpf,
             'Aniversário': c.birthday,
+            'Origem': c.source,
             'Data de Cadastro': formatDate(c.createdAt),
         }));
         exportToExcel(dataToExport, 'relatorio_clientes');
@@ -66,6 +70,7 @@ function ClientsReport() {
                                 <TableHead>Email</TableHead>
                                 <TableHead>Telefone</TableHead>
                                 <TableHead>Aniversário</TableHead>
+                                <TableHead>Origem</TableHead>
                                 <TableHead>Endereço</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -85,6 +90,7 @@ function ClientsReport() {
                                             <span>{client.birthday || '-'}</span>
                                         </div>
                                     </TableCell>
+                                    <TableCell>{client.source || '-'}</TableCell>
                                     <TableCell>{client.address}</TableCell>
                                 </TableRow>
                             )})}
@@ -291,15 +297,132 @@ function ProjectsReport() {
     );
 }
 
+function CommissionsReport() {
+    const [allCosts, setAllCosts] = useState<ProjectOrganizerCost[]>([]);
+    const [filteredCosts, setFilteredCosts] = useState<ProjectOrganizerCost[]>([]);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    useEffect(() => {
+        getAllOrganizerCosts().then(setAllCosts);
+    }, []);
+
+    useEffect(() => {
+        let results = allCosts;
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate).getTime();
+            const end = new Date(endDate).getTime();
+            results = results.filter(c => {
+                if (!c.projectEndDate || !c.projectStartDate) return false;
+                 const costStart = new Date(c.projectStartDate).getTime();
+                 const costEnd = new Date(c.projectEndDate).getTime();
+                 return Math.max(costStart, start) <= Math.min(costEnd, end);
+            });
+        }
+
+        if (statusFilter !== 'all') {
+            results = results.filter(c => c.commissionStatus === statusFilter);
+        }
+
+        setFilteredCosts(results);
+    }, [startDate, endDate, statusFilter, allCosts]);
+
+    const handleExport = () => {
+        const dataToExport = filteredCosts.map(c => ({
+            'Parceiro': c.partnerName,
+            'Cliente': c.clientName,
+            'Projeto': c.projectName,
+            'Valor da Comissão (R$)': c.commissionValue,
+            'Status': c.commissionStatus === 'pago' ? 'Recebida' : 'A Receber',
+            'Data do Projeto': c.projectStartDate ? `${formatDate(c.projectStartDate)} - ${formatDate(c.projectEndDate || '')}` : 'N/A'
+        }));
+        exportToExcel(dataToExport, 'relatorio_comissoes');
+    };
+    
+    const commissionStatusColors: { [key: string]: string } = {
+        'em aberto': 'text-yellow-800 bg-yellow-100',
+        'pago': 'text-green-800 bg-green-100',
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Relatório de Comissões</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                    <div className="grid gap-2">
+                        <Label htmlFor="commissions-start-date">Período (Início)</Label>
+                        <Input id="commissions-start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="commissions-end-date">Período (Fim)</Label>
+                        <Input id="commissions-end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="commissions-status">Status</Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger id="commissions-status">
+                                <SelectValue placeholder="Filtrar por status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="pago">Recebidas</SelectItem>
+                                <SelectItem value="em aberto">A Receber</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <Button onClick={handleExport} variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Exportar para Excel
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <ScrollArea className="h-[60vh]">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Parceiro</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Projeto</TableHead>
+                                <TableHead>Valor Comissão</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredCosts.map(cost => (
+                                <TableRow key={cost.id}>
+                                    <TableCell>{cost.partnerName}</TableCell>
+                                    <TableCell>{cost.clientName}</TableCell>
+                                    <TableCell>{cost.projectName}</TableCell>
+                                    <TableCell>{cost.commissionValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                    <TableCell>
+                                         <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                            {cost.commissionStatus === 'pago' ? 'Recebida' : 'A Receber'}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export default function ReportsPage() {
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Relatórios" />
             <Tabs defaultValue="clients">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="clients">Clientes</TabsTrigger>
                     <TabsTrigger value="visits">Visitas</TabsTrigger>
                     <TabsTrigger value="projects">Projetos</TabsTrigger>
+                    <TabsTrigger value="commissions">Comissões</TabsTrigger>
                 </TabsList>
                 <TabsContent value="clients">
                     <ClientsReport />
@@ -309,6 +432,9 @@ export default function ReportsPage() {
                 </TabsContent>
                 <TabsContent value="projects">
                     <ProjectsReport />
+                </TabsContent>
+                <TabsContent value="commissions">
+                    <CommissionsReport />
                 </TabsContent>
             </Tabs>
         </div>

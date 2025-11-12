@@ -148,6 +148,9 @@ export type OrganizerPartner = {
 export type ProjectOrganizerCost = {
     id: string;
     projectId: string;
+    projectName?: string;
+    clientId?: string;
+    clientName?: string;
     partnerId: string;
     partnerName?: string; // Joined from organizer_partners
     costAmount: number;
@@ -155,4 +158,6 @@ export type ProjectOrganizerCost = {
     commissionValue: number;
     commissionStatus: 'em aberto' | 'pago';
     createdAt: string;
+    projectStartDate?: string;
+    projectEndDate?: string;
 }
