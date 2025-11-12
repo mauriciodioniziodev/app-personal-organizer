@@ -38,7 +38,7 @@ const recommendationPrompt = ai.definePrompt({
   name: 'serviceRecommenderPrompt',
   input: {schema: ServiceRecommendationInputSchema},
   output: {schema: ServiceRecommendationOutputSchema},
-  model: googleAI('gemini-pro'),
+  model: 'googleai/gemini-pro',
   prompt: `
     Você é um assistente de vendas especialista para um Personal Organizer. Sua tarefa é analisar o perfil de um cliente e o histórico de projetos da empresa para sugerir serviços adicionais (upsell).
 
