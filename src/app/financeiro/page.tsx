@@ -178,7 +178,7 @@ export default function FinanceiroPage() {
           </CardHeader>
           <CardContent>
              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold font-headline">
+                <div className="text-2xl font-bold font-headline text-green-600">
                 {showRevenue ? (
                     new Intl.NumberFormat("pt-BR", {
                         style: "currency",
@@ -205,7 +205,7 @@ export default function FinanceiroPage() {
           </CardHeader>
           <CardContent>
              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold font-headline">
+                <div className="text-2xl font-bold font-headline text-yellow-600">
                 {showPendingRevenue ? (
                     new Intl.NumberFormat("pt-BR", {
                         style: "currency",
@@ -232,7 +232,7 @@ export default function FinanceiroPage() {
           </CardHeader>
           <CardContent>
              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold font-headline">
+                <div className="text-2xl font-bold font-headline text-blue-600">
                 {showBudgetedRevenue ? (
                     new Intl.NumberFormat("pt-BR", {
                         style: "currency",
@@ -422,5 +422,7 @@ export default function FinanceiroPage() {
     </div>
   );
 }
+
+    
 
     
