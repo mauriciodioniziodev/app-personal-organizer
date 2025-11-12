@@ -27,13 +27,13 @@ const ServiceRecommendationSchema = z.object({
     ),
 });
 
-export const ServiceRecommenderInputSchema = z.object({
+const ServiceRecommenderInputSchema = z.object({
   client: z.custom<Client>(),
   projects: z.array(z.custom<Project>()),
   visits: z.array(z.custom<Visit>()),
 });
 
-export const ServiceRecommenderOutputSchema = z.object({
+const ServiceRecommenderOutputSchema = z.object({
   recommendations: z
     .array(ServiceRecommendationSchema)
     .describe('A list of service recommendations for the client.'),
