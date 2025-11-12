@@ -2,14 +2,14 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import PageHeader from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { getClients, getVisits, getProjects, getAllOrganizerCosts } from '@/lib/data';
 import { FileDown, Cake, Handshake } from 'lucide-react';
 import type { Client, Visit, Project, ProjectOrganizerCost } from '@/lib/definitions';
@@ -226,6 +226,16 @@ function ProjectsReport() {
         return { received, receivable };
     }
 
+    const { totalFinalValue, totalReceived, totalReceivable } = useMemo(() => {
+        return filteredProjects.reduce((acc, project) => {
+            const { received, receivable } = getFinancials(project);
+            acc.totalFinalValue += project.finalValue;
+            acc.totalReceived += received;
+            acc.totalReceivable += receivable;
+            return acc;
+        }, { totalFinalValue: 0, totalReceived: 0, totalReceivable: 0 });
+    }, [filteredProjects]);
+
     const handleExport = () => {
         const dataToExport = filteredProjects.map(p => {
             const { received, receivable } = getFinancials(p);
@@ -290,6 +300,20 @@ function ProjectsReport() {
                                 </TableRow>
                             )})}
                         </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={3} className="font-semibold text-right">Totais</TableCell>
+                                <TableCell className="font-bold">
+                                    {totalFinalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                                <TableCell className="font-bold">
+                                    {totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                                <TableCell className="font-bold">
+                                    {totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </ScrollArea>
             </CardContent>
@@ -328,6 +352,10 @@ function CommissionsReport() {
 
         setFilteredCosts(results);
     }, [startDate, endDate, statusFilter, allCosts]);
+
+    const totalCommissions = useMemo(() => {
+        return filteredCosts.reduce((sum, cost) => sum + cost.commissionValue, 0);
+    }, [filteredCosts]);
 
     const handleExport = () => {
         const dataToExport = filteredCosts.map(c => ({
@@ -405,6 +433,14 @@ function CommissionsReport() {
                                 </TableRow>
                             ))}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableCell colSpan={3} className="font-semibold text-right">Total das Comissões</TableCell>
+                                <TableCell colSpan={2} className="font-bold">
+                                    {totalCommissions.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </ScrollArea>
             </CardContent>
