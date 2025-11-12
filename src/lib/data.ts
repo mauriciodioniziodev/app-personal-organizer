@@ -774,41 +774,63 @@ export const getTotalBudgetedRevenue = async ({ startDate, endDate }: { startDat
 export const getTotalCommissionsPaid = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
     if (!supabase) return 0;
     const profile = await getCurrentProfile();
-    if (!profile) return 0;
+    if (!profile || !profile.companyId) return 0;
+
+    let query = supabase
+        .from('project_organizer_costs')
+        .select('commission_value, projects!inner(company_id, start_date, end_date)')
+        .eq('commission_status', 'pago');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        query = query.eq('projects.company_id', profile.companyId);
+    }
     
-    const { data, error } = await supabase.rpc('get_total_commission_value', {
-        p_status: 'pago',
-        p_company_id: profile.companyId,
-        p_start_date: startDate || null,
-        p_end_date: endDate || null
-    });
+    if (startDate) {
+        query = query.gte('projects.end_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('projects.start_date', endDate);
+    }
+
+    const { data, error } = await query;
     
     if (error) {
         console.error("Error fetching total commissions paid:", error);
         return 0;
     }
 
-    return data || 0;
+    return data.reduce((sum, item) => sum + item.commission_value, 0);
 };
 
 export const getTotalCommissionsPending = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
-     if (!supabase) return 0;
+    if (!supabase) return 0;
     const profile = await getCurrentProfile();
-    if (!profile) return 0;
+    if (!profile || !profile.companyId) return 0;
     
-    const { data, error } = await supabase.rpc('get_total_commission_value', {
-        p_status: 'em aberto',
-        p_company_id: profile.companyId,
-        p_start_date: startDate || null,
-        p_end_date: endDate || null
-    });
+    let query = supabase
+        .from('project_organizer_costs')
+        .select('commission_value, projects!inner(company_id, start_date, end_date)')
+        .eq('commission_status', 'em aberto');
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        query = query.eq('projects.company_id', profile.companyId);
+    }
+    
+    if (startDate) {
+        query = query.gte('projects.end_date', startDate);
+    }
+    if (endDate) {
+        query = query.lte('projects.start_date', endDate);
+    }
+
+    const { data, error } = await query;
     
     if (error) {
         console.error("Error fetching total commissions pending:", error);
         return 0;
     }
 
-    return data || 0;
+    return data.reduce((sum, item) => sum + item.commission_value, 0);
 };
 
 
