@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const AnalyzeClientPreferencesInputSchema = z.object({
@@ -31,7 +32,7 @@ const prompt = ai.definePrompt({
   name: 'analyzeClientPreferencesPrompt',
   input: {schema: AnalyzeClientPreferencesInputSchema},
   output: {schema: AnalyzeClientPreferencesOutputSchema},
-  model: 'googleai/gemini-pro',
+  model: googleAI('gemini-pro'),
   prompt: `Você é um assistente de IA projetado para analisar detalhes de clientes e extrair resumos perspicazes de suas preferências.
   Seu resultado deve ser sempre no idioma Português do Brasil.
 
