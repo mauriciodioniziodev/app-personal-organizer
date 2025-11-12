@@ -57,10 +57,6 @@ function LeadCard({ lead, onDragStart }: { lead: Lead; onDragStart: (e: React.Dr
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span>{lead.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
                     <Phone className="h-4 w-4" />
                     <span>{lead.phone}</span>
                 </div>
