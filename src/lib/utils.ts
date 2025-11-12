@@ -38,3 +38,5 @@ export function exportToExcel(data: any[], fileName: string) {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
+
+    

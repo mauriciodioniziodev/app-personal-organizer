@@ -5,13 +5,13 @@
 import { useEffect, useState } from 'react';
 import { getLeads, updateLeadStatus } from '@/lib/data';
 import type { Lead } from '@/lib/definitions';
-import { LoaderCircle, PlusCircle, Flame, Phone, Mail, DollarSign, GripVertical, Edit } from 'lucide-react';
+import { LoaderCircle, PlusCircle, Flame, Phone, Mail, DollarSign, GripVertical, Edit, FileDown } from 'lucide-react';
 import PageHeader from '@/components/page-header';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, exportToExcel } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -126,6 +126,22 @@ export default function LeadsPage() {
         e.preventDefault(); // Necessary to allow drop
     };
 
+    const handleExport = () => {
+        const dataToExport = leads.map(l => ({
+            'Nome': l.name,
+            'Telefone': l.phone,
+            'Email': l.email,
+            'Status': l.status,
+            'Temperatura': l.temperature,
+            'Origem': l.source,
+            'Urgência': l.urgency,
+            'Orçamento': l.budget,
+            'Observações': l.notes,
+            'Data de Criação': new Date(l.createdAt).toLocaleDateString('pt-BR'),
+        }));
+        exportToExcel(dataToExport, 'relatorio_leads');
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -143,6 +159,10 @@ export default function LeadsPage() {
                         <div className="flex items-center gap-1"><Flame className="w-4 h-4 fill-yellow-500 text-yellow-500" /> Morno</div>
                         <div className="flex items-center gap-1"><Flame className="w-4 h-4 fill-gray-400 text-gray-400" /> Frio</div>
                     </div>
+                    <Button onClick={handleExport} variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Exportar
+                    </Button>
                     <Link href="/leads/new">
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -176,3 +196,5 @@ export default function LeadsPage() {
         </div>
     );
 }
+
+    

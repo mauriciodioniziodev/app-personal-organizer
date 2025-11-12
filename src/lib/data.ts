@@ -539,6 +539,30 @@ export const getVisitsSummary = async (): Promise<VisitsSummary> => {
     }, {} as VisitsSummary);
 };
 
+export const getLeadsSummary = async (): Promise<{ [key: string]: number }> => {
+    if (!supabase) return {};
+    const profile = await getCurrentProfile();
+    if (!profile) return {};
+
+    let query = supabase.from('leads').select('temperature').in('status', ['novo', 'contato', 'proposta']);
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return {};
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query;
+    if (error) {
+        console.error("Error fetching leads summary:", error);
+        return {};
+    }
+    
+    return data.reduce((acc, lead) => {
+        const temp = lead.temperature || 'frio';
+        acc[temp] = (acc[temp] || 0) + 1;
+        return acc;
+    }, {} as { [key: string]: number });
+}
+
 export const getClientSourcesSummary = async (): Promise<{[source: string]: number}> => {
     if (!supabase) return {};
     const profile = await getCurrentProfile();
@@ -1736,4 +1760,6 @@ export const updateLeadStatus = async (leadId: string, status: Lead['status']): 
 
     return toCamelCase(data);
 }
+    
+
     
