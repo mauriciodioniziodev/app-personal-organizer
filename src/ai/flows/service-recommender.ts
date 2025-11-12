@@ -2,7 +2,7 @@
 'use server';
 import {ai} from '@/ai/genkit';
 import type {Client, Project, Visit} from '@/lib/definitions';
-import {z, type ZodError} from 'genkit/zod';
+import {z, type ZodError} from 'zod';
 import type {GenkitError} from 'genkit';
 
 function isGenkitError(error: any): error is GenkitError {
@@ -67,7 +67,6 @@ const recommendationPrompt = ai.definePrompt(
     name: 'serviceRecommenderPrompt',
     input: {schema: ServiceRecommenderInputSchema},
     output: {schema: ServiceRecommenderOutputSchema},
-    model: 'gemini-pro',
     prompt: `
     You are an expert Personal Organizer consultant.
     Based on the client's profile, past projects, and visit history, please recommend new services.
