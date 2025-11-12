@@ -4,8 +4,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue } from "@/lib/data";
-import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle, FileText } from "lucide-react";
+import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue, getTotalCommissionsPaid, getTotalCommissionsPending } from "@/lib/data";
+import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle, FileText, Handshake } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import type { Project, Client } from '@/lib/definitions';
@@ -19,6 +19,9 @@ export default function FinanceiroPage() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pendingRevenue, setPendingRevenue] = useState(0);
   const [budgetedRevenue, setBudgetedRevenue] = useState(0);
+  const [commissionsPaid, setCommissionsPaid] = useState(0);
+  const [commissionsPending, setCommissionsPending] = useState(0);
+
   const [allPendingProjects, setAllPendingProjects] = useState<Project[]>([]);
   const [filteredPendingProjects, setFilteredPendingProjects] = useState<Project[]>([]);
   const [allPaidProjects, setAllPaidProjects] = useState<Project[]>([]);
@@ -29,6 +32,8 @@ export default function FinanceiroPage() {
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPendingRevenue, setShowPendingRevenue] = useState(false);
   const [showBudgetedRevenue, setShowBudgetedRevenue] = useState(false);
+  const [showCommissionsPaid, setShowCommissionsPaid] = useState(false);
+  const [showCommissionsPending, setShowCommissionsPending] = useState(false);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -48,14 +53,24 @@ export default function FinanceiroPage() {
         setClients(clientsData);
 
         // Fetch initial financial data without date filters
-        const [totalRevenueData, pendingRevenueData, budgetedRevenueData] = await Promise.all([
+        const [
+            totalRevenueData, 
+            pendingRevenueData, 
+            budgetedRevenueData,
+            commissionsPaidData,
+            commissionsPendingData
+        ] = await Promise.all([
             getTotalRevenue(),
             getTotalPendingRevenue(),
-            getTotalBudgetedRevenue()
+            getTotalBudgetedRevenue(),
+            getTotalCommissionsPaid(),
+            getTotalCommissionsPending()
         ]);
         setTotalRevenue(totalRevenueData);
         setPendingRevenue(pendingRevenueData);
         setBudgetedRevenue(budgetedRevenueData);
+        setCommissionsPaid(commissionsPaidData);
+        setCommissionsPending(commissionsPendingData);
 
         setFilteredPendingProjects(pendingProjects);
         setFilteredPaidProjects(paidProjects);
@@ -72,14 +87,18 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     async function filterFinancialData() {
-        const [total, pending, budgeted] = await Promise.all([
+        const [total, pending, budgeted, commissionsPaid, commissionsPending] = await Promise.all([
             getTotalRevenue({ startDate, endDate }),
             getTotalPendingRevenue({ startDate, endDate }),
-            getTotalBudgetedRevenue({ startDate, endDate })
+            getTotalBudgetedRevenue({ startDate, endDate }),
+            getTotalCommissionsPaid({ startDate, endDate }),
+            getTotalCommissionsPending({ startDate, endDate })
         ]);
         setTotalRevenue(total);
         setPendingRevenue(pending);
         setBudgetedRevenue(budgeted);
+        setCommissionsPaid(commissionsPaid);
+        setCommissionsPending(commissionsPending);
 
         // Filter projects lists based on date
          if (startDate && endDate) {
@@ -151,7 +170,7 @@ export default function FinanceiroPage() {
         </CardContent>
        </Card>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Realizada</CardTitle>
@@ -232,6 +251,54 @@ export default function FinanceiroPage() {
                Soma de visitas com status 'orçamento' no período.
             </p>
           </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
+                <Handshake className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold font-headline text-green-600">
+                    {showCommissionsPaid ? (
+                        new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(commissionsPaid)
+                    ) : (
+                        'R$ ••••••'
+                    )}
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setShowCommissionsPaid(!showCommissionsPaid)}>
+                        {showCommissionsPaid ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">Mostrar/Ocultar comissões pagas</span>
+                    </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                Soma de comissões de parceiros pagas no período.
+                </p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Comissões a Pagar</CardTitle>
+                <Handshake className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold font-headline text-yellow-600">
+                    {showCommissionsPending ? (
+                        new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(commissionsPending)
+                    ) : (
+                        'R$ ••••••'
+                    )}
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setShowCommissionsPending(!showCommissionsPending)}>
+                        {showCommissionsPending ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">Mostrar/Ocultar comissões em aberto</span>
+                    </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                Soma de comissões de parceiros em aberto no período.
+                </p>
+            </CardContent>
         </Card>
       </div>
 

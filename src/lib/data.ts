@@ -771,6 +771,47 @@ export const getTotalBudgetedRevenue = async ({ startDate, endDate }: { startDat
     return data.reduce((sum, visit) => sum + (visit.budget_amount || 0), 0);
 };
 
+export const getTotalCommissionsPaid = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
+    if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+    
+    const { data, error } = await supabase.rpc('get_total_commission_value', {
+        p_status: 'pago',
+        p_company_id: profile.companyId,
+        p_start_date: startDate || null,
+        p_end_date: endDate || null
+    });
+    
+    if (error) {
+        console.error("Error fetching total commissions paid:", error);
+        return 0;
+    }
+
+    return data || 0;
+};
+
+export const getTotalCommissionsPending = async ({ startDate, endDate }: { startDate?: string, endDate?: string } = {}): Promise<number> => {
+     if (!supabase) return 0;
+    const profile = await getCurrentProfile();
+    if (!profile) return 0;
+    
+    const { data, error } = await supabase.rpc('get_total_commission_value', {
+        p_status: 'em aberto',
+        p_company_id: profile.companyId,
+        p_start_date: startDate || null,
+        p_end_date: endDate || null
+    });
+    
+    if (error) {
+        console.error("Error fetching total commissions pending:", error);
+        return 0;
+    }
+
+    return data || 0;
+};
+
+
 
 export const getProjectsByClientId = async (clientId: string): Promise<Project[]> => {
     if(!supabase || !clientId) return [];
@@ -1411,8 +1452,8 @@ export const addOrganizerPartner = async (name: string): Promise<OrganizerPartne
 
 export const deleteOrganizerPartner = async (id: string): Promise<void> => {
     const profile = await getCurrentProfile();
-    if (profile?.email !== 'mauriciodionizio@gmail.com') {
-        throw new Error("Permissão negada.");
+    if (!profile) {
+        throw new Error("Usuário não autenticado.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 
