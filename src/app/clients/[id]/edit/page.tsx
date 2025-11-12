@@ -37,7 +37,7 @@ export default function EditClientPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [client, setClient] = useState<Partial<Client> | null>(null);
+    const [client, setClient] = useState<Partial<Client>>({});
     const [sources, setSources] = useState<ClientSource[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,19 +65,16 @@ export default function EditClientPage() {
     }, [id, router, toast]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        if (!client) return;
         const { name, value } = e.target;
         setClient(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSourceChange = (value: string) => {
-        if (!client) return;
         setClient(prev => ({ ...prev, source: value, sourceDetails: value !== 'Outros' ? '' : prev?.sourceDetails }));
     }
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!client) return;
 
         setIsSubmitting(true);
         setErrors({});
