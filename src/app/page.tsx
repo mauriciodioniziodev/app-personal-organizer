@@ -15,13 +15,10 @@ import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import ServiceRecommender from '@/components/service-recommender';
-
 
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
   const [clientSourcesSummary, setClientSourcesSummary] = useState<{[key: string]: number}>({});
@@ -36,7 +33,6 @@ export default function Dashboard() {
         visitsSummaryData, 
         dailyScheduleData,
         clientsData,
-        allProjectsData,
         clientSourcesData
     ] = await Promise.all([
         getActiveProjects(),
@@ -44,7 +40,6 @@ export default function Dashboard() {
         getVisitsSummary(),
         getTodaysSchedule(),
         getClients(),
-        getProjects(),
         getClientSourcesSummary()
     ]);
 
@@ -53,7 +48,6 @@ export default function Dashboard() {
     setVisitsSummary(visitsSummaryData);
     setDailySchedule(dailyScheduleData);
     setClients(clientsData);
-    setAllProjects(allProjectsData);
     setClientSourcesSummary(clientSourcesData);
     setLoading(false);
   }, []);
@@ -282,9 +276,6 @@ export default function Dashboard() {
             </Link>
         </div>
         
-        <ServiceRecommender allClients={clients} allProjects={allProjects}/>
-
-
       <div className="grid gap-8 md:grid-cols-2">
         <div>
           <div className="flex items-center gap-2 mb-4">

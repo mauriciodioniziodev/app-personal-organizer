@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building, BrainCircuit } from "lucide-react";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import Image from "next/image";
 
@@ -17,6 +17,7 @@ const mainNavItems = [
   { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
   { href: "/financeiro", label: "Financeiro", icon: Wallet, role: ['administrador', 'usuario'] },
   { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
+  { href: "/insights", label: "Insights", icon: BrainCircuit, role: ['administrador', 'usuario'] },
 ];
 
 const adminNavItems = [
