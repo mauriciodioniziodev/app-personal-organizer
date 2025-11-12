@@ -11,7 +11,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const ServiceRecommendationInputSchema = z.object({
   clientProfile: z.string().describe("The profile of the current client, including name, contact info, and preferences."),
@@ -38,7 +37,7 @@ const recommendationPrompt = ai.definePrompt({
   name: 'serviceRecommenderPrompt',
   input: {schema: ServiceRecommendationInputSchema},
   output: {schema: ServiceRecommendationOutputSchema},
-  model: googleAI('gemini-1.5-flash-latest'),
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: `
     Você é um assistente de vendas especialista para um Personal Organizer. Sua tarefa é analisar o perfil de um cliente e o histórico de projetos da empresa para sugerir serviços adicionais (upsell).
 
