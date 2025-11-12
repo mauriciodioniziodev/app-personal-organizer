@@ -1,4 +1,5 @@
 
+
 export type Client = {
   id: string;
   createdAt: string;
@@ -13,6 +14,21 @@ export type Client = {
   source?: string;
   sourceDetails?: string;
 };
+
+export type Lead = {
+    id: string;
+    createdAt: string;
+    companyId: string;
+    name: string;
+    phone: string;
+    email: string;
+    source: string;
+    urgency: 'baixa' | 'media' | 'alta';
+    budget: string;
+    notes: string;
+    status: 'novo' | 'contato' | 'proposta' | 'convertido' | 'perdido';
+    temperature: 'frio' | 'morno' | 'quente';
+}
 
 export type Payment = {
   id: string;

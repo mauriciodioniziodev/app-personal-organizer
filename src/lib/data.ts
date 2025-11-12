@@ -1,7 +1,7 @@
 
 
 import 'dotenv/config';
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner, Lead } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
 import { cache } from 'react';
@@ -750,7 +750,7 @@ export const getTotalBudgetedRevenue = async ({ startDate, endDate }: { startDat
         .not('budget_amount', 'is', null);
     
     if (profile.email !== 'mauriciodionizio@gmail.com') {
-        if (!profile.companyId) return 0;
+        if (!profile.companyId) return {};
         query = query.eq('company_id', profile.companyId);
     }
     
@@ -1295,8 +1295,8 @@ const addMasterDataItem = async (tableName: string, name: string): Promise<Maste
 
 const deleteMasterDataItem = async (tableName: string, id: string): Promise<void> => {
     const profile = await getCurrentProfile();
-    if (profile?.role !== 'administrador') {
-        throw new Error("Apenas administradores podem remover itens.");
+    if (profile?.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o super administrador pode remover itens.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
     
@@ -1474,8 +1474,8 @@ export const addOrganizerPartner = async (name: string): Promise<OrganizerPartne
 
 export const deleteOrganizerPartner = async (id: string): Promise<void> => {
     const profile = await getCurrentProfile();
-    if (!profile || profile.role !== 'administrador') {
-        throw new Error("Apenas administradores podem remover parceiros.");
+    if (!profile || profile.email !== 'mauriciodionizio@gmail.com') {
+        throw new Error("Apenas o super administrador pode remover parceiros.");
     }
     if (!supabase) throw new Error("Supabase client not initialized.");
 
@@ -1588,4 +1588,108 @@ export const getAllOrganizerCosts = async (): Promise<ProjectOrganizerCost[]> =>
     }
 });
 };
+
+
+// --- Leads (CRM) Functions ---
+
+export const getLeads = async (): Promise<Lead[]> => {
+    if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+
+    let query = supabase.from('leads').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching leads:", error);
+        return [];
+    }
+    return data.map(l => toCamelCase(l)) as Lead[];
+}
+
+const calculateTemperature = (urgency: string, source: string): 'frio' | 'morno' | 'quente' => {
+    if (urgency === 'alta' && (source === 'Indicação' || source === 'Cliente Antigo')) {
+        return 'quente';
+    }
+    if (urgency === 'alta' || source === 'Indicação') {
+        return 'quente';
+    }
+    if (urgency === 'media') {
+        return 'morno';
+    }
+    return 'frio';
+}
+
+export const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'companyId' | 'status' | 'temperature'>): Promise<Lead> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("Usuário não autenticado.");
+
+    const temperature = calculateTemperature(leadData.urgency, leadData.source);
+
+    const { data, error } = await supabase
+        .from('leads')
+        .insert({
+            ...toSnakeCase(leadData),
+            company_id: profile.companyId,
+            status: 'novo',
+            temperature: temperature
+        })
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error adding lead:", error);
+        throw new Error("Não foi possível adicionar o lead.");
+    }
+    return toCamelCase(data);
+}
+
+export const updateLeadStatus = async (leadId: string, status: Lead['status']): Promise<Lead> => {
+     if (!supabase) throw new Error("Supabase client not initialized.");
+     
+     const { data, error } = await supabase
+        .from('leads')
+        .update({ status })
+        .eq('id', leadId)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error updating lead status:", error);
+        throw new Error("Não foi possível atualizar o status do lead.");
+    }
+
+    if (status === 'convertido') {
+        const lead = toCamelCase(data) as Lead;
+        // Check if a client with this email or phone already exists
+        const { data: existingClients, error: clientCheckError } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('company_id', lead.companyId)
+            .or(`email.eq.${lead.email},phone.eq.${lead.phone}`);
+        
+        if (clientCheckError) console.error("Error checking for existing client:", clientCheckError);
+
+        if (!existingClients || existingClients.length === 0) {
+             const newClient: Omit<Client, 'id' | 'createdAt' | 'companyId'> = {
+                name: lead.name,
+                email: lead.email,
+                phone: lead.phone,
+                address: '', // Endereço a ser preenchido depois
+                preferences: lead.notes,
+                source: lead.source,
+                birthday: '',
+                cpf: '',
+            };
+            await addClient(newClient);
+        }
+    }
+
+    return toCamelCase(data);
+}
     
