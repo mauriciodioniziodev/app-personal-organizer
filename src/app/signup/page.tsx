@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
-import { notifyAdminOfNewUser } from '@/ai/flows/user-notification';
 import { getActiveOrganizations } from '@/lib/data';
 import type { Company } from '@/lib/definitions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -78,16 +77,9 @@ export default function SignUpPage() {
         return;
     }
     
-    try {
-        const selectedCompany = organizations.find(o => o.id === companyId);
-        await notifyAdminOfNewUser({ userName: `${fullName} (Empresa: ${selectedCompany?.tradeName || 'N/A'})` });
-        setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso. Você será notificado por e-mail.');
-    } catch (notificationError: any) {
-        console.error("Failed to send notification:", notificationError);
-         setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso.');
-    } finally {
-        setLoading(false);
-    }
+    // Admin notification logic is removed
+    setSuccess('Cadastro realizado com sucesso! Um administrador da sua empresa precisa aprovar seu acesso. Você será notificado por e-mail.');
+    setLoading(false);
   };
 
   return (
