@@ -187,7 +187,7 @@ export default function MasterDataPage() {
                     onAdd={(name) => addOrganizerPartner(name).then(handleDataChange)}
                     onDelete={(id) => deleteOrganizerPartner(id).then(handleDataChange)}
                     icon={Handshake}
-                    disabled={!isAdmin}
+                    disabled={!isSuperAdmin}
                 />
                 <MasterDataCard
                     title="Status de Visita"
