@@ -25,9 +25,9 @@ const statusTitles: Record<Lead['status'], string> = {
 };
 
 const temperatureColors: Record<Lead['temperature'], string> = {
-    quente: 'text-red-500',
-    morno: 'text-yellow-500',
-    frio: 'text-gray-400',
+    quente: 'fill-red-500 text-red-500',
+    morno: 'fill-yellow-500 text-yellow-500',
+    frio: 'fill-gray-400 text-gray-400',
 }
 
 function LeadCard({ lead, onDragStart }: { lead: Lead; onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void }) {
@@ -139,9 +139,9 @@ export default function LeadsPage() {
             <PageHeader title="Funil de Leads">
                 <div className="flex items-center gap-4">
                      <div className="flex items-center gap-4 text-sm text-muted-foreground border p-2 rounded-lg">
-                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-red-500" /> Quente</div>
-                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-yellow-500" /> Morno</div>
-                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 text-gray-400" /> Frio</div>
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 fill-red-500 text-red-500" /> Quente</div>
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 fill-yellow-500 text-yellow-500" /> Morno</div>
+                        <div className="flex items-center gap-1"><Flame className="w-4 h-4 fill-gray-400 text-gray-400" /> Frio</div>
                     </div>
                     <Link href="/leads/new">
                         <Button>
