@@ -56,7 +56,7 @@ export default function NewClientPage() {
         cpf: formData.get("cpf") as string,
         birthday: formData.get("birthday") as string,
         preferences: formData.get("preferences") as string,
-        source: formData.get("source") as string,
+        source: selectedSource, // Use state for controlled component
         sourceDetails: formData.get("sourceDetails") as string,
     }
 
