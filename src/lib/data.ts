@@ -1611,6 +1611,26 @@ export const getLeads = async (): Promise<Lead[]> => {
     return data.map(l => toCamelCase(l)) as Lead[];
 }
 
+export const getLeadById = async (id: string): Promise<Lead | null> => {
+    if (!supabase || !id) return null;
+    const profile = await getCurrentProfile();
+    if (!profile) return null;
+
+    let query = supabase.from('leads').select('*').eq('id', id);
+
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return null;
+        query = query.eq('company_id', profile.companyId);
+    }
+
+    const { data, error } = await query.single();
+    if (error) {
+        console.error(`Error fetching lead ${id}:`, error);
+        return null;
+    }
+    return toCamelCase(data) as Lead;
+};
+
 const calculateTemperature = (urgency: string, source: string): 'frio' | 'morno' | 'quente' => {
     if (urgency === 'alta' && (source === 'Indicação' || source === 'Cliente Antigo')) {
         return 'quente';
@@ -1645,6 +1665,30 @@ export const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'company
     if (error) {
         console.error("Error adding lead:", error);
         throw new Error("Não foi possível adicionar o lead.");
+    }
+    return toCamelCase(data);
+}
+
+export const updateLead = async (lead: Lead): Promise<Lead> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { id, createdAt, companyId, status, ...updateData } = lead;
+    
+    const temperature = calculateTemperature(updateData.urgency, updateData.source);
+
+    const { data, error } = await supabase
+        .from('leads')
+        .update({
+            ...toSnakeCase(updateData),
+            temperature: temperature
+        })
+        .eq('id', id)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error updating lead:", error);
+        throw new Error("Não foi possível atualizar o lead.");
     }
     return toCamelCase(data);
 }

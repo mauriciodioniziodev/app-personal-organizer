@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { getLeads, updateLeadStatus } from '@/lib/data';
 import type { Lead } from '@/lib/definitions';
-import { LoaderCircle, PlusCircle, Flame, Phone, Mail, DollarSign, GripVertical } from 'lucide-react';
+import { LoaderCircle, PlusCircle, Flame, Phone, Mail, DollarSign, GripVertical, Edit } from 'lucide-react';
 import PageHeader from '@/components/page-header';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const leadStatuses: Lead['status'][] = ['novo', 'contato', 'proposta', 'convertido', 'perdido'];
 const statusTitles: Record<Lead['status'], string> = {
@@ -29,15 +30,27 @@ const temperatureColors: Record<Lead['temperature'], string> = {
 }
 
 function LeadCard({ lead, onDragStart }: { lead: Lead; onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void }) {
+    const router = useRouter();
+
+    const handleEditClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Evita que o evento de arrastar seja acionado
+        router.push(`/leads/${lead.id}/edit`);
+    }
+
     return (
-        <Card draggable onDragStart={(e) => onDragStart(e, lead.id)} className="mb-4 cursor-grab active:cursor-grabbing">
+        <Card draggable onDragStart={(e) => onDragStart(e, lead.id)} className="mb-4 cursor-grab active:cursor-grabbing group/card">
             <CardHeader className='pb-4'>
                 <div className='flex justify-between items-start'>
                     <CardTitle className="text-lg font-semibold flex items-center gap-2">
                         <div className={cn("w-3 h-3 rounded-full", temperatureColors[lead.temperature])} />
                         {lead.name}
                     </CardTitle>
-                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={handleEditClick}>
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    </div>
                 </div>
                 <CardDescription className='capitalize'>{lead.source}</CardDescription>
             </CardHeader>
