@@ -47,42 +47,42 @@ export type ServiceRecommenderOutput = z.infer<
   typeof ServiceRecommenderOutputSchema
 >;
 
-const recommendationPrompt = ai.definePrompt(
-  {
-    name: 'serviceRecommenderPrompt',
-    model: googleAI('gemini-pro'),
-    input: {schema: ServiceRecommenderInputSchema},
-    output: {schema: ServiceRecommenderOutputSchema},
-    prompt: `
-    You are an expert Personal Organizer consultant.
-    Based on the client's profile, past projects, and visit history, please recommend new services.
-    For each recommendation, provide a clear justification and an urgency level.
-
-    Client Profile:
-    - Name: {{{client.name}}}
-    - Preferences & Notes: {{{client.preferences}}}
-
-    Past Projects:
-    {{#each projects}}
-    - Project: {{{this.name}}}
-      - Description: {{{this.description}}}
-      - Status: {{{this.status}}}
-    {{/each}}
-
-    Visit History:
-    {{#each visits}}
-    - Visit Date: {{{this.date}}}
-      - Summary: {{{this.summary}}}
-      - Status: {{{this.status}}}
-    {{/each}}
-  `,
-  },
-);
-
 export async function recommendServices(
   input: ServiceRecommenderInput
 ): Promise<ServiceRecommenderOutput> {
   try {
+    const recommendationPrompt = ai.definePrompt(
+      {
+        name: 'serviceRecommenderPrompt',
+        model: 'gemini-pro',
+        input: {schema: ServiceRecommenderInputSchema},
+        output: {schema: ServiceRecommenderOutputSchema},
+        prompt: `
+        You are an expert Personal Organizer consultant.
+        Based on the client's profile, past projects, and visit history, please recommend new services.
+        For each recommendation, provide a clear justification and an urgency level.
+
+        Client Profile:
+        - Name: {{{client.name}}}
+        - Preferences & Notes: {{{client.preferences}}}
+
+        Past Projects:
+        {{#each projects}}
+        - Project: {{{this.name}}}
+          - Description: {{{this.description}}}
+          - Status: {{{this.status}}}
+        {{/each}}
+
+        Visit History:
+        {{#each visits}}
+        - Visit Date: {{{this.date}}}
+          - Summary: {{{this.summary}}}
+          - Status: {{{this.status}}}
+        {{/each}}
+      `,
+      },
+    );
+
     const {output} = await recommendationPrompt(input);
     if (!output) {
       throw new Error('No output from AI service.');
