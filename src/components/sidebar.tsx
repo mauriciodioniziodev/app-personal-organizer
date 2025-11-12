@@ -17,7 +17,6 @@ const mainNavItems = [
   { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
   { href: "/financeiro", label: "Financeiro", icon: Wallet, role: ['administrador', 'usuario'] },
   { href: "/reports", label: "Relatórios", icon: FilePieChart, role: ['administrador', 'usuario'] },
-  { href: "/insights", label: "Insights de IA", icon: Lightbulb, role: ['administrador', 'usuario'] },
 ];
 
 const adminNavItems = [
