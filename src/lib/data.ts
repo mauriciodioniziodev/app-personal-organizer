@@ -1552,9 +1552,8 @@ export const getAllOrganizerCosts = async (): Promise<ProjectOrganizerCost[]> =>
 
     let query = supabase.from('project_organizer_costs').select(`
         *,
-        projects ( name, client_id, start_date, end_date ),
         organizer_partners ( name ),
-        clients ( name )
+        projects:projects!inner ( name, client_id, start_date, end_date, clients:clients!inner(name) )
     `);
 
     if (profile.email !== 'mauriciodionizio@gmail.com') {
@@ -1569,21 +1568,24 @@ export const getAllOrganizerCosts = async (): Promise<ProjectOrganizerCost[]> =>
         return [];
     }
 
-    return data.map((d: any) => ({
-        id: d.id,
-        projectId: d.project_id,
-        projectName: d.projects?.name,
-        clientId: d.projects?.client_id,
-        clientName: d.clients?.name,
-        partnerId: d.partner_id,
-        partnerName: d.organizer_partners?.name,
-        costAmount: d.cost_amount,
-        commissionPercentage: d.commission_percentage,
-        commissionValue: d.commission_value,
-        commissionStatus: d.commission_status,
-        createdAt: d.created_at,
-        projectStartDate: d.projects?.start_date,
-        projectEndDate: d.projects?.end_date,
-    }));
+    return data.map((d: any) => {
+        const clientName = d.projects?.clients?.name;
+        return {
+            id: d.id,
+            projectId: d.project_id,
+            projectName: d.projects?.name,
+            clientId: d.projects?.client_id,
+            clientName: clientName,
+            partnerId: d.partner_id,
+            partnerName: d.organizer_partners?.name,
+            costAmount: d.cost_amount,
+            commissionPercentage: d.commission_percentage,
+            commissionValue: d.commission_value,
+            commissionStatus: d.commission_status,
+            createdAt: d.created_at,
+            projectStartDate: d.projects?.start_date,
+            projectEndDate: d.projects?.end_date,
+    }
+});
 };
     
