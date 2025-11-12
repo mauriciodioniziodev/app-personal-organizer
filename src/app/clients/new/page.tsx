@@ -36,11 +36,19 @@ export default function NewClientPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [sources, setSources] = useState<ClientSource[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
+  const [selectedSource, setSelectedSource] = useState<string | undefined>();
+  const [sourceDetails, setSourceDetails] = useState('');
 
   useEffect(() => {
     getClientSources().then(setSources);
   }, []);
+
+  const handleSourceChange = (value: string) => {
+    setSelectedSource(value);
+    if (value !== 'Outros') {
+        setSourceDetails('');
+    }
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -56,8 +64,8 @@ export default function NewClientPage() {
         cpf: formData.get("cpf") as string,
         birthday: formData.get("birthday") as string,
         preferences: formData.get("preferences") as string,
-        source: selectedSource, // Use state for controlled component
-        sourceDetails: formData.get("sourceDetails") as string,
+        source: selectedSource,
+        sourceDetails: sourceDetails,
     }
 
     const validationResult = clientSchema.safeParse(clientData);
@@ -135,7 +143,7 @@ export default function NewClientPage() {
              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="source">Origem do Cliente</Label>
-                    <Select name="source" value={selectedSource} onValueChange={setSelectedSource}>
+                    <Select name="source" value={selectedSource} onValueChange={handleSourceChange}>
                         <SelectTrigger><SelectValue placeholder="Selecione a origem"/></SelectTrigger>
                         <SelectContent>
                             {sources.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
@@ -145,7 +153,7 @@ export default function NewClientPage() {
                 {selectedSource === 'Outros' && (
                     <div className="space-y-2">
                         <Label htmlFor="sourceDetails">Especifique a Origem</Label>
-                        <Input id="sourceDetails" name="sourceDetails" placeholder="Ex: Indicação de Maria" />
+                        <Input id="sourceDetails" name="sourceDetails" placeholder="Ex: Indicação de Maria" value={sourceDetails} onChange={(e) => setSourceDetails(e.target.value)} />
                     </div>
                 )}
             </div>
