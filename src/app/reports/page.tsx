@@ -24,14 +24,7 @@ function ClientsReport() {
 
     useEffect(() => {
         getClients().then(clients => {
-            const sortedClients = clients.sort((a,b) => {
-                if (!a.birthday) return 1;
-                if (!b.birthday) return -1;
-                const [dayA, monthA] = a.birthday.split('/').map(Number);
-                const [dayB, monthB] = b.birthday.split('/').map(Number);
-                if (monthA !== monthB) return monthA - monthB;
-                return dayA - dayB;
-            });
+            const sortedClients = clients.sort((a,b) => a.name.localeCompare(b.name));
             setClients(sortedClients);
         });
     }, []);
