@@ -11,9 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { getClients, getVisits, getProjects, getAllOrganizerCosts } from '@/lib/data';
-import { FileDown, Cake, Handshake } from 'lucide-react';
+import { FileDown, Cake, Handshake, File } from 'lucide-react';
 import type { Client, Visit, Project, ProjectOrganizerCost } from '@/lib/definitions';
-import { exportToExcel, formatDate } from '@/lib/utils';
+import { exportToExcel, formatDate, exportToPdf } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,7 +36,7 @@ function ClientsReport() {
         });
     }, []);
 
-    const handleExport = () => {
+    const handleExportExcel = () => {
         const dataToExport = clients.map(c => ({
             'Nome': c.name,
             'Email': c.email,
@@ -49,6 +49,24 @@ function ClientsReport() {
         }));
         exportToExcel(dataToExport, 'relatorio_clientes');
     };
+    
+    const handleExportPdf = () => {
+        const columns = [
+            { title: 'Nome', dataKey: 'name' },
+            { title: 'Email', dataKey: 'email' },
+            { title: 'Telefone', dataKey: 'phone' },
+            { title: 'Aniversário', dataKey: 'birthday' },
+            { title: 'Origem', dataKey: 'source' },
+        ];
+        const data = clients.map(c => ({
+            name: c.name,
+            email: c.email,
+            phone: c.phone,
+            birthday: c.birthday || '-',
+            source: c.source || '-',
+        }));
+        exportToPdf(columns, data, 'relatorio_clientes', 'Relatório de Clientes');
+    };
 
     const currentMonth = new Date().getMonth() + 1;
 
@@ -56,10 +74,16 @@ function ClientsReport() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Clientes Cadastrados</CardTitle>
-                <Button onClick={handleExport} variant="outline">
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Exportar para Excel
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handleExportExcel} variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Excel
+                    </Button>
+                     <Button onClick={handleExportPdf} variant="outline">
+                        <File className="mr-2 h-4 w-4" />
+                        PDF
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                  <ScrollArea className="h-[60vh]">
@@ -132,7 +156,7 @@ function VisitsReport() {
         return clients.find(c => c.id === clientId)?.name || 'N/A';
     }
 
-    const handleExport = () => {
+    const handleExportExcel = () => {
         const dataToExport = filteredVisits.map(v => ({
             'Data': formatDate(v.date),
             'Cliente': getClientName(v.clientId),
@@ -141,6 +165,22 @@ function VisitsReport() {
             'Orçamento (R$)': v.budgetAmount || '',
         }));
         exportToExcel(dataToExport, 'relatorio_visitas');
+    };
+
+    const handleExportPdf = () => {
+        const columns = [
+            { title: 'Data', dataKey: 'date' },
+            { title: 'Cliente', dataKey: 'clientName' },
+            { title: 'Status', dataKey: 'status' },
+            { title: 'Resumo', dataKey: 'summary' },
+        ];
+        const data = filteredVisits.map(v => ({
+            date: formatDate(v.date),
+            clientName: getClientName(v.clientId),
+            status: v.status,
+            summary: v.summary,
+        }));
+        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas');
     };
 
     return (
@@ -156,10 +196,16 @@ function VisitsReport() {
                         <Label htmlFor="visits-end-date">Data de Fim</Label>
                         <Input id="visits-end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
-                     <Button onClick={handleExport} variant="outline">
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Exportar para Excel
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={handleExportExcel} variant="outline">
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Excel
+                        </Button>
+                        <Button onClick={handleExportPdf} variant="outline">
+                            <File className="mr-2 h-4 w-4" />
+                            PDF
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -236,7 +282,7 @@ function ProjectsReport() {
         }, { totalFinalValue: 0, totalReceived: 0, totalReceivable: 0 });
     }, [filteredProjects]);
 
-    const handleExport = () => {
+    const handleExportExcel = () => {
         const dataToExport = filteredProjects.map(p => {
             const { received, receivable } = getFinancials(p);
             return {
@@ -253,6 +299,29 @@ function ProjectsReport() {
         });
         exportToExcel(dataToExport, 'relatorio_projetos');
     };
+    
+    const handleExportPdf = () => {
+        const columns = [
+            { title: 'Projeto', dataKey: 'name' },
+            { title: 'Cliente', dataKey: 'clientName' },
+            { title: 'Período', dataKey: 'period' },
+            { title: 'Valor Final', dataKey: 'finalValue' },
+            { title: 'Recebido', dataKey: 'received' },
+            { title: 'A Receber', dataKey: 'receivable' },
+        ];
+        const data = filteredProjects.map(p => {
+            const { received, receivable } = getFinancials(p);
+            return {
+                name: p.name,
+                clientName: getClientName(p.clientId),
+                period: `${formatDate(p.startDate)} - ${formatDate(p.endDate)}`,
+                finalValue: p.finalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                received: received.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                receivable: receivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+            }
+        });
+        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos');
+    }
 
     return (
         <Card>
@@ -267,10 +336,16 @@ function ProjectsReport() {
                         <Label htmlFor="projects-end-date">Período (Fim)</Label>
                         <Input id="projects-end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
-                     <Button onClick={handleExport} variant="outline">
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Exportar para Excel
-                    </Button>
+                     <div className="flex gap-2">
+                        <Button onClick={handleExportExcel} variant="outline">
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Excel
+                        </Button>
+                        <Button onClick={handleExportPdf} variant="outline">
+                            <File className="mr-2 h-4 w-4" />
+                            PDF
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -361,7 +436,7 @@ function CommissionsReport() {
         }, { totalCostAmount: 0, totalCommissions: 0 });
     }, [filteredCosts]);
 
-    const handleExport = () => {
+    const handleExportExcel = () => {
         const dataToExport = filteredCosts.map(c => ({
             'Parceiro': c.partnerName,
             'Cliente': c.clientName,
@@ -374,6 +449,26 @@ function CommissionsReport() {
         }));
         exportToExcel(dataToExport, 'relatorio_comissoes');
     };
+    
+    const handleExportPdf = () => {
+        const columns = [
+            { title: 'Parceiro', dataKey: 'partnerName' },
+            { title: 'Projeto', dataKey: 'projectName' },
+            { title: 'Custo (R$)', dataKey: 'costAmount' },
+            { title: 'Comissão (%)', dataKey: 'commissionPercentage' },
+            { title: 'Valor Comissão (R$)', dataKey: 'commissionValue' },
+            { title: 'Status', dataKey: 'commissionStatus' },
+        ];
+        const data = filteredCosts.map(c => ({
+            partnerName: c.partnerName,
+            projectName: c.projectName,
+            costAmount: c.costAmount.toFixed(2),
+            commissionPercentage: `${c.commissionPercentage}%`,
+            commissionValue: c.commissionValue.toFixed(2),
+            commissionStatus: c.commissionStatus === 'pago' ? 'Recebida' : 'A Receber',
+        }));
+        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões');
+    }
     
     const commissionStatusColors: { [key: string]: string } = {
         'em aberto': 'text-yellow-800 bg-yellow-100',
@@ -406,10 +501,16 @@ function CommissionsReport() {
                             </SelectContent>
                         </Select>
                     </div>
-                     <Button onClick={handleExport} variant="outline">
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Exportar para Excel
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={handleExportExcel} variant="outline">
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Excel
+                        </Button>
+                        <Button onClick={handleExportPdf} variant="outline">
+                            <File className="mr-2 h-4 w-4" />
+                            PDF
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>

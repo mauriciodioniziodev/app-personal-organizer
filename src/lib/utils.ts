@@ -2,6 +2,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -39,4 +41,28 @@ export function exportToExcel(data: any[], fileName: string) {
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
-    
+export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string) {
+  const doc = new jsPDF();
+  
+  // Add title
+  doc.setFontSize(18);
+  doc.text(reportTitle, 14, 22);
+
+  // Add table
+  (doc as any).autoTable({
+      head: [columns.map(c => c.title)],
+      body: data,
+      startY: 30,
+      headStyles: { fillColor: [35, 45, 63] }, // Customize header color
+      didDrawPage: function(data: any) {
+        // Footer
+        const str = "Página " + doc.internal.getNumberOfPages();
+        doc.setFontSize(10);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 10);
+      }
+  });
+
+  doc.save(`${fileName}.pdf`);
+}
