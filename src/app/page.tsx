@@ -248,7 +248,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-       <div className="grid gap-8 md:grid-cols-2">
+       <div className="grid gap-8">
             <Link href="/visits">
                 <Card className="hover:bg-muted/50 transition-colors">
                     <CardHeader>
@@ -257,7 +257,7 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         {Object.keys(visitsSummary).length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {Object.entries(visitsSummary).map(([status, count]) => (
                                     <div key={status} className="flex items-center gap-3">
                                         {visitStatusIcons[status] || <div className="w-4 h-4" />}
