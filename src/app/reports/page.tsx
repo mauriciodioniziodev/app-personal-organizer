@@ -353,8 +353,12 @@ function CommissionsReport() {
         setFilteredCosts(results);
     }, [startDate, endDate, statusFilter, allCosts]);
 
-    const totalCommissions = useMemo(() => {
-        return filteredCosts.reduce((sum, cost) => sum + cost.commissionValue, 0);
+    const { totalCostAmount, totalCommissions } = useMemo(() => {
+        return filteredCosts.reduce((acc, cost) => {
+            acc.totalCostAmount += cost.costAmount;
+            acc.totalCommissions += cost.commissionValue;
+            return acc;
+        }, { totalCostAmount: 0, totalCommissions: 0 });
     }, [filteredCosts]);
 
     const handleExport = () => {
@@ -362,6 +366,8 @@ function CommissionsReport() {
             'Parceiro': c.partnerName,
             'Cliente': c.clientName,
             'Projeto': c.projectName,
+            'Custo (R$)': c.costAmount,
+            'Comissão (%)': c.commissionPercentage,
             'Valor da Comissão (R$)': c.commissionValue,
             'Status': c.commissionStatus === 'pago' ? 'Recebida' : 'A Receber',
             'Data do Projeto': c.projectStartDate ? `${formatDate(c.projectStartDate)} - ${formatDate(c.projectEndDate || '')}` : 'N/A'
@@ -414,7 +420,9 @@ function CommissionsReport() {
                                 <TableHead>Parceiro</TableHead>
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Projeto</TableHead>
-                                <TableHead>Valor Comissão</TableHead>
+                                <TableHead>Custo (R$)</TableHead>
+                                <TableHead>Comissão (%)</TableHead>
+                                <TableHead>Valor Comissão (R$)</TableHead>
                                 <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -424,6 +432,8 @@ function CommissionsReport() {
                                     <TableCell>{cost.partnerName}</TableCell>
                                     <TableCell>{cost.clientName}</TableCell>
                                     <TableCell>{cost.projectName}</TableCell>
+                                    <TableCell>{cost.costAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                    <TableCell>{cost.commissionPercentage}%</TableCell>
                                     <TableCell>{cost.commissionValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                     <TableCell>
                                          <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
@@ -435,10 +445,15 @@ function CommissionsReport() {
                         </TableBody>
                          <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={3} className="font-semibold text-right">Total das Comissões</TableCell>
-                                <TableCell colSpan={2} className="font-bold">
+                                <TableCell colSpan={3} className="font-semibold text-right">Totais</TableCell>
+                                <TableCell className="font-bold">
+                                    {totalCostAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className="font-bold">
                                     {totalCommissions.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
