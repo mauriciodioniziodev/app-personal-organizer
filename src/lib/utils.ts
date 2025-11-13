@@ -48,10 +48,14 @@ export function exportToPdf(columns: { title: string, dataKey: string }[], data:
   doc.setFontSize(18);
   doc.text(reportTitle, 14, 22);
 
+  // Convert array of objects to array of arrays
+  const bodyData = data.map(row => columns.map(col => row[col.dataKey]));
+
+
   // Add table
   (doc as any).autoTable({
       head: [columns.map(c => c.title)],
-      body: data,
+      body: bodyData,
       startY: 30,
       headStyles: { fillColor: [35, 45, 63] }, // Customize header color
       didDrawPage: function(data: any) {
