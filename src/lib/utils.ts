@@ -41,12 +41,18 @@ export function exportToExcel(data: any[], fileName: string) {
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
-export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string, footerRows?: any[]) {
+export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string, footerRows?: any[], dateRange?: string) {
   const doc = new jsPDF();
   
   // Add title
   doc.setFontSize(18);
   doc.text(reportTitle, 14, 22);
+
+  // Add date range if provided
+  if (dateRange) {
+    doc.setFontSize(10);
+    doc.text(dateRange, 14, 28);
+  }
 
   // Convert array of objects to array of arrays
   const bodyData = data.map(row => columns.map(col => row[col.dataKey]));
@@ -57,7 +63,7 @@ export function exportToPdf(columns: { title: string, dataKey: string }[], data:
       head: [columns.map(c => c.title)],
       body: bodyData,
       foot: footerRows,
-      startY: 30,
+      startY: dateRange ? 34 : 30,
       headStyles: { fillColor: [35, 45, 63] }, // Customize header color
       footStyles: { fillColor: [230, 230, 230], textColor: 0 },
       didDrawPage: function(data: any) {

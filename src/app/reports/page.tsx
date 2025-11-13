@@ -186,7 +186,11 @@ function VisitsReport() {
          const footerRows = [
             [{ content: `Total de Visitas: ${data.length}`, colSpan: columns.length, styles: { halign: 'right', fontStyle: 'bold' } }]
         ];
-        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas', footerRows);
+        let dateRangeString = '';
+        if (startDate && endDate) {
+            dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
+        }
+        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas', footerRows, dateRangeString);
     };
 
     return (
@@ -334,7 +338,11 @@ function ProjectsReport() {
                 { content: totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } }
             ]
         ];
-        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos', footerRows);
+        let dateRangeString = '';
+        if (startDate && endDate) {
+            dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
+        }
+        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos', footerRows, dateRangeString);
     }
 
     return (
@@ -490,7 +498,11 @@ function CommissionsReport() {
                 { content: '' },
             ]
         ];
-        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões', footerRows);
+        let dateRangeString = '';
+        if (startDate && endDate) {
+            dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
+        }
+        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões', footerRows, dateRangeString);
     }
     
     const commissionStatusColors: { [key: string]: string } = {
