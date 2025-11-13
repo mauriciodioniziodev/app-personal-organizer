@@ -41,7 +41,7 @@ export function exportToExcel(data: any[], fileName: string) {
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
-export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string) {
+export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string, footerRows?: any[]) {
   const doc = new jsPDF();
   
   // Add title
@@ -56,8 +56,10 @@ export function exportToPdf(columns: { title: string, dataKey: string }[], data:
   (doc as any).autoTable({
       head: [columns.map(c => c.title)],
       body: bodyData,
+      foot: footerRows,
       startY: 30,
       headStyles: { fillColor: [35, 45, 63] }, // Customize header color
+      footStyles: { fillColor: [230, 230, 230], textColor: 0 },
       didDrawPage: function(data: any) {
         // Footer
         const str = "Página " + doc.internal.getNumberOfPages();

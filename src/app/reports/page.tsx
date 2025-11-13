@@ -65,7 +65,10 @@ function ClientsReport() {
             birthday: c.birthday || '-',
             source: c.source || '-',
         }));
-        exportToPdf(columns, data, 'relatorio_clientes', 'Relatório de Clientes');
+        const footerRows = [
+            [{ content: `Total de Clientes: ${data.length}`, colSpan: columns.length, styles: { halign: 'right', fontStyle: 'bold' } }]
+        ];
+        exportToPdf(columns, data, 'relatorio_clientes', 'Relatório de Clientes', footerRows);
     };
 
     const currentMonth = new Date().getMonth() + 1;
@@ -180,7 +183,10 @@ function VisitsReport() {
             status: v.status,
             summary: v.summary,
         }));
-        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas');
+         const footerRows = [
+            [{ content: `Total de Visitas: ${data.length}`, colSpan: columns.length, styles: { halign: 'right', fontStyle: 'bold' } }]
+        ];
+        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas', footerRows);
     };
 
     return (
@@ -320,7 +326,15 @@ function ProjectsReport() {
                 receivable: receivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
             }
         });
-        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos');
+         const footerRows = [
+            [
+                { content: 'Totais', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: totalFinalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
+                { content: totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
+                { content: totalReceivable.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } }
+            ]
+        ];
+        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos', footerRows);
     }
 
     return (
@@ -467,7 +481,16 @@ function CommissionsReport() {
             commissionValue: c.commissionValue.toFixed(2),
             commissionStatus: c.commissionStatus === 'pago' ? 'Recebida' : 'A Receber',
         }));
-        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões');
+        const footerRows = [
+            [
+                { content: 'Totais', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: totalCostAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
+                { content: '' },
+                { content: totalCommissions.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
+                { content: '' },
+            ]
+        ];
+        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões', footerRows);
     }
     
     const commissionStatusColors: { [key: string]: string } = {
