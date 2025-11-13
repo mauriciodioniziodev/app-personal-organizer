@@ -4,8 +4,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects, getClientSourcesSummary, getLeadsSummary } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign, Share2, Flame } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects, getClientSourcesSummary } from "@/lib/data";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign, Share2 } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ export default function Dashboard() {
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
-  const [leadsSummary, setLeadsSummary] = useState<{ [key: string]: number }>({});
   const [clientSourcesSummary, setClientSourcesSummary] = useState<{[key: string]: number}>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +34,6 @@ export default function Dashboard() {
         dailyScheduleData,
         clientsData,
         clientSourcesData,
-        leadsSummaryData,
     ] = await Promise.all([
         getActiveProjects(),
         getUpcomingVisits(),
@@ -43,7 +41,6 @@ export default function Dashboard() {
         getTodaysSchedule(),
         getClients(),
         getClientSourcesSummary(),
-        getLeadsSummary(),
     ]);
 
     setActiveProjects(activeProjectsData);
@@ -52,7 +49,6 @@ export default function Dashboard() {
     setDailySchedule(dailyScheduleData);
     setClients(clientsData);
     setClientSourcesSummary(clientSourcesData);
-    setLeadsSummary(leadsSummaryData);
     setLoading(false);
   }, []);
 
@@ -74,12 +70,6 @@ export default function Dashboard() {
         orçamento: <FileText className="w-4 h-4 text-blue-600" />,
         'Negócio não fechado': <XCircle className="w-4 h-4 text-purple-600" />,
         'Negócio Fechado': <DollarSign className="w-4 h-4 text-green-600" />,
-  };
-
-  const leadsTemperatureIcons: { [key: string]: React.ReactNode } = {
-    quente: <Flame className="w-4 h-4 fill-red-500 text-red-500" />,
-    morno: <Flame className="w-4 h-4 fill-yellow-500 text-yellow-500" />,
-    frio: <Flame className="w-4 h-4 fill-gray-400 text-gray-400" />,
   };
   
   const visitStatusColors: { [key: string]: string } = {
@@ -280,31 +270,6 @@ export default function Dashboard() {
                             </div>
                         ) : (
                              <p className="text-muted-foreground text-center py-4">Nenhuma visita registrada.</p>
-                        )}
-                    </CardContent>
-                </Card>
-            </Link>
-             <Link href="/leads">
-                <Card className="hover:bg-muted/50 transition-colors">
-                    <CardHeader>
-                        <CardTitle className="font-headline text-xl">Temperatura dos Leads</CardTitle>
-                        <CardDescription>Qualificação dos leads no funil.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {Object.keys(leadsSummary).length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {Object.entries(leadsSummary).map(([status, count]) => (
-                                    <div key={status} className="flex items-center gap-3">
-                                        {leadsTemperatureIcons[status] || <div className="w-4 h-4" />}
-                                        <div>
-                                            <p className="font-bold text-lg">{count}</p>
-                                            <p className="text-sm capitalize text-muted-foreground">{status}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                             <p className="text-muted-foreground text-center py-4">Nenhum lead registrado.</p>
                         )}
                     </CardContent>
                 </Card>

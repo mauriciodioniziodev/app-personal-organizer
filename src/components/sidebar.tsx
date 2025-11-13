@@ -5,14 +5,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building, Filter, Flame } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building, Filter } from "lucide-react";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import Image from "next/image";
 
 
 const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, role: ['administrador', 'usuario'] },
-  { href: "/leads", label: "Leads", icon: Flame, role: ['administrador', 'usuario'] },
   { href: "/clients", label: "Clientes", icon: Users, role: ['administrador', 'usuario'] },
   { href: "/visits", label: "Visitas", icon: CalendarClock, role: ['administrador', 'usuario'] },
   { href: "/projects", label: "Projetos", icon: FolderKanban, role: ['administrador', 'usuario'] },
