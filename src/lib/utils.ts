@@ -41,12 +41,22 @@ export function exportToExcel(data: any[], fileName: string) {
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
-export function exportToPdf(columns: { title: string, dataKey: string }[], data: any[], fileName: string, reportTitle: string, footerRows?: any[], dateRange?: string) {
-  const doc = new jsPDF();
+type PdfExportOptions = {
+    columns: { title: string, dataKey: string }[];
+    data: any[];
+    fileName: string;
+    title: string;
+    footerRows?: any[];
+    dateRange?: string;
+    orientation?: 'portrait' | 'landscape';
+}
+
+export function exportToPdf({ columns, data, fileName, title, footerRows, dateRange, orientation = 'portrait' }: PdfExportOptions) {
+  const doc = new jsPDF(orientation);
   
   // Add title
   doc.setFontSize(18);
-  doc.text(reportTitle, 14, 22);
+  doc.text(title, 14, 22);
 
   // Add date range if provided
   if (dateRange) {

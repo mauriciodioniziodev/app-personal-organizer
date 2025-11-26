@@ -61,7 +61,7 @@ function ClientsReport() {
         const footerRows = [
             [{ content: `Total de Clientes: ${data.length}`, colSpan: columns.length, styles: { halign: 'right', fontStyle: 'bold' } }]
         ];
-        exportToPdf(columns, data, 'relatorio_clientes', 'Relatório de Clientes', footerRows);
+        exportToPdf({columns, data, fileName: 'relatorio_clientes', title: 'Relatório de Clientes', footerRows});
     };
 
     const currentMonth = new Date().getMonth() + 1;
@@ -183,7 +183,7 @@ function VisitsReport() {
         if (startDate && endDate) {
             dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
         }
-        exportToPdf(columns, data, 'relatorio_visitas', 'Relatório de Visitas', footerRows, dateRangeString);
+        exportToPdf({columns, data, fileName: 'relatorio_visitas', title: 'Relatório de Visitas', footerRows, dateRange: dateRangeString});
     };
 
     return (
@@ -335,7 +335,7 @@ function ProjectsReport() {
         if (startDate && endDate) {
             dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
         }
-        exportToPdf(columns, data, 'relatorio_projetos', 'Relatório de Projetos', footerRows, dateRangeString);
+        exportToPdf({columns, data, fileName: 'relatorio_projetos', title: 'Relatório de Projetos', footerRows, dateRange: dateRangeString});
     }
 
     return (
@@ -497,7 +497,7 @@ function CommissionsReport() {
         if (startDate && endDate) {
             dateRangeString = `Período: ${formatDate(startDate)} a ${formatDate(endDate)}`;
         }
-        exportToPdf(columns, data, 'relatorio_comissoes', 'Relatório de Comissões', footerRows, dateRangeString);
+        exportToPdf({columns, data, fileName: 'relatorio_comissoes', title: 'Relatório de Comissões', footerRows, dateRange: dateRangeString, orientation: 'landscape'});
     }
     
     const commissionStatusColors: { [key: string]: string } = {
