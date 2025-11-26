@@ -468,6 +468,7 @@ function CommissionsReport() {
     const handleExportPdf = () => {
         const columns = [
             { title: 'Parceiro', dataKey: 'partnerName' },
+            { title: 'Cliente', dataKey: 'clientName' },
             { title: 'Projeto', dataKey: 'projectName' },
             { title: 'Custo (R$)', dataKey: 'costAmount' },
             { title: 'Comissão (%)', dataKey: 'commissionPercentage' },
@@ -476,6 +477,7 @@ function CommissionsReport() {
         ];
         const data = filteredCosts.map(c => ({
             partnerName: c.partnerName,
+            clientName: c.clientName,
             projectName: c.projectName,
             costAmount: c.costAmount.toFixed(2),
             commissionPercentage: `${c.commissionPercentage}%`,
@@ -484,7 +486,7 @@ function CommissionsReport() {
         }));
         const footerRows = [
             [
-                { content: 'Totais', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: 'Totais', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
                 { content: totalCostAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
                 { content: '' },
                 { content: totalCommissions.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } },
