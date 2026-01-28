@@ -1,18 +1,17 @@
 
-
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue, getTotalCommissionsPaid, getTotalCommissionsPending, getAllOrganizerCosts } from "@/lib/data";
+import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue, getTotalCommissionsPaid, getTotalCommissionsPending, getAllOrganizerCosts, getVisits } from "@/lib/data";
 import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle, FileText, Handshake } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import type { Project, Client, ProjectOrganizerCost } from '@/lib/definitions';
+import type { Project, Client, ProjectOrganizerCost, Visit } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn, formatDate } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+import { Input } from "@/components/ui/input";
 import { Label } from '@/components/ui/label';
 
 export default function FinanceiroPage() {
@@ -31,6 +30,9 @@ export default function FinanceiroPage() {
   const [filteredPendingCommissions, setFilteredPendingCommissions] = useState<ProjectOrganizerCost[]>([]);
   const [allPaidCommissions, setAllPaidCommissions] = useState<ProjectOrganizerCost[]>([]);
   const [filteredPaidCommissions, setFilteredPaidCommissions] = useState<ProjectOrganizerCost[]>([]);
+  
+  const [allOpenBudgets, setAllOpenBudgets] = useState<Visit[]>([]);
+  const [filteredOpenBudgets, setFilteredOpenBudgets] = useState<Visit[]>([]);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +48,11 @@ export default function FinanceiroPage() {
 
   const refetch = useCallback(async () => {
         setLoading(true);
-        const [clientsData, allProjectsData, allCostsData] = await Promise.all([
+        const [clientsData, allProjectsData, allCostsData, allVisitsData] = await Promise.all([
             getClients(),
             getProjects(),
-            getAllOrganizerCosts()
+            getAllOrganizerCosts(),
+            getVisits()
         ]);
         
         const pendingProjects = allProjectsData.filter(p => p.paymentStatus !== 'pago');
@@ -64,6 +67,8 @@ export default function FinanceiroPage() {
         setAllPendingCommissions(pendingCommissions);
         setAllPaidCommissions(paidCommissions);
 
+        const openBudgets = allVisitsData.filter(v => v.status === 'orçamento');
+        setAllOpenBudgets(openBudgets);
 
         // Fetch initial financial data without date filters
         const [
@@ -89,6 +94,7 @@ export default function FinanceiroPage() {
         setFilteredPaidProjects(paidProjects);
         setFilteredPendingCommissions(pendingCommissions);
         setFilteredPaidCommissions(paidCommissions);
+        setFilteredOpenBudgets(openBudgets);
         setLoading(false);
   }, [])
 
@@ -136,18 +142,26 @@ export default function FinanceiroPage() {
             }
             setFilteredPendingCommissions(allPendingCommissions.filter(filterCommissionByDate));
             setFilteredPaidCommissions(allPaidCommissions.filter(filterCommissionByDate));
+
+            const filterVisitByDate = (v: Visit) => {
+                const visitDate = new Date(v.date).getTime();
+                return visitDate >= filterStart && visitDate <= filterEnd;
+            };
+            setFilteredOpenBudgets(allOpenBudgets.filter(filterVisitByDate));
+
         } else {
             setFilteredPendingProjects(allPendingProjects);
             setFilteredPaidProjects(allPaidProjects);
             setFilteredPendingCommissions(allPendingCommissions);
             setFilteredPaidCommissions(allPaidCommissions);
+            setFilteredOpenBudgets(allOpenBudgets);
         }
     }
     
     if(!loading) { // only run filter if initial load is complete
         filterFinancialData();
     }
-  }, [startDate, endDate, allPendingProjects, allPaidProjects, allPendingCommissions, allPaidCommissions, loading]);
+  }, [startDate, endDate, allPendingProjects, allPaidProjects, allPendingCommissions, allPaidCommissions, allOpenBudgets, loading]);
 
 
   const getClient = (clientId: string) => {
@@ -167,6 +181,10 @@ export default function FinanceiroPage() {
       'Atrasado': 'text-red-800 bg-red-100',
       'Concluído': 'text-green-800 bg-green-100',
       'Cancelado': 'text-gray-800 bg-gray-100',
+  }
+  
+  const visitStatusColors: { [key: string]: string } = {
+      orçamento: 'text-blue-800 bg-blue-100',
   }
 
   const commissionStatusColors: { [key: string]: string } = {
@@ -335,87 +353,6 @@ export default function FinanceiroPage() {
       </div>
 
        <div className="space-y-8">
-            <div>
-                <h2 className="text-xl font-headline mb-4">Comissões a Receber</h2>
-                <Card>
-                    <CardContent className="p-4">
-                    {filteredPendingCommissions.length > 0 ? (
-                        <ul className="space-y-4">
-                        {filteredPendingCommissions.map((cost) => (
-                            <li key={cost.id}>
-                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
-                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                        <div className="flex-grow space-y-2">
-                                            <p className="font-semibold">{cost.projectName}</p>
-                                            <div className='text-sm text-muted-foreground space-y-1'>
-                                                <div className='flex items-center gap-2'>
-                                                    <User className="w-3 h-3"/>
-                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                    <Handshake className="w-3 h-3"/>
-                                                    <span>{cost.partnerName}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
-                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
-                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
-                                                A Receber
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </li>
-                        ))}
-                        </ul>
-                    ) : (
-                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão a receber no período selecionado.</p>
-                    )}
-                    </CardContent>
-                </Card>
-            </div>
-             <div>
-                <h2 className="text-xl font-headline mb-4">Comissões Recebidas</h2>
-                <Card>
-                    <CardContent className="p-4">
-                    {filteredPaidCommissions.length > 0 ? (
-                        <ul className="space-y-4">
-                        {filteredPaidCommissions.map((cost) => (
-                            <li key={cost.id}>
-                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
-                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                        <div className="flex-grow space-y-2">
-                                            <p className="font-semibold">{cost.projectName}</p>
-                                            <div className='text-sm text-muted-foreground space-y-1'>
-                                                <div className='flex items-center gap-2'>
-                                                    <User className="w-3 h-3"/>
-                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                    <Handshake className="w-3 h-3"/>
-                                                    <span>{cost.partnerName}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
-                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
-                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
-                                                <CheckCircle className="w-3 h-3 mr-1" />
-                                                Recebida
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </li>
-                        ))}
-                        </ul>
-                    ) : (
-                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão recebida no período selecionado.</p>
-                    )}
-                    </CardContent>
-                </Card>
-            </div>
           <div>
             <h2 className="text-xl font-headline mb-4">Projetos com Pagamento Pendente</h2>
             <Card>
@@ -531,7 +468,138 @@ export default function FinanceiroPage() {
                 </CardContent>
             </Card>
             </div>
+            <div>
+                <h2 className="text-xl font-headline mb-4">Comissões a Receber</h2>
+                <Card>
+                    <CardContent className="p-4">
+                    {filteredPendingCommissions.length > 0 ? (
+                        <ul className="space-y-4">
+                        {filteredPendingCommissions.map((cost) => (
+                            <li key={cost.id}>
+                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{cost.projectName}</p>
+                                            <div className='text-sm text-muted-foreground space-y-1'>
+                                                <div className='flex items-center gap-2'>
+                                                    <User className="w-3 h-3"/>
+                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
+                                                </div>
+                                                <div className='flex items-center gap-2'>
+                                                    <Handshake className="w-3 h-3"/>
+                                                    <span>{cost.partnerName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                                A Receber
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão a receber no período selecionado.</p>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
+             <div>
+                <h2 className="text-xl font-headline mb-4">Comissões Recebidas</h2>
+                <Card>
+                    <CardContent className="p-4">
+                    {filteredPaidCommissions.length > 0 ? (
+                        <ul className="space-y-4">
+                        {filteredPaidCommissions.map((cost) => (
+                            <li key={cost.id}>
+                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{cost.projectName}</p>
+                                            <div className='text-sm text-muted-foreground space-y-1'>
+                                                <div className='flex items-center gap-2'>
+                                                    <User className="w-3 h-3"/>
+                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
+                                                </div>
+                                                <div className='flex items-center gap-2'>
+                                                    <Handshake className="w-3 h-3"/>
+                                                    <span>{cost.partnerName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                                <CheckCircle className="w-3 h-3 mr-1" />
+                                                Recebida
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão recebida no período selecionado.</p>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
+             <div>
+                <h2 className="text-xl font-headline mb-4">Orçamentos em Aberto</h2>
+                <Card>
+                    <CardContent className="p-4">
+                    {filteredOpenBudgets.length > 0 ? (
+                        <ul className="space-y-4">
+                        {filteredOpenBudgets.map((visit) => {
+                            const client = getClient(visit.clientId);
+                            return (
+                                <li key={visit.id}>
+                                    <Link href={`/visits/${visit.id}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                        <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                            <div className="flex-grow space-y-2">
+                                                 {client && (
+                                                    <div className='text-sm text-muted-foreground space-y-1'>
+                                                        <div className='flex items-center gap-2'>
+                                                            <User className="w-3 h-3"/>
+                                                            <span className='font-medium text-foreground'>{client.name}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                                                    <Calendar className="w-3 h-3"/>
+                                                    <span className='font-medium'>
+                                                        {formatDate(visit.date)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                                 {visit.budgetAmount && (
+                                                    <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(visit.budgetAmount)}</p>
+                                                )}
+                                                <Badge variant={'outline'} className={cn("capitalize", visitStatusColors['orçamento'] ?? 'border-border')}>
+                                                    Orçamento
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </li>
+                            )
+                        })}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhum orçamento em aberto no período selecionado.</p>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     </div>
   );
 }
+
+    

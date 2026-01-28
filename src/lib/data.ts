@@ -1,5 +1,4 @@
 
-
 import 'dotenv/config';
 import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner, Lead } from './definitions';
 import { supabase } from './supabaseClient';
@@ -1588,3 +1587,113 @@ export const getAllOrganizerCosts = async (): Promise<ProjectOrganizerCost[]> =>
     }
 });
 };
+
+
+export const getLeads = async (): Promise<Lead[]> => {
+    if (!supabase) return [];
+    const profile = await getCurrentProfile();
+    if (!profile) return [];
+
+    let query = supabase.from('leads').select('*');
+    if (profile.email !== 'mauriciodionizio@gmail.com') {
+        if (!profile.companyId) return [];
+        query = query.eq('company_id', profile.companyId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching leads:", error);
+        return [];
+    }
+    return toCamelCase(data) as Lead[];
+}
+
+export const getLeadById = async (id: string): Promise<Lead | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('leads').select('*').eq('id', id).single();
+    if (error) {
+        console.error(`Error fetching lead ${id}:`, error);
+        return null;
+    }
+    return toCamelCase(data) as Lead;
+}
+
+export const addLead = async (leadData: Omit<Lead, 'id'|'createdAt'|'companyId'|'status'|'temperature'>): Promise<Lead> => {
+    const profile = await getCurrentProfile();
+    if (!profile || !profile.companyId) throw new Error("User not authenticated or company not found.");
+
+    const now = new Date();
+    const { data, error } = await supabase.from('leads').insert({
+        ...toSnakeCase(leadData),
+        company_id: profile.companyId,
+        status: 'novo',
+        temperature: 'quente',
+        created_at: now.toISOString(),
+        last_contact_at: now.toISOString(),
+    }).select().single();
+    if (error) {
+        console.error("Error adding lead:", error);
+        throw new Error("Failed to add lead.");
+    }
+    return toCamelCase(data);
+};
+
+export const updateLead = async (leadData: Partial<Lead>): Promise<Lead> => {
+    const { id, ...updates} = leadData;
+    const { data, error } = await supabase.from('leads').update(toSnakeCase(updates)).eq('id', id).select().single();
+     if (error) {
+        console.error("Error updating lead:", error);
+        throw new Error("Failed to update lead.");
+    }
+    return toCamelCase(data);
+}
+
+
+export const updateLeadStatus = async (leadId: string, newStatus: Lead['status']): Promise<Lead> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const updates: Partial<any> = { status: newStatus, last_contact_at: new Date().toISOString() };
+
+    if (newStatus === 'convertido') {
+        const lead = await getLeadById(leadId);
+        if(!lead) throw new Error('Lead não encontrado para conversão.');
+
+        // Check if a client with the same phone or email already exists
+        const { data: existingClient, error: clientError } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('company_id', lead.companyId)
+            .or(`phone.eq.${lead.phone},email.eq.${lead.email}`)
+            .maybeSingle();
+
+        if (clientError) console.error("Error checking for existing client during lead conversion:", clientError);
+
+        if (!existingClient) {
+             const { error: addClientError } = await supabase.from('clients').insert({
+                company_id: lead.companyId,
+                name: lead.name,
+                phone: lead.phone,
+                email: lead.email,
+                address: 'Endereço a ser preenchido',
+                source: lead.source,
+                preferences: `Lead convertido. Observações originais: ${lead.notes}`
+             });
+
+             if(addClientError) {
+                 console.error("Error creating client from converted lead:", addClientError);
+                 // Don't block the status update, just log the error.
+             }
+        }
+    }
+    
+    const { data, error } = await supabase.from('leads').update(updates).eq('id', leadId).select().single();
+
+    if (error) {
+        console.error("Error updating lead status:", error);
+        throw new Error("Failed to update lead status.");
+    }
+    
+    return toCamelCase(data);
+};
+
+    
