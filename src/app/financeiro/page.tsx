@@ -4,11 +4,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue, getTotalCommissionsPaid, getTotalCommissionsPending } from "@/lib/data";
+import { getTotalRevenue, getClients, getTotalPendingRevenue, getProjects, getTotalBudgetedRevenue, getTotalCommissionsPaid, getTotalCommissionsPending, getAllOrganizerCosts } from "@/lib/data";
 import { Wallet, Eye, EyeOff, Hourglass, User, Calendar, LoaderCircle, Phone, Activity, CheckCircle, FileText, Handshake } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import type { Project, Client } from '@/lib/definitions';
+import type { Project, Client, ProjectOrganizerCost } from '@/lib/definitions';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn, formatDate } from '@/lib/utils';
@@ -26,6 +26,12 @@ export default function FinanceiroPage() {
   const [filteredPendingProjects, setFilteredPendingProjects] = useState<Project[]>([]);
   const [allPaidProjects, setAllPaidProjects] = useState<Project[]>([]);
   const [filteredPaidProjects, setFilteredPaidProjects] = useState<Project[]>([]);
+  
+  const [allPendingCommissions, setAllPendingCommissions] = useState<ProjectOrganizerCost[]>([]);
+  const [filteredPendingCommissions, setFilteredPendingCommissions] = useState<ProjectOrganizerCost[]>([]);
+  const [allPaidCommissions, setAllPaidCommissions] = useState<ProjectOrganizerCost[]>([]);
+  const [filteredPaidCommissions, setFilteredPaidCommissions] = useState<ProjectOrganizerCost[]>([]);
+
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,9 +46,10 @@ export default function FinanceiroPage() {
 
   const refetch = useCallback(async () => {
         setLoading(true);
-        const [clientsData, allProjectsData] = await Promise.all([
+        const [clientsData, allProjectsData, allCostsData] = await Promise.all([
             getClients(),
-            getProjects()
+            getProjects(),
+            getAllOrganizerCosts()
         ]);
         
         const pendingProjects = allProjectsData.filter(p => p.paymentStatus !== 'pago');
@@ -51,6 +58,12 @@ export default function FinanceiroPage() {
         setAllPendingProjects(pendingProjects);
         setAllPaidProjects(paidProjects);
         setClients(clientsData);
+
+        const pendingCommissions = allCostsData.filter(c => c.commissionStatus === 'em aberto');
+        const paidCommissions = allCostsData.filter(c => c.commissionStatus === 'pago');
+        setAllPendingCommissions(pendingCommissions);
+        setAllPaidCommissions(paidCommissions);
+
 
         // Fetch initial financial data without date filters
         const [
@@ -74,6 +87,8 @@ export default function FinanceiroPage() {
 
         setFilteredPendingProjects(pendingProjects);
         setFilteredPaidProjects(paidProjects);
+        setFilteredPendingCommissions(pendingCommissions);
+        setFilteredPaidCommissions(paidCommissions);
         setLoading(false);
   }, [])
 
@@ -100,27 +115,39 @@ export default function FinanceiroPage() {
         setCommissionsPaid(commissionsPaid);
         setCommissionsPending(commissionsPending);
 
-        // Filter projects lists based on date
+        // Filter projects and commissions lists based on date
          if (startDate && endDate) {
-            const filterByDate = (p: Project) => {
+            const filterStart = new Date(startDate).getTime();
+            const filterEnd = new Date(endDate).getTime();
+
+            const filterProjectByDate = (p: Project) => {
                 const projectStart = new Date(p.startDate).getTime();
                 const projectEnd = new Date(p.endDate).getTime();
-                const filterStart = new Date(startDate).getTime();
-                const filterEnd = new Date(endDate).getTime();
                 return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
             };
-            setFilteredPendingProjects(allPendingProjects.filter(filterByDate));
-            setFilteredPaidProjects(allPaidProjects.filter(filterByDate));
+            setFilteredPendingProjects(allPendingProjects.filter(filterProjectByDate));
+            setFilteredPaidProjects(allPaidProjects.filter(filterProjectByDate));
+
+             const filterCommissionByDate = (c: ProjectOrganizerCost) => {
+                if (!c.projectStartDate || !c.projectEndDate) return false;
+                const projectStart = new Date(c.projectStartDate).getTime();
+                const projectEnd = new Date(c.projectEndDate).getTime();
+                return Math.max(projectStart, filterStart) <= Math.min(projectEnd, filterEnd);
+            }
+            setFilteredPendingCommissions(allPendingCommissions.filter(filterCommissionByDate));
+            setFilteredPaidCommissions(allPaidCommissions.filter(filterCommissionByDate));
         } else {
             setFilteredPendingProjects(allPendingProjects);
             setFilteredPaidProjects(allPaidProjects);
+            setFilteredPendingCommissions(allPendingCommissions);
+            setFilteredPaidCommissions(allPaidCommissions);
         }
     }
     
     if(!loading) { // only run filter if initial load is complete
         filterFinancialData();
     }
-  }, [startDate, endDate, allPendingProjects, allPaidProjects, loading]);
+  }, [startDate, endDate, allPendingProjects, allPaidProjects, allPendingCommissions, allPaidCommissions, loading]);
 
 
   const getClient = (clientId: string) => {
@@ -140,6 +167,11 @@ export default function FinanceiroPage() {
       'Atrasado': 'text-red-800 bg-red-100',
       'Concluído': 'text-green-800 bg-green-100',
       'Cancelado': 'text-gray-800 bg-gray-100',
+  }
+
+  const commissionStatusColors: { [key: string]: string } = {
+    'em aberto': 'text-yellow-800 bg-yellow-100',
+    'pago': 'text-green-800 bg-green-100',
   }
   
     if (loading) {
@@ -303,6 +335,87 @@ export default function FinanceiroPage() {
       </div>
 
        <div className="space-y-8">
+            <div>
+                <h2 className="text-xl font-headline mb-4">Comissões a Receber</h2>
+                <Card>
+                    <CardContent className="p-4">
+                    {filteredPendingCommissions.length > 0 ? (
+                        <ul className="space-y-4">
+                        {filteredPendingCommissions.map((cost) => (
+                            <li key={cost.id}>
+                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{cost.projectName}</p>
+                                            <div className='text-sm text-muted-foreground space-y-1'>
+                                                <div className='flex items-center gap-2'>
+                                                    <User className="w-3 h-3"/>
+                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
+                                                </div>
+                                                <div className='flex items-center gap-2'>
+                                                    <Handshake className="w-3 h-3"/>
+                                                    <span>{cost.partnerName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                                A Receber
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão a receber no período selecionado.</p>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
+             <div>
+                <h2 className="text-xl font-headline mb-4">Comissões Recebidas</h2>
+                <Card>
+                    <CardContent className="p-4">
+                    {filteredPaidCommissions.length > 0 ? (
+                        <ul className="space-y-4">
+                        {filteredPaidCommissions.map((cost) => (
+                            <li key={cost.id}>
+                                <Link href={`/projects/${cost.projectId}`} className="block p-4 -m-4 rounded-lg hover:bg-muted transition-colors">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-grow space-y-2">
+                                            <p className="font-semibold">{cost.projectName}</p>
+                                            <div className='text-sm text-muted-foreground space-y-1'>
+                                                <div className='flex items-center gap-2'>
+                                                    <User className="w-3 h-3"/>
+                                                    <span className='font-medium text-foreground'>{cost.clientName}</span>
+                                                </div>
+                                                <div className='flex items-center gap-2'>
+                                                    <Handshake className="w-3 h-3"/>
+                                                    <span>{cost.partnerName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className='flex sm:flex-col items-end gap-2 sm:gap-1 mt-2 sm:mt-0 shrink-0'>
+                                            <p className="font-semibold text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost.commissionValue)}</p>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                                <CheckCircle className="w-3 h-3 mr-1" />
+                                                Recebida
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma comissão recebida no período selecionado.</p>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
           <div>
             <h2 className="text-xl font-headline mb-4">Projetos com Pagamento Pendente</h2>
             <Card>
@@ -422,7 +535,3 @@ export default function FinanceiroPage() {
     </div>
   );
 }
-
-    
-
-    

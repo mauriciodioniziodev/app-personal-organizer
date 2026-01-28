@@ -1,7 +1,7 @@
 
 
 import 'dotenv/config';
-import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner } from './definitions';
+import type { Client, Project, Visit, Photo, VisitsSummary, ScheduleItem, Payment, MasterDataItem, UserProfile, CompanySettings, Company, LogoUpdateData, ProjectOrganizerCost, OrganizerPartner, Lead } from './definitions';
 import { supabase } from './supabaseClient';
 import { createSupabaseAdminClient } from './supabaseClient';
 import { cache } from 'react';
@@ -1553,7 +1553,7 @@ export const getAllOrganizerCosts = async (): Promise<ProjectOrganizerCost[]> =>
     let query = supabase.from('project_organizer_costs').select(`
         *,
         organizer_partners ( name ),
-        projects:projects!inner ( name, client_id, start_date, end_date, clients:clients!inner(name) )
+        projects!inner( name, client_id, company_id, start_date, end_date, clients!inner(name) )
     `);
 
     if (profile.email !== 'mauriciodionizio@gmail.com') {

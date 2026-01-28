@@ -92,6 +92,21 @@ export type ScheduleItem = {
     isOverdue?: boolean;
 };
 
+export type Lead = {
+    id: string;
+    createdAt: string;
+    companyId: string;
+    name: string;
+    phone: string;
+    email: string;
+    source: string;
+    status: 'novo' | 'contato' | 'proposta' | 'convertido' | 'perdido';
+    temperature: 'quente' | 'morno' | 'frio';
+    urgency: 'baixa' | 'media' | 'alta';
+    budget: string;
+    notes: string;
+}
+
 // --- Master Data Types ---
 export type MasterDataItem = {
     id: string;
