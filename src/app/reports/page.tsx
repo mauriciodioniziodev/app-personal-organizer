@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import PageHeader from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -594,20 +594,138 @@ function CommissionsReport() {
     );
 }
 
+function BirthdaysReport() {
+    const [clients, setClients] = useState<Client[]>([]);
+
+    useEffect(() => {
+        getClients().then(allClients => {
+            const clientsWithBirthdays = allClients.filter(c => c.birthday && /^\d{2}\/\d{2}$/.test(c.birthday));
+            const sortedClients = clientsWithBirthdays.sort((a, b) => {
+                const [dayA, monthA] = a.birthday!.split('/').map(Number);
+                const [dayB, monthB] = b.birthday!.split('/').map(Number);
+                if (monthA !== monthB) {
+                    return monthA - monthB;
+                }
+                return dayA - dayB;
+            });
+            setClients(sortedClients);
+        });
+    }, []);
+
+    const handleExportExcel = () => {
+        const dataToExport = clients.map(c => ({
+            'Nome': c.name,
+            'Aniversário': c.birthday,
+            'Telefone': c.phone,
+            'Email': c.email,
+        }));
+        exportToExcel(dataToExport, 'relatorio_aniversariantes');
+    };
+    
+    const handleExportPdf = () => {
+        const columns = [
+            { title: 'Nome', dataKey: 'name' },
+            { title: 'Aniversário', dataKey: 'birthday' },
+            { title: 'Telefone', dataKey: 'phone' },
+            { title: 'Email', dataKey: 'email' },
+        ];
+        const data = clients.map(c => ({
+            name: c.name,
+            birthday: c.birthday ?? '-',
+            phone: c.phone,
+            email: c.email ?? '-',
+        }));
+        const footerRows = [
+            [{ content: `Total de Aniversariantes: ${data.length}`, colSpan: columns.length, styles: { halign: 'right', fontStyle: 'bold' } }]
+        ];
+        exportToPdf({columns, data, fileName: 'relatorio_aniversariantes', title: 'Relatório de Aniversariantes', footerRows});
+    };
+
+    const getMonthName = (monthNumber: number) => {
+        const date = new Date();
+        date.setMonth(monthNumber - 1);
+        return date.toLocaleString('pt-BR', { month: 'long' });
+    }
+
+    let lastMonth = 0;
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Aniversariantes do Ano</CardTitle>
+                <div className="flex gap-2">
+                    <Button onClick={handleExportExcel} variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Excel
+                    </Button>
+                     <Button onClick={handleExportPdf} variant="outline">
+                        <File className="mr-2 h-4 w-4" />
+                        PDF
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <ScrollArea className="h-[60vh]">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Aniversário</TableHead>
+                                <TableHead>Telefone</TableHead>
+                                <TableHead>Email</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {clients.map((client) => {
+                                const currentMonth = client.birthday ? parseInt(client.birthday.split('/')[1], 10) : 0;
+                                const showMonthHeader = currentMonth !== lastMonth;
+                                if(showMonthHeader) {
+                                    lastMonth = currentMonth;
+                                }
+
+                                return (
+                                <Fragment key={client.id}>
+                                    {showMonthHeader && (
+                                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                            <TableCell colSpan={4} className="font-bold capitalize text-lg">
+                                                {getMonthName(currentMonth)}
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    <TableRow>
+                                        <TableCell>{client.name}</TableCell>
+                                        <TableCell>{client.birthday}</TableCell>
+                                        <TableCell>{client.phone}</TableCell>
+                                        <TableCell>{client.email}</TableCell>
+                                    </TableRow>
+                                </Fragment>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function ReportsPage() {
     return (
         <div className="flex flex-col gap-8">
             <PageHeader title="Relatórios" />
             <Tabs defaultValue="clients">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="clients">Clientes</TabsTrigger>
+                    <TabsTrigger value="birthdays">Aniversariantes</TabsTrigger>
                     <TabsTrigger value="visits">Visitas</TabsTrigger>
                     <TabsTrigger value="projects">Projetos</TabsTrigger>
                     <TabsTrigger value="commissions">Comissões</TabsTrigger>
                 </TabsList>
                 <TabsContent value="clients">
                     <ClientsReport />
+                </TabsContent>
+                 <TabsContent value="birthdays">
+                    <BirthdaysReport />
                 </TabsContent>
                 <TabsContent value="visits">
                     <VisitsReport />
