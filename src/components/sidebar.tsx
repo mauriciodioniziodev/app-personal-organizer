@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building } from "lucide-react";
+import { FolderKanban, LayoutDashboard, LucideIcon, Users, Settings, CalendarClock, Wallet, FilePieChart, Shirt, Building, BrainCircuit, Lightbulb } from "lucide-react";
 import type { UserProfile, CompanySettings } from "@/lib/definitions";
 import Image from "next/image";
 

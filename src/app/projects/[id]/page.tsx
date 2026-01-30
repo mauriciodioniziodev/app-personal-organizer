@@ -6,7 +6,7 @@ import { notFound, useParams } from "next/navigation";
 import { getProjectById, getClientById, getVisitById } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard, ArrowLeft, Activity } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Edit, Link as LinkIcon, User, LoaderCircle, Camera, Image as ImageIcon, Wallet, Hourglass, Percent, CreditCard, ArrowLeft, Activity, Handshake } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Image from "next/image";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 
 export default function ProjectDetailsPage() {
@@ -110,6 +111,11 @@ export default function ProjectDetailsPage() {
       'Atrasado': 'text-red-800 bg-red-100',
       'Concluído': 'text-green-800 bg-green-100',
       'Cancelado': 'text-gray-800 bg-gray-100',
+  }
+
+  const commissionStatusColors: { [key: string]: string } = {
+      'em aberto': 'text-yellow-800 bg-yellow-100',
+      'pago': 'text-green-800 bg-green-100',
   }
 
   return (
@@ -243,10 +249,41 @@ export default function ProjectDetailsPage() {
                       </div>
                   </CardContent>
               </Card>
+               <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Handshake/> Custos e Comissões</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {project.organizerCosts && project.organizerCosts.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Parceiro</TableHead>
+                                    <TableHead>Comissão</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {project.organizerCosts.map(cost => (
+                                    <TableRow key={cost.id}>
+                                        <TableCell>{cost.partnerName}</TableCell>
+                                        <TableCell>{cost.commissionValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                                {cost.commissionStatus}
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <p className="text-muted-foreground text-sm text-center">Nenhum custo de organizador registrado.</p>
+                    )}
+                </CardContent>
+            </Card>
           </div>
       </div>
     </div>
   );
 }
-
-    

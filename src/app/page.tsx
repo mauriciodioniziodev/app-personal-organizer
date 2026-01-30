@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects } from "@/lib/data";
-import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign } from "lucide-react";
+import { getActiveProjects, getUpcomingVisits, getTodaysSchedule, getVisitsSummary, getClients, getProjects, getClientSourcesSummary } from "@/lib/data";
+import { Calendar, CalendarClock, FolderKanban, Phone, MapPin, User, CheckCircle, FileText, XCircle, Clock, LoaderCircle, Info, Activity, Contact, Lightbulb, DollarSign, Share2 } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,15 +15,13 @@ import { cn, formatDate } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import ServiceRecommender from '@/components/service-recommender';
-
 
 export default function Dashboard() {
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<Visit[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [visitsSummary, setVisitsSummary] = useState<VisitsSummary>({});
+  const [clientSourcesSummary, setClientSourcesSummary] = useState<{[key: string]: number}>({});
   const [dailySchedule, setDailySchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,14 +33,14 @@ export default function Dashboard() {
         visitsSummaryData, 
         dailyScheduleData,
         clientsData,
-        allProjectsData
+        clientSourcesData
     ] = await Promise.all([
         getActiveProjects(),
         getUpcomingVisits(),
         getVisitsSummary(),
         getTodaysSchedule(),
         getClients(),
-        getProjects()
+        getClientSourcesSummary()
     ]);
 
     setActiveProjects(activeProjectsData);
@@ -49,7 +48,7 @@ export default function Dashboard() {
     setVisitsSummary(visitsSummaryData);
     setDailySchedule(dailyScheduleData);
     setClients(clientsData);
-    setAllProjects(allProjectsData);
+    setClientSourcesSummary(clientSourcesData);
     setLoading(false);
   }, []);
 
@@ -191,7 +190,7 @@ export default function Dashboard() {
         </div>
 
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Link href="/projects" className="block">
           <Card className="hover:bg-muted/50 transition-colors h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -219,6 +218,33 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
+        </Link>
+         <Link href="/clients" className="block">
+            <Card className="hover:bg-muted/50 transition-colors h-full">
+                <CardHeader>
+                    <CardTitle className="font-headline text-xl flex items-center gap-2">
+                        <Share2 className="w-5 h-5"/>
+                        Origem dos Clientes
+                    </CardTitle>
+                    <CardDescription>De onde seus clientes estão vindo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {Object.keys(clientSourcesSummary).length > 0 ? (
+                        <ul className="space-y-2">
+                            {Object.entries(clientSourcesSummary)
+                                .sort(([, a], [, b]) => b - a)
+                                .map(([source, count]) => (
+                                <li key={source} className="flex justify-between items-center text-sm">
+                                    <span className="capitalize text-muted-foreground">{source}</span>
+                                    <span className="font-bold">{count}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                            <p className="text-muted-foreground text-center py-4">Nenhuma origem de cliente registrada.</p>
+                    )}
+                </CardContent>
+            </Card>
         </Link>
       </div>
 
@@ -250,9 +276,6 @@ export default function Dashboard() {
             </Link>
         </div>
         
-        <ServiceRecommender allClients={clients} allProjects={allProjects}/>
-
-
       <div className="grid gap-8 md:grid-cols-2">
         <div>
           <div className="flex items-center gap-2 mb-4">

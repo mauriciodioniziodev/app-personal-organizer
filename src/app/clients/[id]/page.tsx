@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { getClientById, getProjectsByClientId, getVisitsByClientId } from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo, Edit } from "lucide-react";
+import { Mail, Phone, MapPin, FolderKanban, CalendarPlus, LoaderCircle, Cake, BadgeInfo, Edit, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import PreferenceAnalyzer from "@/components/client-preference-analyzer";
 import type { Client, Project, Visit } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +21,7 @@ import {
 import { VisitForm } from "@/components/visit-form";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 
 export default function ClientDetailPage({ params }: { params: { id: string } }) {
@@ -72,19 +72,6 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         </div>
     );
   }
-  
-  const allClientNotes = `
-    Preferências: ${client.preferences}
-    ${visits.map(v => `
-      Visita em ${new Date(v.date).toLocaleDateString('pt-BR')}:
-      - Resumo: ${v.summary}
-      - Fotos: ${v.photos.map(p => p.description).join(', ')}
-    `).join('')}
-     ${projects.map(p => `
-      Projeto "${p.name}":
-      - Descrição: ${p.description}
-    `).join('')}
-  `;
   
   const visitStatusColors: { [key: string]: string } = {
       pendente: 'text-yellow-800 bg-yellow-100',
@@ -149,10 +136,30 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                             <span>Aniversário: {client.birthday}</span>
                         </div>
                      )}
+                     {client.source && (
+                        <div className="flex items-center gap-3">
+                            <Share2 className="w-5 h-5 text-muted-foreground" />
+                            <span>Origem: {client.source}{client.sourceDetails ? ` (${client.sourceDetails})` : ''}</span>
+                        </div>
+                     )}
                 </CardContent>
             </Card>
 
-            <PreferenceAnalyzer clientName={client.name} clientDetails={allClientNotes} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Preferências e Histórico</CardTitle>
+                <CardDescription>
+                  Notas e observações sobre o cliente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={client.preferences}
+                  className="min-h-[150px] bg-background"
+                  readOnly 
+                />
+              </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
@@ -208,7 +215,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     ) : (
                         <p className="text-muted-foreground text-center py-4">Nenhum projeto para este cliente.</p>
                     )}
-                     <Link href="/projects/new" className="w-full">
+                     <Link href={`/projects/new?clientId=${client.id}`} className="w-full">
                         <Button variant="outline" className="w-full mt-4">
                             Novo Projeto
                         </Button>

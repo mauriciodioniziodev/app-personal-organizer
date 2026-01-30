@@ -3,21 +3,26 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, getPaymentInstrumentsOptions, getProjectStatusOptions } from "@/lib/data";
+import { 
+    getProjectById, updateProject, addPhotoToProject, checkForProjectConflict, 
+    getPaymentInstrumentsOptions, getProjectStatusOptions, getOrganizerPartners, 
+    addProjectOrganizerCost, updateProjectOrganizerCost, deleteProjectOrganizerCost,
+    addOrganizerPartner
+} from "@/lib/data";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, Percent, ArrowLeft } from "lucide-react";
+import { LoaderCircle, Save, Camera, Upload, Image as ImageIcon, X, DollarSign, Check, Percent, ArrowLeft, Trash, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, FormEvent, useRef, useMemo } from "react";
+import { useEffect, useState, FormEvent, useRef } from "react";
 import Link from "next/link";
-import type { Project, Payment, MasterDataItem } from "@/lib/definitions";
+import type { Project, Payment, MasterDataItem, OrganizerPartner, ProjectOrganizerCost } from "@/lib/definitions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -25,6 +30,10 @@ import { cn, formatDate } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
 
 const paymentSchema = z.object({
   id: z.string(),
@@ -57,6 +66,7 @@ const projectSchema = z.object({
     photosBefore: z.array(z.any()).optional(),
     photosAfter: z.array(z.any()).optional(),
     createdAt: z.string().optional(),
+    organizerCosts: z.array(z.any()).optional(),
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
     message: "A data de conclusão não pode ser anterior à data de início.",
     path: ["endDate"],
@@ -240,6 +250,240 @@ function PhotoUploader({ project, photoType, onPhotoAdded }: { project: Project,
           </form>
         </CardContent>
       </Card>
+    );
+}
+
+function AddPartnerModal({ onPartnerAdded }: { onPartnerAdded: (newPartner: OrganizerPartner) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [newPartnerName, setNewPartnerName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    const handleAddPartner = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!newPartnerName.trim()) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'O nome do parceiro não pode estar vazio.' });
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const newPartner = await addOrganizerPartner(newPartnerName);
+            onPartnerAdded(newPartner);
+            toast({ title: 'Sucesso!', description: `Parceiro "${newPartnerName}" adicionado.` });
+            setNewPartnerName('');
+            setIsOpen(false);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Novo</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Adicionar Novo Parceiro</DialogTitle>
+                    <DialogDescription>
+                        Cadastre uma nova empresa parceira para associar a este projeto.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddPartner}>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-partner-name">Nome do Parceiro</Label>
+                            <Input
+                                id="new-partner-name"
+                                value={newPartnerName}
+                                onChange={(e) => setNewPartnerName(e.target.value)}
+                                placeholder="Ex: Loja de Organização & Cia"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? <LoaderCircle className="animate-spin" /> : 'Salvar Parceiro'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+function OrganizerCostsManager({ project, onCostsUpdated }: { project: Project, onCostsUpdated: (project: Project) => void }) {
+    const [partners, setPartners] = useState<OrganizerPartner[]>([]);
+    const [newCost, setNewCost] = useState({ partnerId: '', costAmount: 0, commissionPercentage: 0 });
+    const [loading, setLoading] = useState(true);
+    const [isAdding, setIsAdding] = useState(false);
+    const { toast } = useToast();
+
+    const fetchPartners = async () => {
+        setLoading(true);
+        getOrganizerPartners().then(data => {
+            setPartners(data);
+            setLoading(false);
+        });
+    }
+
+    useEffect(() => {
+        fetchPartners();
+    }, []);
+
+    const handlePartnerAdded = (newPartner: OrganizerPartner) => {
+        setPartners(prev => [...prev, newPartner].sort((a, b) => a.name.localeCompare(b.name)));
+        setNewCost(prev => ({ ...prev, partnerId: newPartner.id }));
+    };
+
+    const handleAddCost = async () => {
+        if (!newCost.partnerId || newCost.costAmount <= 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Selecione um parceiro e insira um valor de custo válido.' });
+            return;
+        }
+        setIsAdding(true);
+        try {
+            await addProjectOrganizerCost({
+                projectId: project.id,
+                partnerId: newCost.partnerId,
+                costAmount: newCost.costAmount,
+                commissionPercentage: newCost.commissionPercentage,
+                commissionStatus: 'em aberto'
+            });
+            const updatedProject = await getProjectById(project.id);
+            if (updatedProject) {
+              onCostsUpdated(updatedProject);
+            }
+            setNewCost({ partnerId: '', costAmount: 0, commissionPercentage: 0 });
+            toast({ title: 'Sucesso', description: 'Custo adicionado.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
+    const handleDeleteCost = async (costId: string) => {
+        try {
+            await deleteProjectOrganizerCost(costId);
+            const updatedProject = await getProjectById(project.id);
+            if (updatedProject) {
+                onCostsUpdated(updatedProject);
+            }
+            toast({ title: 'Sucesso', description: 'Custo removido.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        }
+    };
+
+    const handleStatusChange = async (costId: string, currentStatus: 'em aberto' | 'pago') => {
+        const newStatus = currentStatus === 'pago' ? 'em aberto' : 'pago';
+        try {
+            await updateProjectOrganizerCost(costId, { commissionStatus: newStatus });
+            const updatedProject = await getProjectById(project.id);
+             if (updatedProject) {
+              onCostsUpdated(updatedProject);
+            }
+            toast({ title: 'Sucesso', description: 'Status da comissão atualizado.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: (error as Error).message });
+        }
+    };
+    
+    const getPartnerName = (partnerId: string) => partners.find(p => p.id === partnerId)?.name || 'Parceiro não encontrado';
+
+    const commissionStatusColors: { [key: string]: string } = {
+        'em aberto': 'text-yellow-800 bg-yellow-100',
+        'pago': 'text-green-800 bg-green-100',
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Custos e Comissões de Organizadores</CardTitle>
+                <CardDescription>Gerencie os custos com produtos de parceiros e suas comissões.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {(project.organizerCosts || []).length > 0 && (
+                     <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Parceiro</TableHead>
+                                <TableHead>Custo (R$)</TableHead>
+                                <TableHead>Comissão (%)</TableHead>
+                                <TableHead>Valor Comissão (R$)</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {project.organizerCosts.map(cost => (
+                                <TableRow key={cost.id}>
+                                    <TableCell>{cost.partnerName}</TableCell>
+                                    <TableCell>{cost.costAmount.toFixed(2)}</TableCell>
+                                    <TableCell>{cost.commissionPercentage}</TableCell>
+                                    <TableCell>{cost.commissionValue.toFixed(2)}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={'outline'} className={cn("capitalize", commissionStatusColors[cost.commissionStatus] ?? 'border-border')}>
+                                            {cost.commissionStatus}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right flex items-center justify-end gap-2">
+                                        <Switch
+                                            checked={cost.commissionStatus === 'pago'}
+                                            onCheckedChange={() => handleStatusChange(cost.id, cost.commissionStatus)}
+                                        />
+                                        <div onClick={() => handleDeleteCost(cost.id)} className="cursor-pointer p-2 hover:bg-muted rounded-md">
+										    <Trash className="w-4 h-4 text-destructive"/>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                     </div>
+                )}
+
+                <div className="p-4 border-dashed border-2 rounded-lg space-y-4">
+                    <h4 className="font-semibold">Adicionar Novo Custo</h4>
+                     <div className="grid md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="partnerId">Parceiro</Label>
+                                <AddPartnerModal onPartnerAdded={handlePartnerAdded} />
+                            </div>
+                            <Select value={newCost.partnerId} onValueChange={(v) => setNewCost(prev => ({...prev, partnerId: v}))}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {loading ? <SelectItem value="loading" disabled>Carregando...</SelectItem> :
+                                    partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="costAmount">Custo (R$)</Label>
+                             <Input id="costAmount" type="number" step="0.01" value={newCost.costAmount} onChange={(e) => setNewCost(prev => ({...prev, costAmount: parseFloat(e.target.value) || 0}))} />
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="commissionPercentage">Comissão (%)</Label>
+                             <Input id="commissionPercentage" type="number" step="0.1" value={newCost.commissionPercentage} onChange={(e) => setNewCost(prev => ({...prev, commissionPercentage: parseFloat(e.target.value) || 0}))} />
+                        </div>
+                    </div>
+                    <Button type="button" onClick={handleAddCost} disabled={isAdding}>
+                        {isAdding ? <LoaderCircle className="animate-spin" /> : <Plus />}
+                        Adicionar Custo
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -462,7 +706,7 @@ export default function ProjectEditPage() {
         </Link>
       </PageHeader>
       
-       <form onSubmit={handleProjectSubmit}>
+       <form onSubmit={handleProjectSubmit} className="space-y-8">
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Detalhes do Projeto</CardTitle>
@@ -633,6 +877,8 @@ export default function ProjectEditPage() {
           </CardContent>
       </Card>
       
+        <OrganizerCostsManager project={project} onCostsUpdated={setProject} />
+
         <div className="flex justify-end gap-2 pt-4">
             <Button type="submit" disabled={isSubmitting}>
                  {isSubmitting ? (
@@ -680,4 +926,3 @@ export default function ProjectEditPage() {
     </div>
   );
 }
-
